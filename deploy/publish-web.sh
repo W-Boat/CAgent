@@ -18,6 +18,8 @@ tar -xzf "$archive" -C "$stage"
 # mktemp starts at 0700; rsync -a also copies the source directory mode.
 # The public nginx worker must be able to traverse the published root.
 chmod 0755 "$stage"
+find "$stage" -type d -exec chmod 0755 {} +
+find "$stage" -type f -exec chmod 0644 {} +
 test -s "$stage/index.html"
 test -d "$stage/assets"
 mkdir -p /opt/cagent-backups
@@ -34,6 +36,9 @@ rsync -a --delay-updates "$stage/assets/" "$dist/assets/"
 rsync -a --delay-updates --exclude='/assets/' "$stage/" "$dist/"
 [[ "$(stat -c %i "$dist")" == "$inode" ]]
 cmp -s "$stage/index.html" "$dist/index.html"
+while IFS= read -r entry; do
+  curl -fsS "http://127.0.0.1:8080$entry" -o /dev/null
+done < <(grep -oE '/assets/[^" ]+\.(js|css)' "$stage/index.html" | sort -u)
 curl -fsS http://127.0.0.1:8080/test -o "$stage/served.html"
 cmp -s "$stage/index.html" "$stage/served.html"
 trap - ERR
