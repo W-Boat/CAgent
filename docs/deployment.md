@@ -56,14 +56,20 @@ Web 默认监听主机 8080 端口；用自己的 HTTPS 反向代理转发该端
 
 ## 知识资料
 
-原始资料不随源码发布。可通过后台维护资料库，或导入提供的示例索引：
+仓库包含当前校园应用的可公开知识与配置初始化包，包括内嵌库分类/启停、已发布外挂条目、快捷按钮、共享 Agent 与技能绑定、模型参数、检索/缓存/主题设置。首次部署完成迁移和管理员 seed 后导入：
 
 ```sh
-docker cp knowledge/dist/campus-kb.json cagent-api:/tmp/campus-kb.json
-docker compose exec api node scripts/import-campus-guide.mjs /tmp/campus-kb.json
+docker cp deploy/profiles/ucass cagent-api:/tmp/ucass-profile
+# 不带 --apply 只校验；检查全部文件 SHA-256 与数据关联
+docker compose exec api node scripts/import-campus-profile.mjs /tmp/ucass-profile
+docker compose exec api node scripts/import-campus-profile.mjs /tmp/ucass-profile --apply
 ```
 
-2.0 资料按 `scripts/import-campus-v2.mjs` 的参数说明单独导入。升级时不要无条件重导，避免覆盖已有配置。外部 PostgreSQL/MySQL 使用所需表的专用只读账号。公众号采集为可选项，需要自己的采集器地址、访问凭据和订阅列表，先测试文章读取，再开启自动同步。
+默认仅接受没有知识资料/聊天记录的数据库，重复执行不会覆盖管理端修改。已有站点先备份，追加需显式 `--allow-existing`；同标识资料保留，不清空原库。包中站内链接随自己的 `SITE_ORIGIN` 转换。原始资料文件不上传，2.0 模拟数据保持当前关闭状态；使用包中已处理的索引即可浏览并检索。
+
+随后配置自己的模型供应商密钥和有效接口/模型，模型能力参数已提供。自有密钥和已配置接口不会被导入覆盖；自定义供应商接口可通过 `PROFILE_PROVIDER_<供应商KEY大写>_BASE_URL` 指定。外部 PostgreSQL/MySQL 使用专用只读账号；公众号需要自有采集器地址、凭据及重新订阅，导入保留账号名称，不复制登录或采集器内部订阅ID。连接补齐前保持不挂载。详情见 [初始化包](../deploy/profiles/ucass/README.md)。
+
+升级时不要重新 seed 或强行重导；按后台修改资料与配置。初始化包不包含账号、聊天、长期个人记忆、反馈证据或运行缓存。
 
 ## 测试和全站控制
 

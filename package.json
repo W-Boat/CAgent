@@ -29,7 +29,10 @@
     "knowledge:evaluate:database": "pnpm --filter @cagent/api exec ts-node --transpile-only scripts/evaluate-knowledge.ts --database",
     "agent:verify": "pnpm --filter @cagent/api exec ts-node --transpile-only scripts/verify-agent-runtime.ts",
     "agent:verify:providers": "pnpm --filter @cagent/api exec ts-node --transpile-only scripts/verify-agent-providers.ts",
-    "agent:verify:ui": "pnpm --filter @cagent/api exec node scripts/verify-agent-ui.mjs"
+    "agent:verify:ui": "pnpm --filter @cagent/api exec node scripts/verify-agent-ui.mjs",
+    "campus:check": "node apps/api/scripts/import-campus-profile.mjs",
+    "campus:init": "node apps/api/scripts/import-campus-profile.mjs --apply",
+    "campus:verify": "node apps/api/scripts/verify-campus-profile.mjs"
   },
   "devDependencies": {
     "typescript": "^5.6.3"

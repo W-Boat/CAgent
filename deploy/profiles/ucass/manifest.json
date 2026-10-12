@@ -1,0 +1,210 @@
+{
+  "schemaVersion": 1,
+  "name": "ucass-campus-2026-10-12",
+  "exportedAt": "2026-10-12T10:37:23.960Z",
+  "counts": {
+    "settings": 55,
+    "providers": 9,
+    "models": 17,
+    "agents": 4,
+    "skills": 7,
+    "bases": 39,
+    "entries": 39,
+    "items": 28985
+  },
+  "files": [
+    {
+      "path": "configuration.json",
+      "kind": "configuration",
+      "bytes": 76167,
+      "sha256": "2dd68b46c59a63eb6ba868e5fa1b9e4563149a8f6114e23457ebfd10e95c8ea6"
+    },
+    {
+      "path": "items-001.json",
+      "kind": "items",
+      "bytes": 749315,
+      "sha256": "de8793130fb8eb131e337a118f355250fb2e8f18beada8ef300e8212886ab261"
+    },
+    {
+      "path": "items-002.json",
+      "kind": "items",
+      "bytes": 672200,
+      "sha256": "2feaf4572b13bad85f66a369dcbcae86399647bf632bd3717776f057923cfd2d"
+    },
+    {
+      "path": "items-003.json",
+      "kind": "items",
+      "bytes": 679938,
+      "sha256": "5d5e9217eb69e0df3fd6c617d54861774691a39dba92c87dea5cda5d3237a961"
+    },
+    {
+      "path": "items-004.json",
+      "kind": "items",
+      "bytes": 679656,
+      "sha256": "8cb656df42bb7c38f04f13990d6ea5c6c102ca5f784933a2f8f106891c1605e3"
+    },
+    {
+      "path": "items-005.json",
+      "kind": "items",
+      "bytes": 793846,
+      "sha256": "4f1cb9f1787cddff547c091ef3d3371dd06d17166501f906e8fd5e514b90efd1"
+    },
+    {
+      "path": "items-006.json",
+      "kind": "items",
+      "bytes": 1362243,
+      "sha256": "4aab8657762cd04ecf9be4654d3001dc7b9c6413a5b773214f1d37814ebdbaf6"
+    },
+    {
+      "path": "items-007.json",
+      "kind": "items",
+      "bytes": 1431455,
+      "sha256": "1493427f51ccb4ae643837fc8c1076f753fb42593122a2aea24b62683758c9a6"
+    },
+    {
+      "path": "items-008.json",
+      "kind": "items",
+      "bytes": 1312782,
+      "sha256": "f0c91e3074795d1ce3830bf8239139b2146f6803a69bb0ead887185440372d29"
+    },
+    {
+      "path": "items-009.json",
+      "kind": "items",
+      "bytes": 1412555,
+      "sha256": "821ad58b22eecd5fe364c0bc775a221cc70a143470de177a65b91c8aee63260e"
+    },
+    {
+      "path": "items-010.json",
+      "kind": "items",
+      "bytes": 1309701,
+      "sha256": "06680f1d02342bf5076bcf4f34962f09a849c5025a3a330122d61c7fd0080036"
+    },
+    {
+      "path": "items-011.json",
+      "kind": "items",
+      "bytes": 1806838,
+      "sha256": "e553fdb8c16cfc5a4b85dd00fc0041adc887e4b41c12f4507a8eb7c61b789a43"
+    },
+    {
+      "path": "items-012.json",
+      "kind": "items",
+      "bytes": 1781594,
+      "sha256": "a598e521b5f177a65864003309c7d8c8f380f02143261be46f366f16630485ab"
+    },
+    {
+      "path": "items-013.json",
+      "kind": "items",
+      "bytes": 1815237,
+      "sha256": "65b9b6fb54d734a8eb4dc4aaffddf130ca6bd774fa57480a5ff722a059ff2152"
+    },
+    {
+      "path": "items-014.json",
+      "kind": "items",
+      "bytes": 1706699,
+      "sha256": "f28cc293f66c318bf23efb0c4d610d0f19471d2392ceecbfa0dfcfc263edcc85"
+    },
+    {
+      "path": "items-015.json",
+      "kind": "items",
+      "bytes": 1749084,
+      "sha256": "bcbdc54f0db07e1a4bac4b7bd6de11813502a515fb856391810c2df75cd47297"
+    },
+    {
+      "path": "items-016.json",
+      "kind": "items",
+      "bytes": 1775697,
+      "sha256": "4b3a08fe9ce081b6bd7a16091645ca4dbedde598d0fda6a4b9694b3a90cc3d3b"
+    },
+    {
+      "path": "items-017.json",
+      "kind": "items",
+      "bytes": 1825792,
+      "sha256": "41bc446633df6441a0e2b5c97396f116db42509bb5df53c71e2296795e8321ed"
+    },
+    {
+      "path": "items-018.json",
+      "kind": "items",
+      "bytes": 1743779,
+      "sha256": "6c818ea70d331729f6f6511138ee6f799e21bf9da77bdcc3c9b875b5165ed4be"
+    },
+    {
+      "path": "items-019.json",
+      "kind": "items",
+      "bytes": 1760277,
+      "sha256": "14f3eafbaa6eef3b184b38428566caaeecd81a8e1f6772dc2c450a3ebc9e78f3"
+    },
+    {
+      "path": "items-020.json",
+      "kind": "items",
+      "bytes": 1718216,
+      "sha256": "2de03d85c38228c839ddad6542e0c815c1b947cc75358ab930055606e95dc6b5"
+    },
+    {
+      "path": "items-021.json",
+      "kind": "items",
+      "bytes": 2829537,
+      "sha256": "bb01b0c4b4c6a749948f38b8aaacf25f9e407ba162373ccdd7056c40807cc7e2"
+    },
+    {
+      "path": "items-022.json",
+      "kind": "items",
+      "bytes": 3203258,
+      "sha256": "bf7450ba94c31fd7f8b5220104fd14e54e19ea641199cc359b1b10e539127d58"
+    },
+    {
+      "path": "items-023.json",
+      "kind": "items",
+      "bytes": 3191041,
+      "sha256": "022627e1a763d811e99619fdb1da73dabc6826fc6bfd74bd677cc2d6d4a46f6c"
+    },
+    {
+      "path": "items-024.json",
+      "kind": "items",
+      "bytes": 3186388,
+      "sha256": "35bd50edc6082dc3054347206100572621e80e36ccf8448e26382299d15791ec"
+    },
+    {
+      "path": "items-025.json",
+      "kind": "items",
+      "bytes": 2049251,
+      "sha256": "24c381f17843f060d1f7c944b480104909a0e37225506aa90728a1e597978733"
+    },
+    {
+      "path": "items-026.json",
+      "kind": "items",
+      "bytes": 1849440,
+      "sha256": "a3a02d87b853304fd01630a524e96809a876dee2699c668b81d70cc5f94563e4"
+    },
+    {
+      "path": "items-027.json",
+      "kind": "items",
+      "bytes": 1856344,
+      "sha256": "316efeb2fb3e14733539a85296ada75df875f6c53dc1e4a89661e9e0e63987a4"
+    },
+    {
+      "path": "items-028.json",
+      "kind": "items",
+      "bytes": 1846697,
+      "sha256": "25f160112e34b7f080fee8ce17f686e40b35d223c4d17a8ff590d397e9a2493d"
+    },
+    {
+      "path": "items-029.json",
+      "kind": "items",
+      "bytes": 1813402,
+      "sha256": "e829166e25be685c6292d1d123e10e00921cbf3379efc9964cb51bc86edda561"
+    }
+  ],
+  "excluded": [
+    "credentials",
+    "production origin",
+    "accounts",
+    "conversations",
+    "personal memories",
+    "feedback evidence",
+    "runtime usage",
+    "collector sessions",
+    "unapproved entries"
+  ],
+  "siteOriginPlaceholder": "{{SITE_ORIGIN}}",
+  "externalConnections": "Configure your own database/collector credentials and resubscribe accounts; imported connections stay unmounted"
+}
