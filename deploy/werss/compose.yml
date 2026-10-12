@@ -1,0 +1,50 @@
+# Run from this directory after building the shared adapter base as documented.
+services:
+  werss-native:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cagent-werss-native:local
+    container_name: cagent-werss-native
+    restart: unless-stopped
+    environment:
+      CAgent_USER: ${WECHAT_COLLECTOR_USER:-cagent}
+      CAgent_PASSWORD: ${WECHAT_COLLECTOR_PASSWORD:?Set a strong private collector password}
+      SECRET_KEY: ${WERSS_SECRET_KEY:?Set a random native signing secret}
+    volumes:
+      - native-data:/app/data
+    networks: [cagent]
+    mem_limit: 384m
+    cpus: 0.5
+    pids_limit: 96
+    logging:
+      driver: json-file
+      options: {max-size: 2m, max-file: '2'}
+  werss-adapter:
+    build:
+      context: .
+      dockerfile: Dockerfile.adapter
+    image: cagent-werss-adapter:local
+    container_name: cagent-wechat
+    restart: unless-stopped
+    environment:
+      CAgent_USER: ${WECHAT_COLLECTOR_USER:-cagent}
+      CAgent_PASSWORD: ${WECHAT_COLLECTOR_PASSWORD:?Set a strong private collector password}
+      WERSS_NATIVE_URL: http://cagent-werss-native:8001
+    volumes:
+      - adapter-data:/app/data
+    depends_on: [werss-native]
+    networks: [cagent]
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 64
+    logging:
+      driver: json-file
+      options: {max-size: 2m, max-file: '2'}
+networks:
+  cagent:
+    external: true
+    name: ${CAGENT_NETWORK:-cagent_default}
+volumes:
+  native-data:
+  adapter-data:

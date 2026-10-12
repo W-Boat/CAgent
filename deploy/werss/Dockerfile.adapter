@@ -1,0 +1,5 @@
+ARG ADAPTER_BASE=cagent-wechrss:base
+FROM ${ADAPTER_BASE}
+WORKDIR /app
+COPY adapter.py verify-adapter.py ./
+CMD ["python", "adapter.py"]

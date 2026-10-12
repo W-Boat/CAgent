@@ -1,0 +1,2 @@
+# Preserve upstream's whitespace verbatim; CAgent files retain normal checks.
+**/*.py whitespace=-blank-at-eol
