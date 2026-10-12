@@ -1,0 +1,25 @@
+import assert from 'node:assert/strict'
+import {readFileSync,writeFileSync,mkdirSync} from 'node:fs'
+import {chromium} from 'playwright'
+for(const line of readFileSync(new URL('../../../.env',import.meta.url),'utf8').split(/\r?\n/)){const m=line.match(/^([A-Z0-9_]+)\s*=\s*"?([^"]*)"?\s*$/);if(m&&!process.env[m[1]])process.env[m[1]]=m[2]}
+const web=process.env.EMBEDDED_WEB||'http://127.0.0.1:4173',api='https://campus.example.org/api'
+const login=await fetch(api+'/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:process.env.INTEGRATE_EMAIL||process.env.SEED_ADMIN_EMAIL,password:process.env.INTEGRATE_PASSWORD||process.env.SEED_ADMIN_PASSWORD})}).then(r=>r.json());assert.equal(login.code,0)
+const browser=await chromium.launch({headless:true}),ctx=await browser.newContext({viewport:{width:1280,height:1000}}),out=new URL('../../../storage/shots/wechat/',import.meta.url);mkdirSync(out,{recursive:true})
+await ctx.addInitScript(a=>{localStorage.setItem('cagent.accessToken',a.accessToken);localStorage.setItem('cagent.refreshToken',a.refreshToken)},login.data)
+let status='NONE',starts=0,tests=0;const errors=[],id='MP_WXS_1',base={id:'collection-fixture',name:'中国社会科学院大学 · 公众号知识库',kind:'WECHAT',mounted:false,connection:{mode:'API',managed:true,baseUrl:'http://cagent-wechat:8001',apiPath:'/api/v1/wx',accountIds:[id],accountNames:{[id]:'中国社会科学院大学'},maxArticles:30},syncStatus:'SUCCESS',lastSyncSummary:{articles:0},_count:{entries:0}}
+const job=()=>({id,status,message:status==='RATE_LIMITED'?'微信返回限流码 200013，已暂停重复请求':'采集状态测试',collected:status==='SUCCEEDED'?3:0,...(status==='RATE_LIMITED'?{retryAfter:Math.floor(Date.now()/1000)+3600}:{})})
+await ctx.route('**/api/**',async route=>{const req=route.request(),u=new URL(req.url()),ok=data=>route.fulfill({json:{code:0,data}})
+ if(u.pathname==='/api/knowledge/bases')return ok([base])
+ if(u.pathname==='/api/knowledge/entries')return ok({items:[],total:0})
+ if(u.pathname==='/api/knowledge/wechat/collector/status')return ok({available:true,loggedIn:true,qrReady:false})
+ if(u.pathname==='/api/knowledge/wechat/collector/collection/'+id)return ok(job())
+ if(u.pathname==='/api/knowledge/wechat/collect'){starts++;assert.deepEqual(req.postDataJSON().connection.accountIds,[id]);status='QUEUED';return ok({accounts:[job()],tip:'排队'})}
+ if(u.pathname==='/api/knowledge/wechat/test'){tests++;return ok({connected:true,mode:'API',totalAccounts:1,testedAccounts:1,ready:1,elapsedMs:100,accounts:[{id,name:'中国社会科学院大学',status:'READY',message:'正文可读取',sample:{title:'测试通知',url:'https://mp.weixin.qq.com/s/fixture',excerpt:'完整正文测试样例'}}]})}
+ if(web.startsWith('https:'))return route.continue();return route.fulfill({response:await route.fetch({url:api+u.pathname.slice(4)+u.search})})
+})
+try{const page=await ctx.newPage();page.on('pageerror',e=>errors.push(e.message));await page.goto(web+'/admin/knowledge');const card=page.locator('.base-card').filter({hasText:base.name});await card.getByText('同步：尚无可同步文章',{exact:false}).waitFor();await card.getByRole('button',{name:'配置',exact:true}).click();const dialog=page.getByRole('dialog').filter({hasText:'知识库配置'}),start=dialog.getByRole('button',{name:'采集最新文章',exact:true});await dialog.getByText('尚未采集',{exact:true}).waitFor();await start.click();await dialog.getByText('等待采集',{exact:true}).waitFor();assert(await start.isDisabled());assert.equal(starts,1)
+ status='SUCCEEDED';await dialog.getByRole('button',{name:'刷新采集进度'}).click();await dialog.getByText('采集完成',{exact:true}).waitFor();assert(!(await start.isDisabled()));await dialog.getByRole('button',{name:'测试正文',exact:true}).click();await dialog.getByText('测试通知',{exact:true}).waitFor();assert.equal(tests,1)
+ status='RATE_LIMITED';await dialog.getByRole('button',{name:'刷新采集进度'}).click();await dialog.getByText('微信限流',{exact:true}).waitFor();assert(await start.isDisabled());await dialog.getByText(/本地重试窗口/).waitFor();assert.equal(starts,1);await page.waitForTimeout(350)
+ await page.screenshot({path:new URL((web.startsWith('https:')?'production':'local')+'-collection-light.png',out).pathname.replace(/^\/(\w:)/,'$1')});await page.evaluate(()=>document.documentElement.classList.add('dark'));await page.setViewportSize({width:390,height:844});await page.waitForTimeout(350);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2));await page.screenshot({path:new URL((web.startsWith('https:')?'production':'local')+'-collection-mobile-dark.png',out).pathname.replace(/^\/(\w:)/,'$1')});assert.equal(errors.length,0,errors.join('\n'))
+ writeFileSync(new URL((web.startsWith('https:')?'production':'local')+'-collection-ui.json',out),JSON.stringify({passed:true,checkedAt:new Date().toISOString(),checks:['空数据不显示同步成功','独立启动采集与进度刷新','排队期间禁止重复启动','完成后允许测试正文','限流提示及冷却禁用','手机暗色布局'],scope:'Authenticated real page with isolated collection/source fixtures; no production writes or WeChat fetches'},null,2));console.log('PASS 采集进度、空同步提示、限流禁止重复请求、手机暗色布局')
+}finally{await ctx.unrouteAll({behavior:'ignoreErrors'});await browser.close()}

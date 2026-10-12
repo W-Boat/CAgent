@@ -1,0 +1,23 @@
+{
+  "source": "https://github.com/adobe-fonts/source-han-serif",
+  "version": "2.003R",
+  "original": "SourceHanSerifCN-SemiBold.otf",
+  "originalSha256": "50d3f12201ce2dd840650b6bfa47ebb8572ecf767eec0e5ccb20a247b5bfa805",
+  "modifiedFamily": "CAgent Auth Serif",
+  "license": "SIL OFL 1.1; renamed derivative subsets",
+  "loading": "Core auth titles and ASCII subset; complementary glyph subset only requested for characters absent from core. Font display swap, auth route CSS only.",
+  "files": [
+    {
+      "file": "auth-serif-core-102e6b0dbf44.woff2",
+      "bytes": 29480,
+      "glyphCodepoints": 149,
+      "sha256": "102e6b0dbf44c1644f6e40b6f59b01538d7158b46ecaa2f3b95f851873d8c902"
+    },
+    {
+      "file": "auth-serif-extra-c16fce6271dc.woff2",
+      "bytes": 8619052,
+      "glyphCodepoints": 30781,
+      "sha256": "c16fce6271dcc5bfb6bc4ef12f7c0e4119754eecae32c58ab7a58ff7357e3474"
+    }
+  ]
+}

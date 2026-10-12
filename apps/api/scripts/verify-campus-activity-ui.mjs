@@ -1,0 +1,73 @@
+import assert from 'node:assert/strict'
+import {readFileSync,mkdirSync,writeFileSync} from 'node:fs'
+import {createRequire} from 'node:module'
+import {fileURLToPath} from 'node:url'
+const require=createRequire(import.meta.url),{chromium}=require('playwright')
+const origin=process.env.CAMPUS_WEB||'http://127.0.0.1:4173',api=process.env.CAMPUS_API||'http://127.0.0.1:3002',production=origin.startsWith('https://'),shots=new URL('../../../storage/shots/campus/',import.meta.url)
+mkdirSync(shots,{recursive:true})
+for(const line of readFileSync(new URL('../../../.env',import.meta.url),'utf8').split(/\r?\n/)){const m=line.match(/^([A-Z0-9_]+)\s*=\s*"?([^"]*)"?\s*$/);if(m&&!process.env[m[1]])process.env[m[1]]=m[2]}
+const response=await fetch(api+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:process.env.INTEGRATE_EMAIL||process.env.SEED_ADMIN_EMAIL,password:process.env.INTEGRATE_PASSWORD||process.env.SEED_ADMIN_PASSWORD})}),login=await response.json()
+assert.equal(login.code,0,'验证管理员登录失败')
+const auth=login.data,headers={Authorization:'Bearer '+auth.accessToken}
+async function get(path){const r=await fetch(api+'/api'+path,{headers}),j=await r.json();assert.equal(j.code,0,path);return j.data}
+const before=await get('/campus/activity/stats?days=7'),skills=await get('/skills/available')
+assert(!skills.some(s=>/^ucass-kb-(survival|takeout)$/.test(s.key)))
+const browser=await chromium.launch({headless:true}),context=await browser.newContext({viewport:{width:1440,height:1000}}),page=await context.newPage(),errors=[],checks=[],events=[],pending=[]
+const pass=s=>{checks.push(s);console.log('PASS '+s)},shot=name=>page.screenshot({path:fileURLToPath(new URL((production?'production-':'local-')+name,shots)),fullPage:true})
+await context.addInitScript(a=>{localStorage.setItem('cagent.accessToken',a.accessToken);localStorage.setItem('cagent.refreshToken',a.refreshToken);localStorage.setItem('cagent-theme','dark');sessionStorage.setItem('cagent-campusnet-answered','1');sessionStorage.setItem('cagent-campusnet-campus','0');if(a.user?.id)localStorage.setItem('cagent-onboarded-'+a.user.id,'1')},auth)
+if(!production)await context.route('**/api/**',async route=>{try{const url=new URL(route.request().url());await route.fulfill({response:await route.fetch({url:api+url.pathname+url.search})})}catch{await route.abort().catch(()=>undefined)}})
+page.on('pageerror',e=>errors.push(e.message))
+page.on('response',r=>{if(r.url().endsWith('/api/campus/activity'))pending.push(r.json().then(j=>{assert.equal(j.code,0,String(j.message||'上报失败'));events.push(r.request().postDataJSON())}).catch(e=>errors.push('活动上报响应读取失败: '+e.message)))})
+context.on('page',p=>{if(p!==page)void p.close()})
+try{
+ await page.goto(origin+'/campus',{waitUntil:'networkidle'})
+ await page.locator('.hit').first().waitFor()
+ assert(await page.locator('.side .el-pagination').count())
+ await page.locator('.quick-tags .el-select').first().click();await Promise.all([page.waitForResponse(r=>r.url().includes('/campus/library')&&r.url().includes('format=map')),page.getByRole('option',{name:'校园地图',exact:true}).click()])
+ await page.locator('.hit').first().click()
+ await page.locator('.knowledge-reader .campus-map-card').waitFor()
+ assert.equal(await page.locator('.knowledge-reader .map-place.is-selected').count(),1)
+ await shot('library-map-dark.png')
+ await Promise.all([page.waitForResponse(r=>r.url().endsWith('/api/campus/activity')&&r.request().postDataJSON()?.eventType==='LINK_CLICK'),page.locator('.knowledge-reader .map-open').click()])
+ await Promise.all(pending)
+ assert(events.some(e=>e.eventType==='CONTENT_VIEW'))
+ assert(events.some(e=>e.eventType==='LINK_CLICK'&&e.collection==='maps'))
+ pass('知识库目录分页、按内容形式筛选、完整地图正文及真实阅读/跳转事件')
+ await page.locator('.quick-tags .el-select').first().click();await page.getByRole('option',{name:'文章 / 知识块',exact:true}).click()
+ await page.locator('.quick-tags .el-select').nth(1).click();await Promise.all([page.waitForResponse(r=>r.url().includes('/campus/library')&&r.url().includes('collection=survival')),page.getByRole('option',{name:/生活经验/}).click()])
+ await page.locator('.hit').first().click();await page.locator('.knowledge-reader h2').waitFor()
+ assert((await page.locator('.knowledge-reader').innerText()).length>150)
+ await shot('library-survival.png')
+ pass('辛瓜生活经验作为知识库分类阅读完整正文，不作为技能启用')
+ await page.goto(origin+'/admin/campus-runs',{waitUntil:'networkidle'})
+ await page.locator('.campus-activities .el-table').waitFor()
+ assert((await page.locator('.campus-activities').innerText()).includes('链接跳转'))
+ await page.getByRole('button',{name:'查看',exact:true}).first().click();await page.getByRole('dialog',{name:'知识使用详情'}).waitFor()
+ await shot('activity-records.png');await page.keyboard.press('Escape')
+ pass('管理端查看跨界面的知识使用、资料阅读及跳转记录和详情')
+ await page.goto(origin+'/admin/campus-stats',{waitUntil:'networkidle'})
+ await page.locator('.usage-stats').waitFor()
+ assert((await page.locator('.usage-stats').innerText()).includes('链接卡片跳转'))
+ assert((await page.locator('.usage-stats').innerText()).includes('知识库调用'))
+ await shot('activity-statistics.png')
+ const after=await get('/campus/activity/stats?days=7')
+ assert(after.contentViews>=before.contentViews+2);assert(after.linkClicks>=before.linkClicks+1);assert(after.mapViews>=before.mapViews+1)
+ pass('前端真实动作增加后台数据库统计，按来源/分类/趋势及点击排行展示')
+ for(const route of ['/student','/chat']){
+  await page.goto(origin+route,{waitUntil:'networkidle'});const shortcuts=page.locator('.knowledge-shortcuts');await shortcuts.waitFor()
+  await shortcuts.getByRole('button',{name:'外卖红黑榜',exact:true}).click()
+  assert((await page.getByRole('textbox',{name:'输入消息'}).inputValue()).includes('外卖红黑榜'))
+  assert.equal(await page.locator('.st-skills').getByText('外卖红黑榜',{exact:true}).count(),0)
+ }
+ pass('学生与管理聊天的辛瓜/外卖入口标为知识库，只填写查询，不启用旧技能')
+ await page.setViewportSize({width:390,height:844});await page.goto(origin+'/campus',{waitUntil:'networkidle'})
+ assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+ await shot('library-mobile.png')
+ pass('手机导览目录无横向溢出，夜间正文与知识卡片可用')
+ assert.deepEqual(errors,[])
+}finally{
+ if(!production)await context.unrouteAll({behavior:'wait'})
+ await Promise.allSettled(pending)
+ writeFileSync(new URL((production?'production-':'local-')+'activity-ui.json',shots),JSON.stringify({origin,api,checkedAt:new Date().toISOString(),checks,errors,events,transport:'Actual authenticated API, database and browser; local proxy relay only'},null,2))
+ await browser.close()
+}

@@ -1,0 +1,900 @@
+/* =========================================================
+ * 设计令牌：明 / 暗 两套主题共用一组变量名
+ * 组件样式一律引用 var(--cg-*)，不要写死颜色
+ * ========================================================= */
+:root {
+  --cg-brand: #2563eb;
+  --cg-brand-strong: #1d4ed8;
+  --cg-brand-soft: #eff4ff;
+  --cg-brand-soft-hover: #e0ebff;
+  --cg-radius: 10px;
+  --cg-radius-lg: 14px;
+
+  --cg-page-bg: #f4f6fb;
+  --cg-card-bg: #ffffff;
+  --cg-card-bg-soft: #fafbfe;
+  --cg-border: #e5e8f0;
+  --cg-border-strong: #d5dbe8;
+  --cg-text: #1f2937;
+  --cg-text-secondary: #4b5563;
+  --cg-text-muted: #6b7280;
+
+  /*
+   * 侧边栏配色（日间：浅色）。
+   *
+   * 日间用浅色侧边栏、夜间用深色，是常见的 SaaS 布局习惯：
+   * 白天浅色不压视线，夜间深色不刺眼。
+   *
+   * 注意这组令牌必须**成组**替换（底色 / 悬停 / 激活 / 文字 / 弱化文字 /
+   * 分隔线 / 分组标题），只改底色会导致浅底配浅字不可读。
+   * 组件样式一律引用这些变量，不要写死颜色。
+   */
+  --cg-sidebar-bg: #ffffff;
+  --cg-sidebar-border: #e5e8f0;
+  --cg-sidebar-text: #4b5563;
+  --cg-sidebar-text-strong: #1f2937;
+  /*
+   * 弱化文字（副标题 / 分组小标题 / 底部按钮）。
+   *
+   * 这个值必须比深色主题下的 #64748b 更深：#64748b 在深底上是 3.83:1，
+   * 但放到纯白底只有 2.51:1，低于辅助文字 3:1 的可读底线。
+   * 选 #6b7280（与全局 --cg-text-muted 一致）：白底上 4.83:1，清晰又不抢眼。
+   */
+  --cg-sidebar-text-muted: #6b7280;
+  --cg-sidebar-hover-bg: #f1f4fa;
+  --cg-sidebar-active: #eff4ff;
+  --cg-sidebar-active-text: #1d4ed8;
+  --cg-sidebar-divider: #eef1f7;
+  --cg-sidebar-foot-bg: #fafbfe;
+  --cg-sidebar-brand: #2563eb;
+
+  --cg-hover-bg: #f1f4fa;
+  --cg-active-bg: #eef2fa;
+  --cg-shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06);
+  --cg-shadow-md: 0 4px 14px rgba(15, 23, 42, 0.08);
+  --cg-shadow-lg: 0 10px 34px rgba(15, 23, 42, 0.16);
+
+  --cg-code-bg: #0f172a;
+  --cg-code-bar-bg: #1b2437;
+  --cg-inline-code-bg: #f1f3f9;
+
+  /*
+   * 语义状态色（成功/警告/危险/信息）。
+   *
+   * 每个状态给三个值：底色 soft、边框 border、文字 text。
+   * 组件不要直接写 #fffbeb / #b45309 这类固定色——暗色主题下
+   * 浅底深字会变成一块刺眼的白斑，必须成组替换。
+   */
+  --cg-success-soft: #f0fdf4;
+  --cg-success-border: #bbf7d0;
+  --cg-success-text: #15803d;
+  --cg-warning-soft: #fffbeb;
+  --cg-warning-border: #fde68a;
+  --cg-warning-text: #b45309;
+  --cg-danger-soft: #fef2f2;
+  --cg-danger-border: #fecaca;
+  --cg-danger-text: #b91c1c;
+  --cg-info-soft: #eff6ff;
+  --cg-info-border: #bfdbfe;
+  --cg-info-text: #1d4ed8;
+}
+
+/*
+ * ══ Element Plus 变量覆盖 ══
+ *
+ * ⚠️ 这一组**必须**写在 `html:root` 而不是 `:root`。
+ *
+ * 踩过的坑（实测确认，非推测）：
+ *   Element Plus 的变量由 unplugin-vue-components 在**组件 import 处**
+ *   按需注入（base.css / el-loading.css …），注入时机晚于 main.ts 里
+ *   我们这句 `import "./styles/index.css"`。
+ *   同为 `:root`（特异性 0,1,0）时后进文档者胜出 —— 于是我们写的
+ *   `--el-mask-color`、`--el-loading-spinner-size`、`--el-color-primary`
+ *   等**全部静默失效**，实测遮罩仍是不透明白、spinner 仍是 42px、
+ *   主色仍是 EP 默认的 #409eff。
+ *
+ * `html:root` 是 (0,1,1)，比 EP 的 `:root` 高一级，无论注入顺序如何
+ * 都能稳定胜出。之所以不逐个改写成组件级选择器（那是无穷的），
+ * 是因为这些是**设计令牌**，本就该在根上统一覆盖。
+ *
+ * 改这里时注意：值必须与下方 `html.dark` 里的暗色组一一对应。
+ */
+html:root {
+  --el-color-primary: #2563eb;
+  --el-border-radius-base: 8px;
+  --el-font-size-base: 14px;
+
+  /*
+   * 缩短遮罩淡出时长。
+   *
+   * Element Plus 默认 `--el-transition-duration: 0.3s`，而 `el-loading-mask`
+   * 用它做 opacity 过渡。数据到齐后遮罩还要再淡出 300ms —— 实测一次页面
+   * 切换里，接口 227ms 就返回了，遮罩却挂到 552ms 才消失，用户白等 326ms。
+   *
+   * 淡入保持稍长（避免闪烁感），淡出压到 0.12s（数据好了就立刻让位）。
+   * 0.12s 仍看得出是渐变而非硬切，同时把无效等待砍掉约 180ms。
+   */
+  --el-transition-duration: 0.2s;
+  --el-transition-duration-fast: 0.12s;
+
+  /*
+   * 遮罩配色与尺寸。
+   *
+   * Element Plus 默认 `--el-mask-color: #ffffffe6`（90% 白），等于把内容
+   * 整块抹平 —— 切页时看起来就是「白屏了一下」。这里压到 62% 并配合
+   * 轻微模糊：既明确表示「正在加载」，又保留内容轮廓，不再是白屏。
+   * 默认 spinner 42px 相对 14px 正文字号也偏大，收到 26px。
+   */
+  --el-mask-color: rgba(244, 246, 251, 0.62);
+  --el-mask-color-extra-light: rgba(244, 246, 251, 0.32);
+  --el-loading-spinner-size: 26px;
+  --el-loading-fullscreen-spinner-size: 30px;
+}
+
+/*
+ * ══ 加载遮罩：延迟淡入 + 轻量化 ══
+ *
+ * 光把过渡调快还不够，真正的问题是**该不该出现**：
+ * 大多数请求在 200~400ms 内返回，遮罩却立刻盖上来又很快撤掉，
+ * 用户看到的就是「闪一下白」，比不显示更烦躁。
+ *
+ * 1) 延迟淡入 —— 等价于「超过阈值才显示」
+ *    el-loading 用 <Transition name="el-loading-fade">，给 enter-active
+ *    加 transition-delay：元素在这段时间里停在 enter-from 的 opacity:0，
+ *    肉眼完全不可见。请求若在此之前返回，遮罩从头到尾没露过面。
+ *
+ * 2) 淡出不加延迟 —— 数据到了就立刻让位，这才是用户在等的东西。
+ *
+ * 选择器写成 `.el-loading-mask.el-loading-fade-enter-active`（两个类）
+ * 而不是单个过渡类：组件按需引入后 CSS 注入顺序不确定，
+ * 同优先级下会被 base 的 `.el-loading-mask` 盖掉，加一个类稳赢。
+ */
+.el-loading-mask.el-loading-fade-enter-active {
+  transition: opacity 0.18s ease-out;
+  /* 慢请求才淡入；200ms 内返回的请求全程不可见，彻底消除闪烁 */
+  transition-delay: 0.2s;
+}
+
+.el-loading-mask.el-loading-fade-leave-active {
+  transition: opacity 0.12s ease-out;
+  transition-delay: 0s;
+}
+
+.el-loading-fade-enter-from,
+.el-loading-fade-leave-to {
+  opacity: 0;
+}
+
+/*
+ * ⚠️ leave-from 必须显式声明为 0 —— 这一条决定了「快请求会不会闪」。
+ *
+ * 背景：Vue 的 <Transition> 只在**离开的第一帧**挂 leave-from，下一帧就换成
+ * leave-to（两者都是 opacity:0 由上面那条给到）。但 Element Plus 自己
+ * 只定义了 leave-to，没定义 leave-from —— 于是离开的第一帧没有任何规则
+ * 管 opacity，元素**回落到基值 1**，浏览器就按「1 → 0」做过渡：
+ * 遮罩在消失前先闪一下白，正是我们要消除的那种闪。
+ *
+ * 实测数据（60ms 返回的请求，遮罩本应全程不可见）：
+ *   未声明 leave-from 时，700ms 内出现 4 帧可见（首帧 opacity 0.15）
+ *   声明后为 0 帧
+ *
+ * 为什么写 0 不会破坏「慢请求正常淡出」：
+ *   CSS 过渡是从元素的**当前计算值**出发，而不是从上一个类规定的值出发。
+ *     · 快请求：当前值 0 → 目标 0，全程无变化，不闪 ✓
+ *     · 慢请求：遮罩已完全显现（当前值 1）→ 目标 0，
+ *       过渡效果正是「从 1 淡出到 0」的 0.12s 收尾 ✓
+ *   即同一条规则同时满足两种情形，无需知道遮罩此前是否真的露过面。
+ */
+.el-loading-mask.el-loading-fade-leave-from {
+  opacity: 0;
+}
+
+/* 遮罩本身轻微磨砂：比纯色更有层次，也让下面的内容不刺眼 */
+.el-loading-mask {
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+/* spinner 收敛到品牌色 + 更细的描边，默认 2px 在 26px 尺寸下偏粗 */
+.el-loading-spinner .circular {
+  width: var(--el-loading-spinner-size);
+  height: var(--el-loading-spinner-size);
+}
+
+.el-loading-spinner .path {
+  stroke: var(--cg-brand);
+  stroke-width: 2.4px;
+}
+
+/*
+ * 这里原本有一条 `.el-loading-spinner .el-loading-text` 的字号覆盖，
+ * 已删除：全项目没有任何一处给 v-loading 传过文案（都是布尔用法），
+ * 该元素从不渲染。且它与 EP 的 `:root` 派生规则同特异性，
+ * 属于「写了也不生效」的死代码 —— 留着只会误导后来人。
+ * 若将来需要带文案的遮罩，字号由 --el-loading-spinner-size 同级的
+ * 令牌统一控制即可。
+ */
+
+/* 尊重「减少动态效果」：不做延迟淡入，避免弱设备上出现「空白等待」 */
+@media (prefers-reduced-motion: reduce) {
+  .el-loading-mask.el-loading-fade-enter-active {
+    transition-delay: 0s;
+  }
+}
+
+/* ---------- 暗色主题（Element Plus 约定挂在 html.dark） ---------- */
+html.dark {
+  --cg-brand: #5b8cff;
+  --cg-brand-strong: #7aa2ff;
+  --cg-brand-soft: rgba(91, 140, 255, 0.16);
+  --cg-brand-soft-hover: rgba(91, 140, 255, 0.24);
+
+  --cg-page-bg: #0b1220;
+  --cg-card-bg: #111a2e;
+  --cg-card-bg-soft: #131d33;
+  --cg-border: #253252;
+  --cg-border-strong: #33436b;
+  --cg-text: #e2e8f0;
+  --cg-text-secondary: #b7c2dd;
+  --cg-text-muted: #8494b5;
+
+  /*
+   * 侧边栏配色（夜间：深色，保持原有观感）。
+   * 与日间一一对应，组件引用同一组变量名，切换主题时自动生效。
+   */
+  --cg-sidebar-bg: #0d1526;
+  --cg-sidebar-border: rgba(255, 255, 255, 0.08);
+  --cg-sidebar-text: #94a3b8;
+  --cg-sidebar-text-strong: #f8fafc;
+  --cg-sidebar-text-muted: #64748b;
+  --cg-sidebar-hover-bg: rgba(255, 255, 255, 0.06);
+  --cg-sidebar-active: #1c2b4d;
+  --cg-sidebar-active-text: #ffffff;
+  --cg-sidebar-divider: rgba(255, 255, 255, 0.08);
+  --cg-sidebar-foot-bg: rgba(0, 0, 0, 0.1);
+  --cg-sidebar-brand: #ffffff;
+
+  --cg-hover-bg: #1a2540;
+  --cg-active-bg: #1e2b4a;
+  --cg-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --cg-shadow-md: 0 4px 14px rgba(0, 0, 0, 0.45);
+  --cg-shadow-lg: 0 10px 34px rgba(0, 0, 0, 0.55);
+
+  --cg-code-bg: #0a0f1d;
+  --cg-code-bar-bg: #131c31;
+  --cg-inline-code-bg: #1a2440;
+
+  /*
+   * 语义状态色（暗色）：底色改为半透明彩色叠加，文字用亮色调。
+   * 直接把浅色主题的 #fffbeb 搬过来会在深色界面上形成一块刺眼白斑，
+   * 文字对比度也会掉到不可读。
+   */
+  --cg-success-soft: rgba(34, 197, 94, 0.14);
+  --cg-success-border: rgba(34, 197, 94, 0.34);
+  --cg-success-text: #6ee7a8;
+  --cg-warning-soft: rgba(245, 158, 11, 0.14);
+  --cg-warning-border: rgba(245, 158, 11, 0.34);
+  --cg-warning-text: #fbbf24;
+  --cg-danger-soft: rgba(239, 68, 68, 0.14);
+  --cg-danger-border: rgba(239, 68, 68, 0.34);
+  --cg-danger-text: #fca5a5;
+  --cg-info-soft: rgba(59, 130, 246, 0.14);
+  --cg-info-border: rgba(59, 130, 246, 0.34);
+  --cg-info-text: #93c5fd;
+
+  --el-bg-color: #111a2e;
+  --el-bg-color-overlay: #16203a;
+  --el-bg-color-page: #0b1220;
+  --el-fill-color-light: #1a2540;
+  --el-fill-color-lighter: #16203a;
+  --el-fill-color-extra-light: #131d33;
+  --el-border-color: #253252;
+  --el-border-color-light: #1f2c4a;
+  --el-border-color-lighter: #1a2540;
+  --el-border-color-extra-light: #16203a;
+  --el-text-color-primary: #e2e8f0;
+  --el-text-color-regular: #b7c2dd;
+  --el-text-color-secondary: #8494b5;
+  --el-text-color-placeholder: #5d6f92;
+  --el-mask-color: rgba(5, 9, 20, 0.65);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/*
+ * 告诉浏览器当前配色方案。
+ * 影响原生滚动条、表单控件、自动填充背景、以及 <input type=date> 的日历弹层——
+ * 不设的话暗色主题下这些控件会保持亮色，形成刺眼的白块。
+ */
+:root {
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/*
+ * #app 用 min-height 而不是 height：
+ * 固定 height 会把内容锁死在一屏内，登录页这类「内容可能高于一屏」的页面
+ * 在移动端就会显示不全且无法滚动（地址栏还占掉一部分高度）。
+ */
+#app {
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "Inter", "PingFang SC", "Microsoft YaHei", "Helvetica Neue",
+    Arial, sans-serif;
+  font-size: 14px;
+  color: var(--cg-text);
+  background: var(--cg-page-bg);
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.25s ease, color 0.25s ease;
+}
+
+/* 选中文本：亮色下淡蓝底，暗色下用半透明品牌色，避免深底上的亮蓝刺眼 */
+::selection {
+  color: var(--cg-text);
+  background: var(--cg-brand-soft);
+}
+
+a {
+  color: var(--cg-brand);
+  text-decoration: none;
+}
+
+/* 首屏加载占位 */
+.boot-loading {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: var(--cg-text-muted);
+}
+
+.boot-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--cg-border);
+  border-top-color: var(--cg-brand);
+  border-radius: 50%;
+  animation: cg-spin 0.9s linear infinite;
+}
+
+@keyframes cg-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------- 通用页面骨架 ---------- */
+
+.page {
+  padding: 18px 20px 28px;
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+.page-subtitle {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--cg-text-muted);
+}
+
+.page-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  background: var(--cg-card-bg);
+  border: 1px solid var(--cg-border);
+  border-radius: var(--cg-radius);
+}
+
+.table-card {
+  background: var(--cg-card-bg);
+  border: 1px solid var(--cg-border);
+  border-radius: var(--cg-radius);
+  padding: 6px 12px 12px;
+}
+
+.pager {
+  display: flex;
+  justify-content: flex-end;
+  padding: 14px 4px 2px;
+}
+
+.muted {
+  color: var(--cg-text-muted);
+}
+
+.mono {
+  font-family: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+  font-size: 12.5px;
+}
+
+.kv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.kv-item {
+  padding: 10px 12px;
+  background: var(--cg-card-bg-soft);
+  border: 1px solid var(--cg-border);
+  border-radius: 8px;
+}
+
+.kv-label {
+  font-size: 12px;
+  color: var(--cg-text-muted);
+  margin-bottom: 6px;
+}
+
+.kv-value {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.stat-card {
+  padding: 16px;
+  background: var(--cg-card-bg);
+  border: 1px solid var(--cg-border);
+  border-radius: var(--cg-radius);
+  box-shadow: var(--cg-shadow-sm);
+}
+
+.stat-card .stat-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--cg-text-muted);
+}
+
+.stat-card .stat-value {
+  margin-top: 10px;
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.stat-card .stat-extra {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--cg-text-muted);
+}
+
+.empty-block {
+  padding: 40px 0;
+  text-align: center;
+  color: var(--cg-text-muted);
+}
+
+/* ---------- Element Plus 细节统一 ---------- */
+
+.el-card {
+  border-color: var(--cg-border);
+}
+
+.el-dialog {
+  border-radius: var(--cg-radius-lg);
+}
+
+.el-dialog__title {
+  font-weight: 600;
+}
+
+/* 暗色下让表格行背景与卡片一致 */
+html.dark .el-table {
+  --el-table-bg-color: var(--cg-card-bg);
+  --el-table-tr-bg-color: var(--cg-card-bg);
+  --el-table-header-bg-color: var(--cg-card-bg-soft);
+  --el-table-row-hover-bg-color: var(--cg-hover-bg);
+  --el-table-border-color: var(--cg-border);
+}
+
+/*
+ * 以下组件的默认暗色样式在高对比需求下仍显生硬，逐个收敛：
+ *   - table 的斑马纹与固定列阴影（固定列在暗色下会出现一道亮边）
+ *   - 下拉/弹层描边偏亮，与页面卡片不是同一套灰阶
+ *   - 空状态、骨架屏的填充色需要压暗，否则闪烁感很强
+ */
+html.dark .el-table__inner-wrapper::before,
+html.dark .el-table--border::after,
+html.dark .el-table--group::after {
+  background-color: var(--cg-border);
+}
+
+html.dark .el-table__fixed-right::before,
+html.dark .el-table__fixed::before {
+  background-color: var(--cg-border);
+}
+
+html.dark .el-table tr.el-table__row--striped td.el-table__cell {
+  background: var(--cg-card-bg-soft);
+}
+
+html.dark .el-popper.is-light,
+html.dark .el-dropdown__popper,
+html.dark .el-select__popper {
+  border-color: var(--cg-border);
+}
+
+html.dark .el-skeleton__item {
+  background: linear-gradient(
+    90deg,
+    var(--cg-hover-bg) 25%,
+    var(--cg-active-bg) 37%,
+    var(--cg-hover-bg) 63%
+  );
+  background-size: 400% 100%;
+}
+
+html.dark .el-empty__description p {
+  color: var(--cg-text-muted);
+}
+
+/* 分页器：默认边框在暗色下过亮 */
+html.dark .el-pagination.is-background .el-pager li:not(.is-active) {
+  background: var(--cg-card-bg-soft);
+  color: var(--cg-text-secondary);
+}
+
+html.dark .el-pagination.is-background .el-pager li:not(.is-active):hover {
+  background: var(--cg-hover-bg);
+  color: var(--cg-text);
+}
+
+/* ---------- Markdown 渲染 ---------- */
+
+.markdown-body {
+  font-size: 14.5px;
+  line-height: 1.75;
+  word-break: break-word;
+}
+
+.markdown-body > *:first-child {
+  margin-top: 0;
+}
+
+.markdown-body > *:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4 {
+  margin: 18px 0 10px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.markdown-body h1 {
+  font-size: 20px;
+}
+.markdown-body h2 {
+  font-size: 17px;
+}
+.markdown-body h3 {
+  font-size: 15.5px;
+}
+
+.markdown-body p {
+  margin: 10px 0;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  margin: 10px 0;
+  padding-left: 22px;
+}
+
+.markdown-body li + li {
+  margin-top: 4px;
+}
+
+.markdown-body blockquote {
+  margin: 12px 0;
+  padding: 8px 14px;
+  border-left: 3px solid var(--cg-brand);
+  background: var(--cg-brand-soft);
+  color: var(--cg-text-secondary);
+  border-radius: 0 6px 6px 0;
+}
+
+.markdown-body code {
+  padding: 2px 5px;
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 12.8px;
+  background: var(--cg-inline-code-bg);
+  border-radius: 4px;
+}
+
+.markdown-body pre {
+  margin: 0;
+  padding: 14px 16px;
+  overflow-x: auto;
+  background: var(--cg-code-bg);
+  border-radius: 0 0 8px 8px;
+}
+
+/* 代码块外壳：语言标签 + 复制按钮 */
+.md-code {
+  margin: 12px 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--cg-code-bg);
+}
+
+.md-code-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px 6px 14px;
+  background: var(--cg-code-bar-bg);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.md-code-lang {
+  font-size: 11.5px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: #8b9ab5;
+  font-family: "JetBrains Mono", Consolas, monospace;
+}
+
+.md-copy {
+  padding: 2px 10px;
+  font-size: 11.5px;
+  color: #a9b7d0;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  border-radius: 5px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.md-copy:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* 流式输出期间：未闭合的代码块不做高亮，视觉上给一点「还在生成」的暗示 */
+.markdown-body.is-streaming .md-code-bar {
+  opacity: 0.75;
+}
+
+.markdown-body pre code {
+  padding: 0;
+  background: none;
+  color: #e2e8f0;
+  font-size: 12.8px;
+  line-height: 1.6;
+}
+
+.markdown-body table {
+  width: 100%;
+  margin: 12px 0;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.markdown-body th,
+.markdown-body td {
+  padding: 8px 10px;
+  border: 1px solid var(--cg-border);
+  text-align: left;
+}
+
+.markdown-body th {
+  background: var(--cg-card-bg-soft);
+  font-weight: 600;
+}
+
+.markdown-body img {
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+.markdown-body a {
+  text-decoration: underline;
+}
+
+/* ---------- 滚动条 ---------- */
+
+/*
+ * color-scheme 会让浏览器自动给滚动条上色，但那套默认配色与品牌无关；
+ * 这里显式接管，让亮/暗两套主题都用同一组令牌，视觉更统一。
+ * Firefox 走 scrollbar-color（标准属性），WebKit 走伪元素。
+ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--cg-border-strong) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--cg-border-strong);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--cg-text-muted);
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* 滚动条角落（横竖交汇处）默认是白色方块，暗色下很突兀 */
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* ---------- 移动端基础 ---------- */
+
+@media (max-width: 768px) {
+  .page {
+    padding: 12px;
+  }
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .page-title {
+    font-size: 18px;
+  }
+  .filter-bar {
+    padding: 10px 12px;
+  }
+
+  /* 表格在窄屏横向滚动，而不是把列压扁到不可读 */
+  .table-card {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .pager {
+    justify-content: center;
+  }
+
+  /* 抽屉/弹窗铺满可用宽度 */
+  .el-dialog {
+    width: calc(100vw - 24px) !important;
+    margin-top: 8vh !important;
+  }
+  .el-drawer {
+    width: min(92vw, 420px) !important;
+  }
+  .el-message-box {
+    width: calc(100vw - 32px) !important;
+  }
+
+  /* 表单项在窄屏改为上下排列 */
+  .el-form-item {
+    display: block;
+  }
+  .el-form-item__label {
+    justify-content: flex-start;
+    width: auto !important;
+  }
+  .el-form-item__content {
+    margin-left: 0 !important;
+  }
+}
+
+/*
+ * 触控设备：点击区域不小于 40px。
+ *
+ * 之前这条规则用 :not(.el-button--small) 把「小号按钮」排除在外，结果所有
+ * 表格操作按钮（详情/编辑/删除/运行）在手机上只有 24px 高，手指根本点不准。
+ * 正确做法是：**视觉上仍可保持小号，但用 min-height + padding 把可点区域撑大**。
+ */
+@media (hover: none) and (pointer: coarse) {
+  .el-button {
+    /* small 也一并覆盖；图标按钮（circle）用下面的方形规则 */
+    min-height: 40px;
+  }
+
+  /* 纯图标圆形按钮：撑成 40×40 的方形点击区 */
+  .el-button.is-circle {
+    min-width: 40px;
+    min-height: 40px;
+    padding: 0;
+  }
+
+  /* 表格里的行内操作按钮：不加高会连成一排难点，这里给足高度与间距 */
+  .el-table .el-button {
+    min-height: 36px;
+    padding: 8px 6px;
+  }
+
+  .el-pagination button,
+  .el-pager li {
+    min-width: 36px;
+    height: 36px;
+    line-height: 36px;
+  }
+
+  /* 文字链接（如「立即注册」）也要有足够点击高度 */
+  .panel-foot a,
+  .el-link {
+    display: inline-block;
+    min-height: 32px;
+    line-height: 32px;
+  }
+
+  /* 下拉选项：默认 34px 偏高但更好点；这里统一到 40px */
+  .el-dropdown-menu__item,
+  .el-select-dropdown__item {
+    min-height: 40px;
+    line-height: 40px;
+  }
+
+  /* 移动端 hover 会「粘住」，去掉悬浮态残留 */
+  .menu-item:hover,
+  .conv-item:hover {
+    background: transparent;
+  }
+}
+
+/* 刘海屏安全区 */
+@supports (padding: max(0px)) {
+  .page {
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+  }
+}
+
+/* 尊重「减少动态效果」系统设置 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

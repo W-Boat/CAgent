@@ -1,0 +1,18 @@
+{
+  "name":"外挂知识库 · 校园约定与彩蛋",
+  "description":"管理员指定的校园关键词回复、求助回应约定与短暂全屏彩蛋。可通过挂载开关停用，修改条目后即时生效。",
+  "entries":[
+    {"title":"社科大 × 国科大","mode":"TRIGGER","priority":80,"rule":{"version":1,"all":[["社科大","中国社会科学院大学","🐍"],["国科大","中国科学院大学"]],"behavior":"REPLACE","text":"比翼双非"}},
+    {"title":"社科大 × 北理工","mode":"TRIGGER","priority":80,"rule":{"version":1,"all":[["社科大","中国社会科学院大学","🐍"],["北理工","北京理工大学"]],"behavior":"REPLACE","text":"天长地久"}},
+    {"title":"大老虎 · 全屏彩蛋","mode":"TRIGGER","rule":{"version":1,"any":["大老虎"],"behavior":"APPEND","effect":"tiger"}},
+    {"title":"辛瓜地 · 小辛瓜","mode":"TRIGGER","rule":{"version":1,"any":["辛瓜地"],"behavior":"APPEND","effect":"melon"}},
+    {"title":"地铁站 · 良乡出行","mode":"TRIGGER","rule":{"version":1,"any":["地铁站"],"behavior":"REPLACE","text":"前往良乡校区，可优先查看广阳城站。望京校区请按实际目的地查询线路。"}},
+    {"title":"LGBTQ · 尊重与支持","mode":"TRIGGER","rule":{"version":1,"any":["LGBTQ","LGBT","性少数"],"behavior":"APPEND","card":{"type":"facts","title":"尊重与支持","items":[{"label":"校园交流","value":"尊重不同性取向与性别认同，保护个人隐私。"},{"label":"你可以继续询问","value":"校园服务、学习生活或求助渠道。"}]}}},
+    {"title":"退学 · 先确认与关心","mode":"TRIGGER","priority":90,"rule":{"version":1,"any":["退学"],"behavior":"INSTRUCT","instruction":"用户提及退学：若没有情绪危机迹象，先温和确认‘你是在认真考虑退学，还是开玩笑提一下？’，接着关心近期状态和遇到的困难；同一条回答继续给出已有证据支持的退学、休学或辅导员咨询指引，不强迫用户回答才能获得信息。若用户已说明认真考虑，不再问是否开玩笑。若用户明显痛苦或提及自伤，不问是否开玩笑，不播放彩蛋，先认真倾听和提供及时支持。不要编造手续、电话或擅自判断其是否应退学。"}},
+    {"title":"恋爱 · 校园约定","mode":"TRIGGER","rule":{"version":1,"any":["恋爱"],"behavior":"REPLACE","text":"恋爱这件事，还是要你自己去谈呀。"}},
+    {"title":"食堂菜谱 · 社科汇","mode":"TRIGGER","rule":{"version":1,"any":["食堂菜谱","食堂菜单"],"behavior":"REPLACE","text":"推荐打开社科汇小程序，使用里面的食堂功能查看菜谱。"}},
+    {"title":"开发者 · 白舟与徐舶源","mode":"TRIGGER","rule":{"version":1,"any":["白舟","徐舶源"],"behavior":"REPLACE","text":"你为什么想找我的开发者呢"}},
+    {"title":"猫娘 · 猫咪彩蛋","mode":"TRIGGER","rule":{"version":1,"any":["猫娘"],"behavior":"APPEND","effect":"cat"}},
+    {"title":"校园简称 · 蛇 emoji","mode":"RAG","question":"蛇的 emoji 在校园聊天中表示什么","answer":"本平台管理员约定：用户消息中出现蛇 emoji 🐍 时，按中国社会科学院大学（社科大）理解。这是校园聊天约定，不是学校的官方标识。","aliases":["🐍","蛇emoji","蛇的emoji"]}
+  ]
+}

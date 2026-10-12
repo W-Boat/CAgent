@@ -1,0 +1,87 @@
+# deps
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+!knowledge/dist/
+build/
+apps/web/dist.tgz
+*.tsbuildinfo
+
+# env
+.env
+.env.local
+.env.*.local
+**/.env.*
+!**/.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# portable postgres (local dev only, never commit)
+pgsql/
+pgdata/
+.tmp/
+.npm-cache/
+
+# logs
+*.log
+logs/
+
+# editor / os
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# uploads / runtime data
+storage/
+uploads/
+
+# Local caches, diagnostics, extracted inputs and packaging
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+pip-build-tracker-*/
+pip-ephem-wheel-cache-*/
+pip-install-*/
+.cache/
+coverage/
+playwright-report/
+test-results/
+*.dump
+*.backup
+*.tgz
+*.tar.gz
+*.zip
+apps/api/.tmp-*
+2026新生入学指南/
+chatbot-ui/
+.gitmodules
+unfinishedfeature/
+
+# Private operational handoff and historical production audit documents
+AGENT.md
+nextstep.md
+docs/*
+!docs/deployment.md
+!docs/evaluation-api.md
+!docs/agent-ui.md
+!docs/answer-cards.md
+deploy/agent.*.conf
+deploy/gen-env.js
+deploy/probe-prod.sh
+deploy/cleanup-rest.sh
+deploy/cleanup-test-conversations.sh
+
+# knowledge pipeline 源数据（data.zip 解压产物，不入库；清洗产物 dist/ 入库）
+knowledge/src/*
+!knowledge/src/campus-maps.json
+knowledge/dist/workbook-source.json
+knowledge/dist/quarantine.json
+knowledge/dist/retrieval-cases.json
+榜题1-测试集对齐报告.xlsx

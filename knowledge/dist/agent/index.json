@@ -1,0 +1,479 @@
+{
+  "generated_at": "2026-10-02",
+  "agent": {
+    "name": "AGENT-行知校园",
+    "tokens": 491,
+    "chars": 966
+  },
+  "packs": [
+    {
+      "name": "matters-学生事务",
+      "title": "办事事项 · 学生事务",
+      "description": "30 项办事事项卡",
+      "tokens": 7253,
+      "chars": 14662
+    },
+    {
+      "name": "matters-教务教学",
+      "title": "办事事项 · 教务教学",
+      "description": "20 项办事事项卡",
+      "tokens": 4617,
+      "chars": 9435
+    },
+    {
+      "name": "matters-研究生事务",
+      "title": "办事事项 · 研究生事务",
+      "description": "12 项办事事项卡",
+      "tokens": 2860,
+      "chars": 5783
+    },
+    {
+      "name": "matters-图书馆服务",
+      "title": "办事事项 · 图书馆服务",
+      "description": "10 项办事事项卡",
+      "tokens": 2255,
+      "chars": 4621
+    },
+    {
+      "name": "matters-网络信息",
+      "title": "办事事项 · 网络信息",
+      "description": "15 项办事事项卡",
+      "tokens": 3582,
+      "chars": 7368
+    },
+    {
+      "name": "matters-安全保卫",
+      "title": "办事事项 · 安全保卫",
+      "description": "12 项办事事项卡",
+      "tokens": 2777,
+      "chars": 5590
+    },
+    {
+      "name": "matters-后勤生活",
+      "title": "办事事项 · 后勤生活",
+      "description": "10 项办事事项卡",
+      "tokens": 2274,
+      "chars": 4607
+    },
+    {
+      "name": "matters-教学场地",
+      "title": "办事事项 · 教学场地",
+      "description": "5 项办事事项卡",
+      "tokens": 1183,
+      "chars": 2425
+    },
+    {
+      "name": "matters-财务事务",
+      "title": "办事事项 · 财务事务",
+      "description": "5 项办事事项卡",
+      "tokens": 1142,
+      "chars": 2326
+    },
+    {
+      "name": "matters-就业创业",
+      "title": "办事事项 · 就业创业",
+      "description": "6 项办事事项卡",
+      "tokens": 1388,
+      "chars": 2790
+    },
+    {
+      "name": "matters-团委活动",
+      "title": "办事事项 · 团委活动",
+      "description": "6 项办事事项卡",
+      "tokens": 1391,
+      "chars": 2851
+    },
+    {
+      "name": "matters-国际交流",
+      "title": "办事事项 · 国际交流",
+      "description": "5 项办事事项卡",
+      "tokens": 1249,
+      "chars": 2560
+    },
+    {
+      "name": "matters-人事事务",
+      "title": "办事事项 · 人事事务",
+      "description": "5 项办事事项卡",
+      "tokens": 1150,
+      "chars": 2326
+    },
+    {
+      "name": "matters-医疗健康",
+      "title": "办事事项 · 医疗健康",
+      "description": "4 项办事事项卡",
+      "tokens": 873,
+      "chars": 1780
+    },
+    {
+      "name": "matters-科研事务",
+      "title": "办事事项 · 科研事务",
+      "description": "4 项办事事项卡",
+      "tokens": 976,
+      "chars": 1974
+    },
+    {
+      "name": "matters-信息查询",
+      "title": "办事事项 · 信息查询",
+      "description": "8 项办事事项卡",
+      "tokens": 1763,
+      "chars": 3568
+    },
+    {
+      "name": "faq-学生事务",
+      "title": "高频问答 · 学生事务",
+      "description": "240 条去重问答",
+      "tokens": 6706,
+      "chars": 13408
+    },
+    {
+      "name": "faq-教务教学",
+      "title": "高频问答 · 教务教学",
+      "description": "160 条去重问答",
+      "tokens": 4201,
+      "chars": 8482
+    },
+    {
+      "name": "faq-研究生事务",
+      "title": "高频问答 · 研究生事务",
+      "description": "96 条去重问答",
+      "tokens": 2710,
+      "chars": 5422
+    },
+    {
+      "name": "faq-图书馆服务",
+      "title": "高频问答 · 图书馆服务",
+      "description": "80 条去重问答",
+      "tokens": 2238,
+      "chars": 4528
+    },
+    {
+      "name": "faq-网络信息",
+      "title": "高频问答 · 网络信息",
+      "description": "120 条去重问答",
+      "tokens": 3376,
+      "chars": 6776
+    },
+    {
+      "name": "faq-安全保卫",
+      "title": "高频问答 · 安全保卫",
+      "description": "96 条去重问答",
+      "tokens": 2606,
+      "chars": 5221
+    },
+    {
+      "name": "faq-后勤生活",
+      "title": "高频问答 · 后勤生活",
+      "description": "80 条去重问答",
+      "tokens": 2257,
+      "chars": 4529
+    },
+    {
+      "name": "faq-教学场地",
+      "title": "高频问答 · 教学场地",
+      "description": "40 条去重问答",
+      "tokens": 1140,
+      "chars": 2307
+    },
+    {
+      "name": "faq-财务事务",
+      "title": "高频问答 · 财务事务",
+      "description": "40 条去重问答",
+      "tokens": 1066,
+      "chars": 2139
+    },
+    {
+      "name": "faq-就业创业",
+      "title": "高频问答 · 就业创业",
+      "description": "48 条去重问答",
+      "tokens": 1415,
+      "chars": 2817
+    },
+    {
+      "name": "faq-团委活动",
+      "title": "高频问答 · 团委活动",
+      "description": "48 条去重问答",
+      "tokens": 1315,
+      "chars": 2640
+    },
+    {
+      "name": "faq-国际交流",
+      "title": "高频问答 · 国际交流",
+      "description": "38 条去重问答",
+      "tokens": 1111,
+      "chars": 2220
+    },
+    {
+      "name": "faq-人事事务",
+      "title": "高频问答 · 人事事务",
+      "description": "40 条去重问答",
+      "tokens": 1111,
+      "chars": 2229
+    },
+    {
+      "name": "faq-医疗健康",
+      "title": "高频问答 · 医疗健康",
+      "description": "32 条去重问答",
+      "tokens": 942,
+      "chars": 1905
+    },
+    {
+      "name": "faq-科研事务",
+      "title": "高频问答 · 科研事务",
+      "description": "32 条去重问答",
+      "tokens": 890,
+      "chars": 1789
+    },
+    {
+      "name": "faq-信息查询",
+      "title": "高频问答 · 信息查询",
+      "description": "64 条去重问答",
+      "tokens": 1602,
+      "chars": 3226
+    },
+    {
+      "name": "entities",
+      "title": "机构黄页",
+      "description": "105 个机构实体",
+      "tokens": 4767,
+      "chars": 10833
+    },
+    {
+      "name": "notices-2026",
+      "title": "通知速递 · 2026",
+      "description": "146 条主干通知",
+      "tokens": 12124,
+      "chars": 25974
+    },
+    {
+      "name": "notices-2025",
+      "title": "通知速递 · 2025",
+      "description": "135 条主干通知",
+      "tokens": 11650,
+      "chars": 24833
+    },
+    {
+      "name": "notices-2024",
+      "title": "通知速递 · 2024",
+      "description": "139 条主干通知",
+      "tokens": 12264,
+      "chars": 26072
+    },
+    {
+      "name": "book-01",
+      "title": "UCASSbook · book:01",
+      "description": "33 节",
+      "tokens": 1722,
+      "chars": 3521
+    },
+    {
+      "name": "book-02",
+      "title": "UCASSbook · book:02",
+      "description": "66 节",
+      "tokens": 2673,
+      "chars": 5684
+    },
+    {
+      "name": "book-03",
+      "title": "UCASSbook · book:03",
+      "description": "85 节",
+      "tokens": 4117,
+      "chars": 10361
+    },
+    {
+      "name": "book-04",
+      "title": "UCASSbook · book:04",
+      "description": "106 节",
+      "tokens": 7093,
+      "chars": 14672
+    },
+    {
+      "name": "book-05",
+      "title": "UCASSbook · book:05",
+      "description": "118 节",
+      "tokens": 10038,
+      "chars": 19812
+    },
+    {
+      "name": "book-06",
+      "title": "UCASSbook · book:06",
+      "description": "218 节",
+      "tokens": 20662,
+      "chars": 43941
+    },
+    {
+      "name": "book-07",
+      "title": "UCASSbook · book:07",
+      "description": "75 节",
+      "tokens": 3424,
+      "chars": 7476
+    },
+    {
+      "name": "book-08",
+      "title": "UCASSbook · book:08",
+      "description": "24 节",
+      "tokens": 498,
+      "chars": 1325
+    },
+    {
+      "name": "book-2024",
+      "title": "UCASSbook · book:2024",
+      "description": "1 节",
+      "tokens": 63,
+      "chars": 149
+    },
+    {
+      "name": "book-25",
+      "title": "UCASSbook · book:25",
+      "description": "2 节",
+      "tokens": 40,
+      "chars": 110
+    },
+    {
+      "name": "book-26",
+      "title": "UCASSbook · book:26",
+      "description": "1 节",
+      "tokens": 34,
+      "chars": 90
+    },
+    {
+      "name": "book-24",
+      "title": "UCASSbook · book:24",
+      "description": "3 节",
+      "tokens": 45,
+      "chars": 130
+    },
+    {
+      "name": "book-23",
+      "title": "UCASSbook · book:23",
+      "description": "2 节",
+      "tokens": 40,
+      "chars": 110
+    },
+    {
+      "name": "book-22",
+      "title": "UCASSbook · book:22",
+      "description": "2 节",
+      "tokens": 40,
+      "chars": 110
+    },
+    {
+      "name": "book-21",
+      "title": "UCASSbook · book:21",
+      "description": "3 节",
+      "tokens": 45,
+      "chars": 130
+    },
+    {
+      "name": "book-20",
+      "title": "UCASSbook · book:20",
+      "description": "1 节",
+      "tokens": 34,
+      "chars": 90
+    },
+    {
+      "name": "book-19",
+      "title": "UCASSbook · book:19",
+      "description": "4 节",
+      "tokens": 51,
+      "chars": 150
+    },
+    {
+      "name": "book-17",
+      "title": "UCASSbook · book:17",
+      "description": "2 节",
+      "tokens": 40,
+      "chars": 110
+    },
+    {
+      "name": "book-18",
+      "title": "UCASSbook · book:18",
+      "description": "2 节",
+      "tokens": 40,
+      "chars": 110
+    },
+    {
+      "name": "book-16",
+      "title": "UCASSbook · book:16",
+      "description": "4 节",
+      "tokens": 51,
+      "chars": 150
+    },
+    {
+      "name": "book-14",
+      "title": "UCASSbook · book:14",
+      "description": "3 节",
+      "tokens": 45,
+      "chars": 130
+    },
+    {
+      "name": "book-15",
+      "title": "UCASSbook · book:15",
+      "description": "3 节",
+      "tokens": 45,
+      "chars": 130
+    },
+    {
+      "name": "book-13",
+      "title": "UCASSbook · book:13",
+      "description": "3 节",
+      "tokens": 45,
+      "chars": 130
+    },
+    {
+      "name": "book-12",
+      "title": "UCASSbook · book:12",
+      "description": "3 节",
+      "tokens": 45,
+      "chars": 130
+    },
+    {
+      "name": "book-09",
+      "title": "UCASSbook · book:09",
+      "description": "24 节",
+      "tokens": 255,
+      "chars": 875
+    },
+    {
+      "name": "book-10",
+      "title": "UCASSbook · book:10",
+      "description": "14 节",
+      "tokens": 305,
+      "chars": 884
+    },
+    {
+      "name": "book-11",
+      "title": "UCASSbook · book:11",
+      "description": "7 节",
+      "tokens": 68,
+      "chars": 210
+    },
+    {
+      "name": "book-00",
+      "title": "UCASSbook · book:00",
+      "description": "10 节",
+      "tokens": 696,
+      "chars": 1443
+    },
+    {
+      "name": "survival",
+      "title": "辛瓜生存指北",
+      "description": "292 段",
+      "tokens": 5866,
+      "chars": 11227
+    },
+    {
+      "name": "takeout",
+      "title": "外卖红黑榜",
+      "description": "红 95 / 黑 43",
+      "tokens": 5866,
+      "chars": 11150
+    },
+    {
+      "name": "courses",
+      "title": "课程测评",
+      "description": "2588 门课聚合 + 黑白名单/树洞",
+      "tokens": 71772,
+      "chars": 146512
+    }
+  ]
+}

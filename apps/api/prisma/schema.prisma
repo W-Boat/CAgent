@@ -1,0 +1,1211 @@
+// CAgent 数据模型
+// 运行 `pnpm db:migrate` 生成迁移与 Prisma Client
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+//  枚举
+// ============================================================
+
+enum UserStatus {
+  ACTIVE // 正常
+  DISABLED // 已禁用
+  PENDING // 待激活
+}
+
+enum MessageRole {
+  system
+  user
+  assistant
+  tool
+}
+
+enum MessageStatus {
+  PENDING
+  STREAMING
+  SUCCESS
+  FAILED
+  ABORTED
+}
+
+enum ConversationStatus {
+  ACTIVE
+  ARCHIVED
+  DELETED
+}
+
+enum ProviderType {
+  OPENAI_COMPATIBLE // OpenAI 及其兼容协议（DeepSeek / Moonshot / DashScope / vLLM ...）
+  ANTHROPIC
+  GOOGLE
+  OLLAMA
+  AZURE_OPENAI
+}
+
+enum SkillType {
+  PROMPT // 纯提示词技能
+  TOOL // 工具型技能（内置函数）
+  HTTP // HTTP 请求型技能
+  BROWSER // 浏览器操控技能
+}
+
+enum SkillRunStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+  CANCELLED
+}
+
+enum BrowserSessionStatus {
+  ACTIVE
+  CLOSED
+  CRASHED
+}
+
+/// 浏览器执行位置：服务端 Chromium 还是用户本地浏览器
+enum BrowserExecutor {
+  SERVER
+  LOCAL
+}
+
+enum AgentVisibility {
+  PRIVATE // 仅创建者
+  CAMPUS // 校内可见
+  PUBLIC // 所有人
+}
+
+/// 应用模式（参考 Dify 的「聊天助手 / 智能体」区分）
+enum AgentMode {
+  CHAT // 纯对话：只注入提示词，不给工具
+  AGENT // 智能体：模型自主决定调用哪些工具
+}
+
+enum UsageSource {
+  CHAT
+  SKILL
+  BROWSER
+  EMBEDDING
+  LOVELINE
+}
+
+enum CampusGuideMode {
+  GUIDE // 指引模式（默认）：只给路径，不倾倒正文
+  FULL // 完整模式：在指引基础上追加正文与清单
+}
+
+enum CampusGuideDetailStatus {
+  full
+  basic
+  rendered
+  verified
+  attachment_only
+  link_only
+  unavailable
+}
+
+// ============================================================
+//  身份与权限
+// ============================================================
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  username     String?    @unique
+  passwordHash String     @map("password_hash")
+  name         String
+  avatar       String?
+  status       UserStatus @default(ACTIVE)
+
+  // 校园场景扩展字段
+  department String? // 院系 / 部门
+  studentNo  String? @unique @map("student_no") // 学号 / 工号
+  phone      String?
+
+  lastLoginAt DateTime? @map("last_login_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  roles             UserRole[]
+  refreshTokens     RefreshToken[]
+  conversations     Conversation[]
+  messages          Message[]
+  usageRecords      UsageRecord[]
+  quota             UserQuota?
+  skills            Skill[]           @relation("SkillCreator")
+  skillRuns         SkillRun[]
+  browserSessions   BrowserSession[]
+  agents            Agent[]           @relation("AgentOwner")
+  auditLogs         AuditLog[]
+  campusGuideRuns   CampusGuideRun[]
+  campusActivities  CampusActivity[]
+  feedback          MessageFeedback[]
+  reviewedLearnings AgentLearning[]   @relation("LearningReviewer")
+  memories          UserMemory[]
+  timetable         UserTimetable?
+
+  evaluationJobs EvaluationJob[]
+
+  @@index([status])
+  @@index([department])
+  @@map("users")
+}
+
+/// Private, owner-scoped snapshot. Never placed in global knowledge or shared learning.
+model UserTimetable {
+  userId              String   @id @map("user_id")
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  semester            String
+  courses             Json
+  warnings            Json
+  semesterStart       String?  @map("semester_start")
+  campus              String   @default("liangxiang")
+  useInChat           Boolean  @default(false) @map("use_in_chat")
+  remindersEnabled    Boolean  @default(false) @map("reminders_enabled")
+  reminderLeadMinutes Int      @default(15) @map("reminder_lead_minutes")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@map("user_timetables")
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  key         String   @unique // super_admin / admin / user ...
+  name        String
+  description String?
+  isSystem    Boolean  @default(false) @map("is_system") // 系统内置角色不可删除
+  sort        Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  permissions RolePermission[]
+  users       UserRole[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  code        String   @unique // 例如 user:read / model:write
+  name        String
+  group       String // 分组：user / model / conversation / skill / system
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  roles RolePermission[]
+
+  @@index([group])
+  @@map("permissions")
+}
+
+model UserRole {
+  userId String
+  roleId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  ip        String?
+  userAgent String?   @map("user_agent")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// ============================================================
+//  模型与供应商
+// ============================================================
+
+model Provider {
+  id          String       @id @default(cuid())
+  key         String       @unique // openai / anthropic / deepseek ...
+  name        String
+  type        ProviderType @default(OPENAI_COMPATIBLE)
+  baseUrl     String?      @map("base_url")
+  apiKey      String?      @map("api_key") // AES-256-GCM 加密存储（单 Key，兼容旧数据）
+  enabled     Boolean      @default(true)
+  isSystem    Boolean      @default(false) @map("is_system")
+  sort        Int          @default(0)
+  description String?
+  extra       Json? // 组织 ID、region 等附加配置
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  models  Model[]
+  apiKeys ProviderApiKey[]
+
+  @@map("providers")
+}
+
+/// API Key 健康状态（用于轮询时挑选可用 Key）
+enum ApiKeyStatus {
+  ACTIVE // 正常
+  COOLDOWN // 触发限流，冷却期结束后自动恢复
+  INVALID // 认证失败（401/403），需人工处理
+  DISABLED // 手动停用
+}
+
+// 供应商的多 Key 池。
+//
+// 一个供应商可以配多把 Key，请求时按「最久未使用 + 健康」挑选，
+// 实现两个目的：
+//   1. 轮询分摊配额，避免单 Key 被限流
+//   2. 某把 Key 失效/限流时自动切到其他 Key，服务不中断
+//
+// 与 Provider.apiKey 的关系：旧字段保留用于兼容（单 Key 场景），
+// 一旦 Key 池里有记录就以池为准。
+model ProviderApiKey {
+  id         String  @id @default(cuid())
+  providerId String  @map("provider_id")
+  /// 备注，便于管理员区分来源，如「主号」「备用-实验室」
+  label      String?
+  /// AES-256-GCM 加密后的密钥
+  apiKey     String  @map("api_key")
+
+  enabled Boolean      @default(true)
+  status  ApiKeyStatus @default(ACTIVE)
+  sort    Int          @default(0)
+
+  failureCount Int @default(0) @map("failure_count")
+  successCount Int @default(0) @map("success_count")
+
+  lastUsedAt    DateTime? @map("last_used_at")
+  lastErrorAt   DateTime? @map("last_error_at")
+  lastError     String?   @map("last_error")
+  /// 冷却截止时间：到期前不参与轮询
+  cooldownUntil DateTime? @map("cooldown_until")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([providerId, status])
+  @@map("provider_api_keys")
+}
+
+model Model {
+  id         String  @id @default(cuid())
+  key        String // 供应商标识，如 gpt-4o
+  name       String // 展示名
+  providerId String  @map("provider_id")
+  enabled    Boolean @default(true)
+  isDefault  Boolean @default(false) @map("is_default")
+  sort       Int     @default(0)
+
+  contextWindow   Int     @default(8192) @map("context_window")
+  maxOutputTokens Int     @default(4096) @map("max_output_tokens")
+  supportsVision  Boolean @default(false) @map("supports_vision")
+  supportsTools   Boolean @default(false) @map("supports_tools")
+  supportsStream  Boolean @default(true) @map("supports_stream")
+
+  // 计费（美元 / 百万 token）
+  inputPricePerM  Float @default(0) @map("input_price_per_m")
+  outputPricePerM Float @default(0) @map("output_price_per_m")
+
+  description String?
+  extra       Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  provider      Provider       @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  conversations Conversation[]
+  messages      Message[]
+  usageRecords  UsageRecord[]
+  agents        Agent[]
+
+  @@unique([providerId, key])
+  @@index([enabled])
+  @@map("models")
+}
+
+// ============================================================
+//  对话
+// ============================================================
+
+model Conversation {
+  evaluationJobId String?            @map("evaluation_job_id")
+  evaluationJob   EvaluationJob?     @relation(fields: [evaluationJobId], references: [id], onDelete: SetNull)
+  id              String             @id @default(cuid())
+  title           String             @default("新对话")
+  userId          String             @map("user_id")
+  modelId         String?            @map("model_id")
+  agentId         String?            @map("agent_id")
+  systemPrompt    String?            @map("system_prompt")
+  temperature     Float              @default(0.7)
+  status          ConversationStatus @default(ACTIVE)
+  pinned          Boolean            @default(false)
+  messageCount    Int                @default(0) @map("message_count")
+  totalTokens     Int                @default(0) @map("total_tokens")
+  lastMessageAt   DateTime?          @map("last_message_at")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  model        Model?        @relation(fields: [modelId], references: [id], onDelete: SetNull)
+  agent        Agent?        @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  messages     Message[]
+  usageRecords UsageRecord[]
+  skillRuns    SkillRun[]
+
+  @@index([evaluationJobId])
+  @@index([userId, status, updatedAt])
+  @@map("conversations")
+}
+
+model Message {
+  id             String        @id @default(cuid())
+  conversationId String        @map("conversation_id")
+  userId         String        @map("user_id")
+  role           MessageRole
+  content        String        @db.Text
+  reasoning      String?       @db.Text // 深度思考内容
+  status         MessageStatus @default(SUCCESS)
+  seq            Int           @default(0)
+
+  modelId     String? @map("model_id")
+  providerKey String? @map("provider_key")
+  modelKey    String? @map("model_key")
+
+  promptTokens     Int @default(0) @map("prompt_tokens")
+  completionTokens Int @default(0) @map("completion_tokens")
+  totalTokens      Int @default(0) @map("total_tokens")
+  latencyMs        Int @default(0) @map("latency_ms")
+
+  attachments  Json? // 附件元数据
+  toolCalls    Json?   @map("tool_calls")
+  error        String?
+  finishReason String? @map("finish_reason")
+  ip           String?
+  flagged      Boolean @default(false) // 审计标记
+  flagNote     String? @map("flag_note")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  conversation Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  model        Model?            @relation(fields: [modelId], references: [id], onDelete: SetNull)
+  usageRecords UsageRecord[]
+  feedback     MessageFeedback[]
+
+  @@index([conversationId, seq])
+  @@index([userId, createdAt])
+  @@index([flagged])
+  @@map("messages")
+}
+
+// ============================================================
+//  自学习反馈
+// ============================================================
+
+/// 反馈来源：用户显式评价，还是系统从行为推断出来的
+enum FeedbackSource {
+  EXPLICIT // 用户点了赞/踩或写了纠正
+  IMPLICIT // 从「重新生成」「追问纠正」等行为推断
+}
+
+/// 学习条目的类型
+enum LearningKind {
+  CORRECTION // 用户直接给了正确答案
+  PREFERENCE // 多次负反馈指向同一种偏好
+  FAQ // 反复被问到的同类问题
+}
+
+/// 学习条目状态：必须人工审核通过才会进入智能体提示词
+enum LearningStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// 用户对某条助手回复的评价
+model MessageFeedback {
+  id             String         @id @default(cuid())
+  messageId      String         @map("message_id")
+  userId         String         @map("user_id")
+  agentId        String?        @map("agent_id")
+  /// true 点赞，false 点踩
+  positive       Boolean
+  source         FeedbackSource @default(EXPLICIT)
+  /// 点踩原因：不准确 / 太啰嗦 / 没答到点上 / 信息过时 …
+  reason         String?
+  /// 用户给出的正确答案 —— 这是最有价值的学习信号
+  correction     String?        @db.Text
+  resolution     String         @default("OPEN")
+  resolvedById   String?        @map("resolved_by_id")
+  resolutionNote String?        @map("resolution_note") @db.Text
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  message       Message                @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user          User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  learningLinks LearningFeedbackLink[]
+
+  @@unique([messageId, userId])
+  @@index([agentId, createdAt])
+  @@map("message_feedback")
+}
+
+/// 从反馈里提炼出来的「经验」，审核通过后拼进智能体系统提示词
+model AgentLearning {
+  id      String         @id @default(cuid())
+  agentId String         @map("agent_id")
+  kind    LearningKind
+  status  LearningStatus @default(PENDING)
+
+  /// 一句话经验，会直接注入提示词，所以要短且可执行
+  instruction    String  @db.Text
+  /// 支撑这条经验的证据（用户原话、被纠正的回答片段）
+  evidence       Json?
+  /// 触发这条学习的原始问题，用于人工判断适用场景
+  sampleQuestion String? @map("sample_question") @db.Text
+
+  /// 有多少条反馈支撑它
+  supportCount  Int     @default(1) @map("support_count")
+  candidateKey  String? @map("candidate_key")
+  fixedEntryId  String? @map("fixed_entry_id")
+  /// 已注入提示词的次数，用于评估价值
+  injectedCount Int     @default(0) @map("injected_count")
+
+  reviewedById String?   @map("reviewed_by_id")
+  reviewedAt   DateTime? @map("reviewed_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  agent         Agent                  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  reviewedBy    User?                  @relation("LearningReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  feedbackLinks LearningFeedbackLink[]
+
+  @@unique([agentId, candidateKey])
+  @@index([agentId, status])
+  @@map("agent_learnings")
+}
+
+model LearningFeedbackLink {
+  learningId String          @map("learning_id")
+  feedbackId String          @map("feedback_id")
+  userId     String          @map("user_id")
+  learning   AgentLearning   @relation(fields: [learningId], references: [id], onDelete: Cascade)
+  feedback   MessageFeedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  @@id([learningId, feedbackId])
+  @@map("learning_feedback_links")
+}
+
+model KnowledgeBase {
+  id                String           @id @default(cuid())
+  name              String
+  description       String           @default("")
+  kind              String           @default("LOCAL")
+  mounted           Boolean          @default(false)
+  agentId           String?          @map("agent_id")
+  connection        Json?
+  passwordEncrypted String?          @map("password_encrypted") @db.Text
+  lastSyncAt        DateTime?        @map("last_sync_at")
+  syncStatus        String           @default("IDLE") @map("sync_status")
+  syncError         String?          @map("sync_error")
+  lastSyncSummary   Json?            @map("last_sync_summary")
+  aiReviewEnabled   Boolean          @default(false) @map("ai_review_enabled")
+  aiSummaryEnabled  Boolean          @default(false) @map("ai_summary_enabled")
+  automationModelId String?          @map("automation_model_id")
+  automationUserId  String?          @map("automation_user_id")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+  entries           KnowledgeEntry[]
+
+  @@map("knowledge_bases")
+}
+
+model KnowledgeEntry {
+  id                    String              @id @default(cuid())
+  baseId                String              @map("base_id")
+  externalKey           String?             @map("external_key")
+  title                 String
+  question              String              @default("") @db.Text
+  questionKey           String              @map("question_key")
+  answer                String              @db.Text
+  summary               String              @default("") @db.Text
+  aiReviewStatus        String              @default("IDLE") @map("ai_review_status")
+  aiReview              Json?               @map("ai_review")
+  automationFingerprint String?             @map("automation_fingerprint")
+  automationUpdatedAt   DateTime?           @map("automation_updated_at")
+  aliases               Json                @default("[]")
+  url                   String              @default("")
+  mode                  String              @default("RAG")
+  status                String              @default("DRAFT")
+  priority              Int                 @default(50)
+  source                String              @default("")
+  sourceMessageId       String?             @map("source_message_id")
+  reviewedById          String?             @map("reviewed_by_id")
+  hitCount              Int                 @default(0) @map("hit_count")
+  createdAt             DateTime            @default(now()) @map("created_at")
+  updatedAt             DateTime            @updatedAt @map("updated_at")
+  base                  KnowledgeBase       @relation(fields: [baseId], references: [id], onDelete: Cascade)
+  revisions             KnowledgeRevision[]
+
+  @@unique([baseId, questionKey])
+  @@unique([baseId, externalKey])
+  @@index([status, mode])
+  @@index([aiReviewStatus])
+  @@map("knowledge_entries")
+}
+
+model KnowledgeRevision {
+  id         String         @id @default(cuid())
+  entryId    String         @map("entry_id")
+  snapshot   Json
+  operatorId String         @map("operator_id")
+  createdAt  DateTime       @default(now()) @map("created_at")
+  entry      KnowledgeEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@index([entryId, createdAt])
+  @@map("knowledge_revisions")
+}
+
+// ============================================================
+//  用量与配额
+// ============================================================
+
+model UsageRecord {
+  id             String  @id @default(cuid())
+  userId         String  @map("user_id")
+  conversationId String? @map("conversation_id")
+  messageId      String? @map("message_id")
+  modelId        String? @map("model_id")
+
+  providerKey String      @map("provider_key")
+  modelKey    String      @map("model_key")
+  source      UsageSource @default(CHAT)
+
+  promptTokens     Int   @default(0) @map("prompt_tokens")
+  completionTokens Int   @default(0) @map("completion_tokens")
+  totalTokens      Int   @default(0) @map("total_tokens")
+  costUsd          Float @default(0) @map("cost_usd")
+
+  latencyMs Int     @default(0) @map("latency_ms")
+  success   Boolean @default(true)
+  errorCode String? @map("error_code")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  message      Message?      @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  model        Model?        @relation(fields: [modelId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([modelKey, createdAt])
+  @@index([createdAt])
+  @@map("usage_records")
+}
+
+model UserQuota {
+  id     String @id @default(cuid())
+  userId String @unique @map("user_id")
+
+  enabled Boolean @default(true)
+
+  // token 配额，0 表示不限
+  dailyTokenLimit   Int @default(0) @map("daily_token_limit")
+  monthlyTokenLimit Int @default(0) @map("monthly_token_limit")
+
+  // 请求次数配额，0 表示不限
+  dailyRequestLimit Int @default(0) @map("daily_request_limit")
+  rpmLimit          Int @default(0) @map("rpm_limit")
+
+  note      String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_quotas")
+}
+
+// ============================================================
+//  Skill 体系
+// ============================================================
+
+model Skill {
+  id          String    @id @default(cuid())
+  key         String    @unique // 唯一标识，模型调用时使用
+  name        String
+  description String
+  category    String    @default("general") // 学习 / 科研 / 校园服务 ...
+  type        SkillType @default(PROMPT)
+
+  enabled  Boolean @default(true)
+  isSystem Boolean @default(false) @map("is_system") // 内置技能不可删除
+  icon     String?
+  sort     Int     @default(0)
+
+  /// 管理备注：适用场景、维护人、注意事项。仅后台可见，不参与模型上下文。
+  note String? @db.Text
+
+  // PROMPT 型：注入的系统提示词
+  systemPrompt String? @map("system_prompt") @db.Text
+
+  // TOOL / HTTP / BROWSER 型：参数 JSON Schema
+  inputSchema Json? @map("input_schema")
+
+  // 运行配置：HTTP 的 method/url/headers，BROWSER 的初始地址与允许域名等
+  config Json?
+
+  // 需要的权限，缺省表示登录即可使用
+  permissionCode String? @map("permission_code")
+
+  createdById String?  @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  createdBy User?        @relation("SkillCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  runs      SkillRun[]
+  agents    AgentSkill[]
+
+  @@index([enabled, category])
+  @@map("skills")
+}
+
+model AgentSkill {
+  agentId String
+  skillId String
+  sort    Int    @default(0)
+  config  Json?
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  skill Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([agentId, skillId])
+  @@map("agent_skills")
+}
+
+model SkillRun {
+  id             String         @id @default(cuid())
+  skillId        String         @map("skill_id")
+  userId         String         @map("user_id")
+  conversationId String?        @map("conversation_id")
+  status         SkillRunStatus @default(RUNNING)
+
+  input  Json?
+  output Json?
+  error  String? @db.Text
+
+  // 执行轨迹：[{ step, action, detail, durationMs }]
+  steps Json?
+
+  startedAt  DateTime  @default(now()) @map("started_at")
+  finishedAt DateTime? @map("finished_at")
+  durationMs Int       @default(0) @map("duration_ms")
+
+  skill          Skill           @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation   Conversation?   @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  browserSession BrowserSession?
+
+  @@index([skillId, startedAt])
+  @@index([userId, startedAt])
+  @@map("skill_runs")
+}
+
+// ============================================================
+//  浏览器操控
+// ============================================================
+
+model BrowserSession {
+  id     String @id @default(cuid())
+  userId String @map("user_id")
+
+  name       String               @default("浏览器会话")
+  status     BrowserSessionStatus @default(ACTIVE)
+  headless   Boolean              @default(true)
+  startUrl   String?              @map("start_url")
+  currentUrl String?              @map("current_url")
+  userAgent  String?              @map("user_agent")
+
+  // 执行位置：
+  //   SERVER —— 服务端 Chromium（需要服务器内存足够，默认关闭）
+  //   LOCAL  —— 用户本地浏览器（网页端直连 或 浏览器扩展）
+  //
+  // 服务器普遍内存紧张，默认走 LOCAL：把渲染与操控放在用户自己的机器上，
+  // 服务端只负责「下发指令 + 回收结果与截图」，用于留痕与审计。
+  executor   BrowserExecutor @default(LOCAL)
+  // LOCAL 模式下区分是网页端直连还是扩展：WEB | EXTENSION
+  clientKind String?         @map("client_kind")
+  // 本地客户端最后一次心跳，用于判断「本地浏览器是否还在线」
+  lastSeenAt DateTime?       @map("last_seen_at")
+
+  skillRunId String? @unique @map("skill_run_id")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  closedAt  DateTime? @map("closed_at")
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skillRun SkillRun?        @relation(fields: [skillRunId], references: [id], onDelete: SetNull)
+  steps    BrowserStep[]
+  commands BrowserCommand[]
+
+  @@index([userId, status])
+  @@map("browser_sessions")
+}
+
+// 下发到本地浏览器的指令。
+//
+// 本地客户端（网页或扩展）用长轮询领取 PENDING 指令，执行完成后回填
+// result / screenshotPath / status。这样服务端不需要 WebSocket，
+// 也不必安装 Chromium；同时每条指令都留痕，后台可完整回放。
+model BrowserCommand {
+  id        String @id @default(cuid())
+  sessionId String @map("session_id")
+  seq       Int
+
+  action   String // goto / click / type / extract / screenshot ...
+  selector String?
+  value    String? @db.Text
+  timeout  Int     @default(15000)
+
+  // PENDING → RUNNING → DONE / FAILED / EXPIRED
+  status String @default("PENDING")
+
+  // 执行结果（结构化 JSON：文本、元素信息、匹配数等）
+  result         Json?
+  // 本地回传的截图（base64 或 dataURL），服务端落盘为文件
+  screenshotData String? @map("screenshot_data") @db.Text
+  screenshotPath String? @map("screenshot_path")
+  error          String?
+
+  url        String?
+  title      String?
+  durationMs Int     @default(0) @map("duration_ms")
+
+  createdAt  DateTime  @default(now()) @map("created_at")
+  claimedAt  DateTime? @map("claimed_at")
+  finishedAt DateTime? @map("finished_at")
+
+  session BrowserSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, status])
+  @@index([sessionId, seq])
+  @@map("browser_commands")
+}
+
+model BrowserStep {
+  id        String @id @default(cuid())
+  sessionId String @map("session_id")
+  seq       Int
+
+  action   String // goto / click / type / extract / screenshot / wait ...
+  selector String?
+  value    String? @db.Text
+  status   String  @default("SUCCESS")
+  error    String?
+
+  url            String?
+  title          String?
+  screenshotPath String? @map("screenshot_path")
+  snapshot       Json? // 提取到的结构化内容
+
+  durationMs Int      @default(0) @map("duration_ms")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  session BrowserSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, seq])
+  @@map("browser_steps")
+}
+
+// ============================================================
+//  智能体
+// ============================================================
+
+model Agent {
+  id           String  @id @default(cuid())
+  key          String  @unique
+  name         String
+  description  String?
+  avatar       String?
+  systemPrompt String  @map("system_prompt") @db.Text
+  greeting     String?
+  starters     Json? // 推荐追问
+
+  /// 应用模式（参考 Dify）：
+  /// CHAT  = 纯对话，只注入提示词，不暴露任何工具
+  /// AGENT = 智能体，模型可自主决定调用哪些工具（ReAct 式多轮）
+  mode AgentMode @default(AGENT)
+
+  /// 管理备注：为什么建这个智能体、面向谁、注意事项。仅后台可见。
+  note String? @db.Text
+
+  modelId String? @map("model_id")
+  ownerId String? @map("owner_id")
+
+  enabled      Boolean         @default(true)
+  visibility   AgentVisibility @default(CAMPUS)
+  isSystem     Boolean         @default(false) @map("is_system")
+  sort         Int             @default(0)
+  allowBrowser Boolean         @default(false) @map("allow_browser") // 允许调用浏览器工具
+
+  temperature Float @default(0.7)
+
+  /// 单轮最多允许几轮工具调用，防止模型无限循环烧额度
+  maxToolRounds Int @default(5) @map("max_tool_rounds")
+
+  maxContextMessages Int @default(20) @map("max_context_messages") // 携带的历史消息条数
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  model         Model?          @relation(fields: [modelId], references: [id], onDelete: SetNull)
+  owner         User?           @relation("AgentOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  skills        AgentSkill[]
+  conversations Conversation[]
+  learnings     AgentLearning[]
+  memories      UserMemory[]
+
+  @@index([enabled, visibility])
+  @@map("agents")
+}
+
+// ============================================================
+//  系统设置与审计
+// ============================================================
+
+model Setting {
+  key         String   @id
+  value       Json
+  group       String   @default("general")
+  description String?
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([group])
+  @@map("settings")
+}
+
+model AuditLog {
+  id         String  @id @default(cuid())
+  userId     String? @map("user_id")
+  actor      String? // 操作者邮箱快照
+  action     String // 例如 user.disable / model.update
+  resource   String // 资源类型
+  resourceId String? @map("resource_id")
+
+  detail    Json?
+  ip        String?
+  userAgent String? @map("user_agent")
+  success   Boolean @default(true)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([resource, resourceId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ============================================================
+//  校园门户导览（UCASS）
+//  数据来源：ucass-campus-guide skill（guide/v4，2026-09-23 快照）
+//  定位：指路人而非代办者——只给路径与提示，页面由用户自己打开操作
+// ============================================================
+
+model CampusGuideItem {
+  id         String @id @default(cuid())
+  /// 原始索引 id（guide_v4.json 中的 id），用于幂等导入
+  externalId Int    @unique @map("external_id")
+
+  title  String
+  url    String
+  cat    String @default("未分类")
+  type   String @default("事项")
+  source String @default("")
+
+  /// 办理信息（指引层）
+  name       String?
+  dept       String? // 办理部门
+  place      String? // 办理地点
+  tel        String? // 联系电话
+  campus     String? // 良乡 / 望京 / 通用
+  form       String? // 办理形式
+  officeTime String? @map("office_time")
+  contact    String?
+  login      String? // 登录要求
+
+  /// 公网 / 校园网·VPN / 已合并下线
+  access       String?
+  /// 完整度：full / rendered / verified / basic / attachment_only / link_only / unavailable
+  detailStatus String  @map("detail_status")
+  /// notice_reply / regulation / form_download / other
+  subtype      String?
+
+  summaryShort String  @default("") @map("summary_short") @db.Text
+  /// 完整正文（仅 FULL 模式返回）
+  detail       String? @db.Text
+
+  steps       Json? // string[] 操作步骤
+  keyFacts    Json? @map("key_facts") // [{kind,value}]
+  detailParts Json? @map("detail_parts") // materials / faq / attachments ...
+
+  /// 原始附加字段（views / applies / created / alt_entry / http_status ...）
+  extra      Json?
+  verifiedAt String? @map("verified_at")
+  note       String?
+  views      Int     @default(0)
+
+  /// 检索用扁平文本（标题+正文摘要+关键参数小写拼接），避免每次查询都拼字符串
+  searchText String @map("search_text") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  runs CampusGuideRun[]
+
+  @@index([cat])
+  @@index([detailStatus])
+  @@index([access])
+  @@index([dept])
+  @@index([type])
+  @@map("campus_guide_items")
+}
+
+/// 人文之光社论语料（读者投稿合集）。
+///
+/// 定位：**可溯源的检索与引述**，不是观点生成器。
+/// 这些是历次投稿的原文，回答时必须给出篇号与原文片段，
+
+/// 导览会话：一次「打开页面 + 逐步提示」的记录，用于后台审计与断点续看
+model CampusGuideRun {
+  id     String @id @default(cuid())
+  userId String @map("user_id")
+  itemId String @map("item_id")
+
+  mode        CampusGuideMode @default(GUIDE)
+  /// 当前进行到第几步（用户自己推进，Agent 只提示）
+  currentStep Int             @default(0)
+  completed   Boolean         @default(false)
+
+  /// 关联的浏览器会话（画面来源）。
+  /// 刻意**不加唯一约束**：同一个 Chromium 会话会被同一用户连续的多条导览记录复用
+  /// （切换事项时只换页面、不重开浏览器），一条会话因此可以对应多条历史记录。
+  browserSessionId String? @map("browser_session_id")
+
+  /// 打开过的页面 URL 轨迹
+  visitedUrls  Json?   @map("visited_urls")
+  /// 用户对每一步的完成情况 [{ step, done, at }]
+  stepProgress Json?   @map("step_progress")
+  note         String?
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  closedAt  DateTime? @map("closed_at")
+
+  user User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item CampusGuideItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([itemId])
+  @@index([browserSessionId])
+  @@map("campus_guide_runs")
+}
+
+// ============================================================
+//  用户记忆
+// ============================================================
+
+/// 记忆来源：用户主动告知、系统从对话推断、或用户从对话中提取
+enum MemorySource {
+  USER_EXPLICIT // 用户明确告诉智能体"记住这个"
+  SYSTEM_INFERRED // 系统从对话中自动推断
+  USER_EXTRACTED // 用户从历史对话中手动提取
+}
+
+/// 记忆状态：需要审核才能生效
+enum MemoryStatus {
+  PENDING // 待审核
+  ACTIVE // 已激活
+  ARCHIVED // 已归档
+}
+
+/// 用户记忆：记录用户告诉智能体的重要信息
+model UserMemory {
+  id      String       @id @default(cuid())
+  userId  String       @map("user_id")
+  agentId String?      @map("agent_id") // 为空表示全局记忆
+  source  MemorySource @default(USER_EXPLICIT)
+  status  MemoryStatus @default(ACTIVE)
+
+  /// 记忆内容：一句话描述，会注入到系统提示词
+  content String @db.Text
+
+  /// 记忆类别：便于分类管理和检索
+  category String @default("general") // name / preference / fact / context / other
+
+  /// 记忆的重要性：1-5，5 最重要
+  importance Int @default(3)
+
+  /// 记忆被使用的次数（注入提示词的次数）
+  usedCount Int @default(0) @map("used_count")
+
+  /// 记忆的有效期：为空表示永久
+  expiresAt DateTime? @map("expires_at")
+
+  /// 记忆的来源对话（可选）
+  sourceConversationId String? @map("source_conversation_id")
+  sourceMessageId      String? @map("source_message_id")
+
+  /// 审核相关
+  reviewedById String?   @map("reviewed_by_id")
+  reviewedAt   DateTime? @map("reviewed_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent Agent? @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([agentId, status])
+  @@index([category])
+  @@index([importance])
+  @@map("user_memories")
+}
+
+/// 体验版（/test，免登录）每轮问答记录：IP 限流与统计的数据源
+model TrialRound {
+  id             String   @id @default(cuid())
+  /// 访客 IP（限流键：ip + 当日）
+  ip             String   @map("ip")
+  conversationId String   @map("conversation_id")
+  question       String   @db.Text
+  answer         String   @db.Text
+  modelKey       String   @default("deepseek-chat") @map("model_key")
+  latencyMs      Int      @default(0) @map("latency_ms")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([ip, createdAt])
+  @@index([createdAt])
+  @@map("trial_rounds")
+}
+
+/// 体验版每轮问答之后的满意度问卷（可跳过）
+model TrialSurvey {
+  id        String   @id @default(cuid())
+  ip        String   @map("ip")
+  /// 关联的 TrialRound id（该轮答完立即弹出）
+  roundId   String?  @map("round_id")
+  /// 总体满意度 1-5（5 = 很满意）
+  overall   Int
+  /// 回答存在的问题（多选标签）
+  problems  Json?
+  /// 希望增加的回答内容（多选标签）
+  wants     Json?    @map("wants")
+  /// 建议与补充说明（填空）
+  advice    String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("trial_surveys")
+}
+
+model CampusActivity {
+  id          String   @id @default(cuid())
+  requestId   String?  @unique @map("request_id")
+  userId      String?  @map("user_id")
+  eventType   String   @map("event_type")
+  origin      String
+  entryId     String?  @map("entry_id")
+  collection  String   @default("")
+  title       String   @default("")
+  url         String   @default("")
+  query       String   @default("")
+  resultCount Int      @default(0) @map("result_count")
+  references  Json     @default("[]")
+  success     Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([eventType, createdAt])
+  @@index([origin, createdAt])
+  @@index([createdAt])
+  @@map("campus_activities")
+}
+
+model EvaluationJob {
+  id            String           @id @default(cuid())
+  userId        String           @map("user_id")
+  title         String
+  status        String           @default("QUEUED")
+  total         Int
+  batchCount    Int              @map("batch_count")
+  completed     Int              @default(0)
+  succeeded     Int              @default(0)
+  failed        Int              @default(0)
+  options       Json
+  error         String?
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+  startedAt     DateTime?        @map("started_at")
+  finishedAt    DateTime?        @map("finished_at")
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  turns         EvaluationTurn[]
+  conversations Conversation[]
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@map("evaluation_jobs")
+}
+
+model EvaluationTurn {
+  id                 String        @id @default(cuid())
+  jobId              String        @map("job_id")
+  position           Int
+  batchId            String        @map("batch_id")
+  split              String
+  turn               Int
+  question           String        @db.Text
+  reply              String        @default("") @db.Text
+  status             String        @default("PENDING")
+  error              String?
+  conversationId     String?       @map("conversation_id")
+  assistantMessageId String?       @map("assistant_message_id")
+  usage              Json          @default("{}")
+  runtime            Json?
+  sources            Json          @default("[]")
+  latencyMs          Int           @default(0) @map("latency_ms")
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+  job                EvaluationJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, position])
+  @@unique([jobId, batchId, turn])
+  @@index([jobId, status])
+  @@map("evaluation_turns")
+}

@@ -1,0 +1,37 @@
+{
+  "name": "cagent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CAgent - campus AI agent platform (Vue 3 admin + NestJS API)",
+  "packageManager": "pnpm@11.8.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "db:start": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/pg-start.ps1",
+    "db:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/pg-stop.ps1",
+    "db:setup": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/setup-postgres.ps1",
+    "db:migrate": "pnpm --filter @cagent/api db:migrate",
+    "db:seed": "pnpm --filter @cagent/api db:seed",
+    "db:studio": "pnpm --filter @cagent/api db:studio",
+    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "dev:api": "pnpm --filter @cagent/api dev",
+    "dev:web": "pnpm --filter @cagent/web dev",
+    "build": "pnpm --filter \"./apps/*\" build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "knowledge:build": "node knowledge/build-unified.mjs",
+    "knowledge:evaluate": "pnpm --filter @cagent/api exec ts-node --transpile-only scripts/evaluate-knowledge.ts",
+    "knowledge:import": "pnpm --filter @cagent/api exec node scripts/import-campus-guide.mjs ../../knowledge/dist/campus-kb.json",
+    "knowledge:verify": "pnpm --filter @cagent/api exec ts-node --transpile-only scripts/verify-knowledge.ts",
+    "knowledge:verify:handbook": "pnpm --filter @cagent/api exec ts-node --transpile-only scripts/verify-handbook.ts",
+    "knowledge:verify:ui": "pnpm --filter @cagent/api exec node scripts/verify-knowledge-ui.mjs",
+    "knowledge:evaluate:database": "pnpm --filter @cagent/api exec ts-node --transpile-only scripts/evaluate-knowledge.ts --database",
+    "agent:verify": "pnpm --filter @cagent/api exec ts-node --transpile-only scripts/verify-agent-runtime.ts",
+    "agent:verify:providers": "pnpm --filter @cagent/api exec ts-node --transpile-only scripts/verify-agent-providers.ts",
+    "agent:verify:ui": "pnpm --filter @cagent/api exec node scripts/verify-agent-ui.mjs"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}

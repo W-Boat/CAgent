@@ -1,0 +1,1097 @@
+/*
+ * 专属样式只写本视图的布局与细节；原语（按钮 / 输入 / chip / 消息骨架 /
+ * 工具行 / 通知条 / 过渡）全部来自 styles/next.css，此处不重复定义。
+ */
+
+.nx-root.nx-student {
+  /* 任务规格：学生端侧栏 264px（覆盖共享默认 248px，只影响本视图） */
+  --nx-sidebar-width: 264px;
+
+  display: flex;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--nx-bg);
+}
+
+/* ═══════════ 侧栏 ═══════════ */
+
+.st-side {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 var(--nx-sidebar-width);
+  width: var(--nx-sidebar-width);
+  min-height: 0;
+  background: var(--nx-bg-soft);
+  border-right: 1px solid var(--nx-border);
+}
+
+.st-brand {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 16px 14px 10px;
+}
+
+/* 印章字方格：新版语言下的「站印」——圆角方形 + accent 底字 */
+.st-seal {
+  display: flex;
+  flex: 0 0 34px;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  font-size: 17px;
+  font-weight: 650;
+  color: var(--nx-accent);
+  user-select: none;
+  background: var(--nx-accent-soft);
+  border: 1px solid var(--nx-accent-border);
+  border-radius: var(--nx-radius);
+}
+
+.st-brand-text {
+  min-width: 0;
+}
+
+.st-brand-name {
+  overflow: hidden;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--nx-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.st-brand-sub {
+  margin-top: 1px;
+  font-size: 11px;
+  color: var(--nx-text-3);
+}
+
+.st-new svg {
+  width: 15px;
+  height: 15px;
+}
+
+.st-search {
+  padding: 8px 12px 6px;
+}
+
+.st-convs {
+  flex: 1;
+  min-height: 0;
+  padding: 4px 8px 12px;
+  overflow-y: auto;
+}
+
+.st-conv-skel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 4px 0;
+}
+
+.st-conv-skel-row {
+  height: 44px;
+  border-radius: var(--nx-radius-sm);
+}
+
+.st-empty {
+  padding: 18px 8px;
+  font-size: 12.5px;
+  color: var(--nx-text-3);
+  text-align: center;
+}
+
+/* flat 行：active 用悬停灰 + 左侧 accent 竖条；行距放宽一点更透气 */
+.st-conv {
+  position: relative;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 9px 8px 9px 12px;
+  cursor: pointer;
+  border-radius: var(--nx-radius-sm);
+  transition: background 0.15s ease;
+}
+
+/* 相邻行距 2px：不显拥挤，也不会把 active 竖条挤到贴住上一行 */
+.st-conv + .st-conv {
+  margin-top: 2px;
+}
+
+.st-conv:hover {
+  background: var(--nx-surface-hover);
+}
+
+.st-conv.is-active {
+  background: var(--nx-surface-hover);
+}
+
+/*
+ * active 左缘竖条：常驻元素 + opacity 过渡，整行高度渐显。
+ * 之前是 .is-active 才插入的半截短条（top/bottom 7px），出现时没有过渡。
+ */
+.st-conv::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  content: "";
+  background: var(--nx-accent);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.st-conv.is-active::before {
+  opacity: 1;
+}
+
+.st-conv:focus-visible {
+  outline: none;
+  box-shadow: var(--nx-focus-ring);
+}
+
+.st-conv-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.st-conv-title {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--nx-text);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.st-pin {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  color: var(--nx-accent);
+}
+
+.st-conv-meta {
+  margin-top: 2px;
+  overflow: hidden;
+  font-size: 11.5px;
+  color: var(--nx-text-3);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 删除按钮 hover 才出现 */
+.st-conv-del {
+  display: flex;
+  flex: 0 0 24px;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  color: var(--nx-text-3);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: var(--nx-radius-sm);
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.st-conv:hover .st-conv-del,
+.st-conv-del:focus-visible {
+  opacity: 1;
+}
+
+.st-conv-del:hover {
+  color: var(--nx-danger);
+  background: var(--nx-danger-soft);
+}
+
+.st-conv-del svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* ---------- 管理模式（批量勾选/删除） ---------- */
+
+/* 新建 + 管理两枚按钮纵向排布 */
+.st-side-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 12px 4px;
+}
+
+/* 管理开关激活态：accent 软底描边，与 primary「新建」区分开 */
+.st-manage.is-on {
+  color: var(--nx-accent);
+  background: var(--nx-accent-soft);
+  border-color: var(--nx-accent-border);
+}
+
+/* 管理模式操作条：按钮直接复用 nx-btn-*，只管排布与间距 */
+.st-bulk {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 12px 8px;
+}
+
+/* 行首自绘勾选框（管理模式才渲染）：整行都是触控目标，框只是状态指示 */
+.st-conv-check {
+  position: relative;
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  background: var(--nx-bg);
+  border: 1px solid var(--nx-border-strong);
+  border-radius: 4px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.st-conv-check.is-on {
+  background: var(--nx-accent);
+  border-color: var(--nx-accent);
+}
+
+.st-conv-check.is-on::after {
+  position: absolute;
+  top: 2px;
+  left: 5px;
+  width: 4px;
+  height: 8px;
+  content: "";
+  border: solid #fff;
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+}
+
+/* 勾选中的行铺 accent 软底，与 active 行的左缘竖条区分开 */
+.st-conv.is-checked {
+  background: var(--nx-accent-soft);
+}
+
+/* 底部用户条 */
+.st-user {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--nx-border);
+}
+
+.st-user .st-user-avatar {
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+}
+
+.st-user-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.st-user-name {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--nx-text);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.st-user-role {
+  margin-top: 1px;
+  font-size: 11px;
+  color: var(--nx-text-3);
+}
+
+/* ═══════════ 主区 ═══════════ */
+
+.st-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--nx-bg);
+}
+
+.st-top {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 10px;
+  align-items: center;
+  height: var(--nx-topbar-height);
+  padding: 0 20px;
+  background: var(--nx-bg);
+  border-bottom: 1px solid var(--nx-border);
+}
+
+.st-title-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.st-title {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--nx-text);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.st-subtitle {
+  margin-top: 1px;
+  overflow: hidden;
+  font-size: 11.5px;
+  color: var(--nx-text-3);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 顶栏通知条：限宽，别把标题挤没 */
+.st-route-notice {
+  flex: 0 1 auto;
+  max-width: 480px;
+  min-width: 0;
+}
+
+.st-notice-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.st-notice-close {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* 学校 Logo（管理端配置）：定高圆角，宽度随图，避免挤压标题 */
+.st-logo {
+  flex: 0 0 auto;
+  height: 28px;
+  max-width: 120px;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+/* 滚动舞台：悬浮按钮与滚动区同层定位 */
+.st-stage {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.st-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Codex 风格窄内容列，居中 + 充足留白 */
+.st-body {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  max-width: var(--nx-content-width);
+  padding: 28px 24px 44px;
+  margin: 0 auto;
+}
+
+.st-tobottom {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  color: var(--nx-text-2);
+  cursor: pointer;
+  background: var(--nx-surface);
+  border: 1px solid var(--nx-border-strong);
+  border-radius: 999px;
+  box-shadow: var(--nx-shadow-md);
+  transform: translateX(-50%);
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.st-tobottom:hover {
+  color: var(--nx-text);
+  background: var(--nx-surface-hover);
+}
+
+.st-tobottom svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ---------- 欢迎空态 ---------- */
+
+.st-welcome {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: center;
+  padding-top: 5vh;
+  text-align: center;
+}
+
+/* 日期/天气行：muted 小字，不抢迎宾主视觉 */
+.st-welcome-date {
+  font-size: 12px;
+  color: var(--nx-text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.st-welcome-seal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  font-size: 26px;
+  font-weight: 650;
+  color: var(--nx-accent);
+  user-select: none;
+  background: var(--nx-accent-soft);
+  border: 1px solid var(--nx-accent-border);
+  border-radius: 16px;
+}
+
+.st-welcome-title {
+  margin: 4px 0 0;
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--nx-text);
+}
+
+.st-welcome-desc {
+  max-width: 40rem;
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: var(--nx-text-2);
+}
+
+.st-greeting {
+  width: 100%;
+  font-size: 14px;
+  color: var(--nx-text);
+  text-align: left;
+}
+
+.st-starters {
+  width: 100%;
+  margin-top: 6px;
+}
+
+/* 智能体网格 */
+.st-agents {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  width: 100%;
+  margin-top: 18px;
+}
+
+.st-agent {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px;
+  cursor: pointer;
+  text-align: left;
+  background: var(--nx-surface);
+  border: 1px solid var(--nx-border);
+  border-radius: var(--nx-radius);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.st-agent:hover {
+  background: var(--nx-surface-hover);
+  border-color: var(--nx-border-strong);
+}
+
+/* 选中态：accent 描边 */
+.st-agent.is-on {
+  background: var(--nx-accent-soft);
+  border-color: var(--nx-accent);
+}
+
+.st-agent:focus-visible {
+  outline: none;
+  box-shadow: var(--nx-focus-ring);
+}
+
+.st-agent-avatar {
+  display: flex;
+  flex: 0 0 30px;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--nx-text-2);
+  background: var(--nx-bg-soft);
+  border: 1px solid var(--nx-border);
+  border-radius: 50%;
+  overflow: hidden;
+  user-select: none;
+}
+
+.st-agent-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.st-agent-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.st-agent-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--nx-text);
+}
+
+.st-agent-desc {
+  display: -webkit-box;
+  margin-top: 2px;
+  overflow: hidden;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--nx-text-3);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* ---------- 消息流 ---------- */
+
+/* 用户消息：图片挂在气泡上方，右对齐（对齐逻辑在 next.css） */
+.nx-msg-user .st-msg-images {
+  margin-bottom: 8px;
+}
+
+/* 助手消息头的小方格身份牌 */
+.st-msg-badge {
+  display: flex;
+  flex: 0 0 22px;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  font-size: 11.5px;
+  font-weight: 650;
+  color: var(--nx-accent);
+  user-select: none;
+  background: var(--nx-accent-soft);
+  border: 1px solid var(--nx-accent-border);
+  border-radius: var(--nx-radius-sm);
+}
+
+/* 悬停操作条 */
+.st-msg-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin-top: 4px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.nx-msg-ai:hover .st-msg-actions,
+.st-msg-actions:focus-within {
+  opacity: 1;
+}
+
+.st-msg-actions .nx-icon-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .st-msg-actions { opacity: 1; }
+}
+
+/* ---------- 知识库来源卡（正文上方，默认收起） ---------- */
+
+.st-kb {
+  max-width: 40rem;
+}
+
+.st-kb-toggle {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+  padding: 5px 10px;
+  font-size: 12px;
+  color: var(--nx-text-2);
+  text-align: left;
+  cursor: pointer;
+  background: var(--nx-bg-soft);
+  border: 1px solid var(--nx-border);
+  border-radius: var(--nx-radius-sm);
+  transition: background 0.15s ease;
+}
+
+.st-kb-toggle:hover {
+  background: var(--nx-surface-hover);
+}
+
+.st-kb-toggle:focus-visible {
+  outline: none;
+  box-shadow: var(--nx-focus-ring);
+}
+
+.st-kb-arrow {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--nx-text-3);
+  transition: transform 0.15s ease;
+}
+
+.st-kb-arrow.is-open {
+  transform: rotate(180deg);
+}
+
+.st-kb-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  margin: 4px 0 0;
+  list-style: none;
+  background: var(--nx-bg-soft);
+  border: 1px solid var(--nx-border);
+  border-radius: var(--nx-radius-sm);
+}
+
+.st-kb-item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  align-items: baseline;
+}
+
+.st-kb-title {
+  font-size: 12.5px;
+  color: var(--nx-text-2);
+}
+
+.st-kb-title.is-link {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+  transition: text-decoration-color 0.15s ease, color 0.15s ease;
+}
+
+.st-kb-title.is-link:hover {
+  color: var(--nx-accent);
+  text-decoration-color: currentcolor;
+}
+
+.st-kb-meta {
+  font-size: 11.5px;
+  color: var(--nx-text-3);
+}
+
+/* ---------- 输入区 ---------- */
+
+.st-composer {
+  flex: 0 0 auto;
+  padding: 0 24px calc(16px + env(safe-area-inset-bottom));
+  background: var(--nx-bg);
+}
+
+.st-composer-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: var(--nx-content-width);
+  margin: 0 auto;
+}
+
+/* 聚焦态：accent 描边 + 焦点环（用 :focus-within，免去 JS 状态） */
+.st-composer-box {
+  padding: 8px 12px;
+  background: var(--nx-surface);
+  border: 1px solid var(--nx-border-strong);
+  border-radius: var(--nx-radius-lg);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.st-composer-box:focus-within {
+  border-color: var(--nx-accent);
+  box-shadow: var(--nx-focus-ring);
+}
+
+.st-skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 2px 0 8px;
+}
+
+.st-skills-label {
+  font-size: 11.5px;
+  color: var(--nx-text-3);
+}
+
+.st-chip-x {
+  margin-left: 2px;
+  font-size: 13px;
+  line-height: 1;
+  opacity: 0.7;
+}
+
+button.nx-chip:hover .st-chip-x {
+  opacity: 1;
+}
+
+.st-previews {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 2px 0 8px;
+}
+
+.st-preview {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  overflow: hidden;
+  border: 1px solid var(--nx-border);
+  border-radius: var(--nx-radius);
+}
+
+.st-preview img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.st-preview button {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  font-size: 13px;
+  line-height: 1;
+  color: #fff;
+  cursor: pointer;
+  background: rgba(0, 0, 0, 0.55);
+  border: 0;
+  border-radius: 50%;
+}
+
+.st-preview button:hover {
+  background: rgba(0, 0, 0, 0.75);
+}
+
+.st-textarea {
+  display: block;
+  width: 100%;
+  max-height: 190px;
+  padding: 6px 2px 4px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--nx-text);
+  background: transparent;
+  border: 0;
+  outline: none;
+  resize: none;
+}
+
+.st-textarea::placeholder {
+  color: var(--nx-text-3);
+}
+
+.st-textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.st-composer-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 2px;
+}
+
+.st-composer-left {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.st-char {
+  font-size: 11.5px;
+  color: var(--nx-text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.st-composer-right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.st-send svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* 语义路由建议条 */
+.st-suggest-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.st-suggest-line {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--nx-text);
+}
+
+.st-suggest-reason {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--nx-text-2);
+}
+
+.st-suggest-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+.st-file {
+  display: none;
+}
+
+/* ═══════════ 首次使用引导 ═══════════ */
+
+/* 遮罩+卡片：做法对齐 CampusNetDialog（自绘，不引组件） */
+.st-ob-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(24, 24, 27, 0.45);
+}
+
+.st-ob-card {
+  width: min(420px, 100%);
+  max-height: 86vh;
+  padding: 22px;
+  overflow-y: auto;
+  background: var(--nx-bg);
+  border: 1px solid var(--nx-border);
+  border-radius: var(--nx-radius-lg);
+  box-shadow: var(--nx-shadow-lg);
+}
+
+.st-ob-title {
+  font-size: 17px;
+  font-weight: 650;
+  color: var(--nx-text);
+}
+
+.st-ob-sub {
+  margin-top: 4px;
+  font-size: 12.5px;
+  color: var(--nx-text-3);
+}
+
+.st-ob-section {
+  margin-top: 18px;
+}
+
+.st-ob-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--nx-text);
+}
+
+.st-ob-desc {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--nx-text-2);
+}
+
+.st-ob-choice {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* 选中项：accent 软底，与管理开关同语言 */
+.st-ob-opt.is-on {
+  color: var(--nx-accent);
+  background: var(--nx-accent-soft);
+  border-color: var(--nx-accent-border);
+}
+
+.st-ob-textarea {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--nx-text);
+  background: var(--nx-bg-soft);
+  border: 1px solid var(--nx-border);
+  border-radius: var(--nx-radius-sm);
+  outline: none;
+  resize: vertical;
+  transition: border-color 0.15s ease;
+}
+
+.st-ob-textarea:focus {
+  border-color: var(--nx-accent);
+}
+
+.st-ob-foot {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+/* ═══════════ 窄屏：侧栏转抽屉 ═══════════ */
+
+.st-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 39;
+  background: rgba(24, 24, 27, 0.42);
+}
+
+/* 遮罩过渡：进出都淡入淡出（由模板里的 Transition 驱动，双向平滑） */
+.st-mask-enter-active,
+.st-mask-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.st-mask-enter-from,
+.st-mask-leave-to {
+  opacity: 0;
+}
+
+@media (max-width: 860px) {
+  /* 侧栏转为抽屉浮层，不再挤压消息区；用 transform 移出避免回流 */
+  .st-side {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 40;
+    width: min(84vw, 300px);
+    flex-basis: auto;
+    /* 抽屉模式下的底部安全区：用户条不被手势条压住 */
+    padding-bottom: env(safe-area-inset-bottom);
+    box-shadow: var(--nx-shadow-lg);
+    transition: transform 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .st-side.is-hidden {
+    transform: translateX(-102%);
+    pointer-events: none;
+  }
+
+  .st-top {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: var(--nx-topbar-height);
+    padding: 8px 12px;
+  }
+
+  /* 通知条窄屏整行放，避免挤压标题 */
+  .st-route-notice {
+    order: 3;
+    width: 100%;
+    max-width: none;
+  }
+
+  .st-body {
+    gap: 22px;
+    padding: 18px 14px 32px;
+  }
+
+  .st-composer {
+    padding: 0 12px calc(12px + env(safe-area-inset-bottom));
+  }
+
+  /* 用户气泡放宽到 88%：窄屏长句少折行（覆盖 next.css 的 min(85%, 34rem)） */
+  .nx-msg-user .nx-msg-bubble {
+    max-width: 88%;
+  }
+
+  /* 欢迎区字号分级：一级在 860px 收一档 */
+  .st-welcome-title {
+    font-size: 19px;
+  }
+
+  .st-welcome-desc {
+    font-size: 13px;
+  }
+
+  .st-agents {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  /* 智能体网格单列：两列挤压会导致标题换行错位，整行铺开更稳 */
+  .st-agents {
+    grid-template-columns: 1fr;
+  }
+
+  /* 欢迎区字号分级：二级再收一档 */
+  .st-welcome-title {
+    font-size: 17px;
+  }
+
+  .st-welcome-desc {
+    font-size: 12.5px;
+  }
+}
+
+.st-display-footer{margin:8px 0 0;text-align:center;font-size:11px;line-height:1.6;color:var(--nx-text-3);overflow-wrap:anywhere}

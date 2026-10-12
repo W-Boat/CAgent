@@ -1,0 +1,899 @@
+{
+  "schema": "campus-map/v1",
+  "coordinateSystem": "schematic",
+  "campuses": [
+    {
+      "id": "liangxiang",
+      "name": "良乡校区",
+      "edition": "2026-05",
+      "northRotation": 90,
+      "source": "用户提供：中国社会科学院大学研究生会出品手绘校园图（2026年5月）",
+      "sourceFile": "liangxiang-reference.png",
+      "width": 1080,
+      "height": 796,
+      "places": [
+        {
+          "id": "teaching",
+          "name": "教学综合楼",
+          "kind": "academic",
+          "x": 85,
+          "y": 142,
+          "width": 171,
+          "height": 102,
+          "description": "邻近南门，原图上方左侧。综合楼、新综楼、教综楼均指此楼。",
+          "aliases": [
+            "综合楼",
+            "新综楼",
+            "教综楼",
+            "新综合楼",
+            "教学主楼"
+          ],
+          "shape": "rect"
+        },
+        {
+          "id": "south-complex",
+          "name": "南综合楼",
+          "kind": "academic",
+          "x": 287,
+          "y": 166,
+          "width": 78,
+          "height": 108,
+          "description": "位于教学综合楼与北综合楼之间，邻近图书馆。",
+          "aliases": [
+            "悦成楼"
+          ],
+          "shape": "rect"
+        },
+        {
+          "id": "north-complex",
+          "name": "北综合楼",
+          "kind": "academic",
+          "x": 480,
+          "y": 167,
+          "width": 92,
+          "height": 108,
+          "description": "位于车队左侧，图书馆上方。用户补充：北综楼有瑞幸。",
+          "aliases": [
+            "北综楼",
+            "北综",
+            "瑞幸",
+            "瑞幸咖啡"
+          ],
+          "shape": "rect"
+        },
+        {
+          "id": "motor-pool",
+          "name": "车队",
+          "kind": "service",
+          "x": 606,
+          "y": 192,
+          "width": 21,
+          "height": 79,
+          "description": "位于北综合楼与5号楼之间。",
+          "aliases": [],
+          "shape": "rect"
+        },
+        {
+          "id": "dorm-5",
+          "name": "5号楼",
+          "kind": "residence",
+          "x": 640,
+          "y": 166,
+          "width": 62,
+          "height": 106,
+          "description": "位于车队与第一食堂之间。",
+          "aliases": [
+            "5号宿舍楼",
+            "五号楼",
+            "5号宿舍"
+          ],
+          "shape": "rect"
+        },
+        {
+          "id": "canteen-1",
+          "name": "第一食堂",
+          "kind": "dining",
+          "x": 722,
+          "y": 210,
+          "width": 113,
+          "height": 66,
+          "description": "邻近5号楼和6号楼。",
+          "aliases": [
+            "一食堂",
+            "一餐",
+            "第一餐厅",
+            "食堂",
+            "餐厅"
+          ],
+          "shape": "rect"
+        },
+        {
+          "id": "dorm-6",
+          "name": "6号楼",
+          "kind": "residence",
+          "x": 850,
+          "y": 167,
+          "width": 59,
+          "height": 110,
+          "description": "邻近第一食堂和北门。",
+          "aliases": [
+            "6号宿舍楼",
+            "六号楼",
+            "6号宿舍"
+          ],
+          "shape": "rect"
+        },
+        {
+          "id": "dorm-7",
+          "name": "7号楼",
+          "kind": "residence",
+          "x": 903,
+          "y": 27,
+          "width": 25,
+          "height": 99,
+          "description": "校区北侧，七、八号楼所在区域右侧较高的楼体，邻近快递及外卖柜区。",
+          "aliases": [
+            "7号宿舍楼",
+            "七号楼",
+            "7号宿舍"
+          ],
+          "shape": "rect",
+          "markerX": 916,
+          "markerY": 69
+        },
+        {
+          "id": "dorm-8",
+          "name": "8号楼",
+          "kind": "residence",
+          "x": 857,
+          "y": 48,
+          "width": 46,
+          "height": 85,
+          "description": "校区北侧，七号楼旁较宽的楼体；不是右侧的外卖柜或校园驿站。",
+          "aliases": [
+            "8号宿舍楼",
+            "八号楼",
+            "8号宿舍"
+          ],
+          "shape": "rect",
+          "markerX": 880,
+          "markerY": 86
+        },
+        {
+          "id": "parcel-lockers",
+          "name": "快递柜 / 外卖柜",
+          "kind": "service",
+          "x": 936,
+          "y": 111,
+          "width": 12,
+          "height": 29,
+          "description": "邻近7号楼与8号楼。",
+          "aliases": [
+            "快递柜",
+            "外卖柜"
+          ],
+          "shape": "rect"
+        },
+        {
+          "id": "parcel-station",
+          "name": "校园驿站",
+          "kind": "service",
+          "x": 946,
+          "y": 162,
+          "width": 27,
+          "height": 62,
+          "description": "邻近8号楼，在北门附近。",
+          "aliases": [
+            "驿站"
+          ],
+          "shape": "rect"
+        },
+        {
+          "id": "bathhouse",
+          "name": "浴房",
+          "kind": "service",
+          "x": 945,
+          "y": 235,
+          "width": 45,
+          "height": 35,
+          "description": "邻近北门与锅炉房。",
+          "aliases": [
+            "浴室",
+            "澡堂"
+          ],
+          "shape": "rect"
+        },
+        {
+          "id": "boiler",
+          "name": "锅炉房",
+          "kind": "service",
+          "x": 993,
+          "y": 231,
+          "width": 10,
+          "height": 47,
+          "description": "位于浴房旁。",
+          "aliases": [],
+          "shape": "rect"
+        },
+        {
+          "id": "printshop",
+          "name": "理发店 / 文印室",
+          "kind": "service",
+          "x": 945,
+          "y": 271,
+          "width": 65,
+          "height": 27,
+          "description": "在北门附近，浴房图下方。",
+          "aliases": [
+            "理发店",
+            "文印室",
+            "打印店"
+          ],
+          "shape": "rect"
+        },
+        {
+          "id": "flavor-canteen",
+          "name": "风味餐厅",
+          "kind": "dining",
+          "x": 572,
+          "y": 250,
+          "width": 30,
+          "height": 26,
+          "description": "在北综合楼旁，邻近车队。",
+          "aliases": [
+            "食堂",
+            "餐厅"
+          ],
+          "shape": "rect"
+        },
+        {
+          "id": "library",
+          "name": "图书馆",
+          "kind": "academic",
+          "x": 345,
+          "y": 385,
+          "width": 198,
+          "height": 67,
+          "description": "位于北综合楼图下方、下沉广场图上方。",
+          "aliases": [],
+          "shape": "rect"
+        },
+        {
+          "id": "garden",
+          "name": "小花园",
+          "kind": "landscape",
+          "x": 74,
+          "y": 341,
+          "width": 205,
+          "height": 311,
+          "description": "位于教学综合楼图下方，与图书馆、下沉广场隔路相邻。",
+          "aliases": [],
+          "shape": "rect"
+        },
+        {
+          "id": "dorm-1",
+          "name": "1号楼",
+          "kind": "residence",
+          "x": 705,
+          "y": 353,
+          "width": 50,
+          "height": 67,
+          "description": "1至4号楼排在气膜体育馆图上方；1号楼邻近球场。",
+          "aliases": [
+            "1号宿舍楼",
+            "一号楼",
+            "1号宿舍"
+          ],
+          "shape": "rect"
+        },
+        {
+          "id": "dorm-2",
+          "name": "2号楼",
+          "kind": "residence",
+          "x": 778,
+          "y": 354,
+          "width": 50,
+          "height": 65,
+          "description": "位于1号楼与3号楼之间。",
+          "aliases": [
+            "2号宿舍楼",
+            "二号楼",
+            "2号宿舍"
+          ],
+          "shape": "rect"
+        },
+        {
+          "id": "dorm-3",
+          "name": "3号楼",
+          "kind": "residence",
+          "x": 850,
+          "y": 354,
+          "width": 51,
+          "height": 65,
+          "description": "位于2号楼与4号楼之间。",
+          "aliases": [
+            "3号宿舍楼",
+            "三号楼",
+            "3号宿舍"
+          ],
+          "shape": "rect"
+        },
+        {
+          "id": "dorm-4",
+          "name": "4号楼",
+          "kind": "residence",
+          "x": 921,
+          "y": 354,
+          "width": 51,
+          "height": 65,
+          "description": "位于3号楼旁，邻近气膜体育馆。",
+          "aliases": [
+            "4号宿舍楼",
+            "四号楼",
+            "4号宿舍"
+          ],
+          "shape": "rect"
+        },
+        {
+          "id": "basketball",
+          "name": "篮球场",
+          "kind": "sports",
+          "x": 669,
+          "y": 460,
+          "width": 50,
+          "height": 41,
+          "description": "在1号楼图下方、气膜体育馆旁。",
+          "aliases": [],
+          "shape": "rect"
+        },
+        {
+          "id": "badminton",
+          "name": "羽毛球场",
+          "kind": "sports",
+          "x": 669,
+          "y": 507,
+          "width": 50,
+          "height": 23,
+          "description": "位于篮球场与排球场之间。",
+          "aliases": [],
+          "shape": "rect"
+        },
+        {
+          "id": "volleyball",
+          "name": "排球场",
+          "kind": "sports",
+          "x": 669,
+          "y": 535,
+          "width": 50,
+          "height": 16,
+          "description": "位于羽毛球场旁。",
+          "aliases": [],
+          "shape": "rect"
+        },
+        {
+          "id": "tennis",
+          "name": "网球场",
+          "kind": "sports",
+          "x": 614,
+          "y": 498,
+          "width": 43,
+          "height": 52,
+          "description": "邻近篮球场、羽毛球场与操场。",
+          "aliases": [],
+          "shape": "rect"
+        },
+        {
+          "id": "sports-hall",
+          "name": "气膜体育馆",
+          "kind": "sports",
+          "x": 739,
+          "y": 470,
+          "width": 231,
+          "height": 88,
+          "description": "位于1至4号楼图下方、操场图上方。",
+          "aliases": [
+            "体育馆",
+            "气膜馆"
+          ],
+          "shape": "rect"
+        },
+        {
+          "id": "field",
+          "name": "操场",
+          "kind": "sports",
+          "x": 618,
+          "y": 569,
+          "width": 348,
+          "height": 132,
+          "description": "在气膜体育馆旁，邻近研教楼。",
+          "aliases": [
+            "田径场",
+            "运动场",
+            "足球场"
+          ],
+          "shape": "rect"
+        },
+        {
+          "id": "sunken-square",
+          "name": "下沉广场",
+          "kind": "landscape",
+          "x": 369,
+          "y": 522,
+          "width": 162,
+          "height": 138,
+          "description": "位于图书馆与东门之间，行政楼和研教楼分列两侧。",
+          "aliases": [
+            "广场"
+          ],
+          "shape": "rect"
+        },
+        {
+          "id": "administration",
+          "name": "行政楼",
+          "kind": "academic",
+          "x": 316,
+          "y": 534,
+          "width": 45,
+          "height": 130,
+          "description": "位于下沉广场图左侧，邻近东门。",
+          "aliases": [],
+          "shape": "rect",
+          "markerX": 336,
+          "markerY": 596
+        },
+        {
+          "id": "research-teaching",
+          "name": "研教楼",
+          "kind": "academic",
+          "x": 533,
+          "y": 532,
+          "width": 43,
+          "height": 132,
+          "description": "位于下沉广场右侧、操场左侧，邻近东门。研教楼即教学楼。",
+          "aliases": [
+            "研究教学楼",
+            "教学楼"
+          ],
+          "shape": "rect",
+          "markerX": 555,
+          "markerY": 596
+        },
+        {
+          "id": "south-gate",
+          "name": "南门",
+          "kind": "gate",
+          "x": 15,
+          "y": 265,
+          "width": 49,
+          "height": 42,
+          "description": "原图图左侧入口，邻近教学综合楼和文昌西路。",
+          "aliases": [],
+          "shape": "rect"
+        },
+        {
+          "id": "north-gate",
+          "name": "北门",
+          "kind": "gate",
+          "x": 1009,
+          "y": 252,
+          "width": 55,
+          "height": 27,
+          "description": "原图图右侧入口，邻近6号楼、浴房和文印室。",
+          "aliases": [],
+          "shape": "rect"
+        },
+        {
+          "id": "east-gate",
+          "name": "东门",
+          "kind": "gate",
+          "x": 374,
+          "y": 696,
+          "width": 61,
+          "height": 28,
+          "description": "原图图下方入口，邻近下沉广场与长于大街。",
+          "aliases": [],
+          "shape": "rect"
+        }
+      ],
+      "roads": [
+        {
+          "name": "文昌西路",
+          "x": 23,
+          "y": 466,
+          "rotate": -90
+        },
+        {
+          "name": "长于大街",
+          "x": 470,
+          "y": 731,
+          "rotate": 0
+        },
+        {
+          "name": "高教园一号路",
+          "x": 978,
+          "y": 466,
+          "rotate": 90
+        }
+      ],
+      "imageUrl": "/maps/liangxiang-original-202605.png",
+      "calibrationNote": "结合用户补充的《社科大建筑道路简图》区分七、八号楼及柜区；像素坐标仍对应2026年5月手绘原图。"
+    },
+    {
+      "id": "wangjing",
+      "name": "望京校区",
+      "edition": "2026-08",
+      "northRotation": 45,
+      "source": "用户提供：中国社会科学院大学望京校区手绘校园图（2026年8月）",
+      "sourceFile": "wangjing-reference.png",
+      "width": 1080,
+      "height": 800,
+      "places": [
+        {
+          "id": "dorm-1",
+          "name": "1号宿舍楼",
+          "kind": "residence",
+          "x": 115,
+          "y": 107,
+          "width": 100,
+          "height": 178,
+          "description": "图中位于3号宿舍楼左侧，邻近大门。",
+          "aliases": [
+            "1号楼",
+            "一号楼",
+            "1号宿舍"
+          ],
+          "shape": "rect"
+        },
+        {
+          "id": "dorm-3",
+          "name": "3号宿舍楼",
+          "kind": "residence",
+          "x": 238,
+          "y": 83,
+          "width": 245,
+          "height": 85,
+          "description": "位于庭院图上方，邻近教工食堂。",
+          "aliases": [
+            "3号楼",
+            "三号楼",
+            "3号宿舍"
+          ],
+          "shape": "rect"
+        },
+        {
+          "id": "dorm-2",
+          "name": "2号宿舍楼",
+          "kind": "residence",
+          "x": 238,
+          "y": 293,
+          "width": 252,
+          "height": 72,
+          "description": "位于庭院图下方，邻近大门。",
+          "aliases": [
+            "2号楼",
+            "二号楼",
+            "2号宿舍"
+          ],
+          "shape": "rect"
+        },
+        {
+          "id": "staff-dorm",
+          "name": "职工宿舍",
+          "kind": "residence",
+          "x": 507,
+          "y": 79,
+          "width": 413,
+          "height": 43,
+          "description": "位于图中上方，邻近教工食堂与锅炉房。",
+          "aliases": [
+            "职工宿舍楼",
+            "教工宿舍"
+          ],
+          "shape": "rect"
+        },
+        {
+          "id": "staff-canteen",
+          "name": "教工食堂",
+          "kind": "dining",
+          "x": 498,
+          "y": 105,
+          "width": 92,
+          "height": 78,
+          "description": "位于3号宿舍楼与厨房之间。",
+          "aliases": [
+            "教职工食堂",
+            "食堂",
+            "餐厅"
+          ],
+          "shape": "rect"
+        },
+        {
+          "id": "kitchen",
+          "name": "厨房",
+          "kind": "dining",
+          "x": 590,
+          "y": 125,
+          "width": 127,
+          "height": 67,
+          "description": "位于教工食堂旁、学生餐厅图上方。",
+          "aliases": [],
+          "shape": "rect"
+        },
+        {
+          "id": "student-canteen",
+          "name": "学生餐厅",
+          "kind": "dining",
+          "x": 526,
+          "y": 198,
+          "width": 169,
+          "height": 88,
+          "description": "位于教工食堂与停车场之间。",
+          "aliases": [
+            "学生食堂",
+            "食堂",
+            "餐厅"
+          ],
+          "shape": "rect"
+        },
+        {
+          "id": "boiler",
+          "name": "锅炉房",
+          "kind": "service",
+          "x": 770,
+          "y": 121,
+          "width": 91,
+          "height": 88,
+          "description": "位于职工宿舍图下方、车库旁。",
+          "aliases": [],
+          "shape": "rect"
+        },
+        {
+          "id": "garage",
+          "name": "车库",
+          "kind": "service",
+          "x": 748,
+          "y": 197,
+          "width": 240,
+          "height": 221,
+          "description": "在锅炉房与停车场旁。",
+          "aliases": [],
+          "shape": "polygon",
+          "points": "748,228 971,197 988,418 957,418 944,259 748,290",
+          "markerX": 853,
+          "markerY": 245
+        },
+        {
+          "id": "parking",
+          "name": "停车场",
+          "kind": "service",
+          "x": 536,
+          "y": 328,
+          "width": 166,
+          "height": 111,
+          "description": "位于学生餐厅图下方，与机械停车场相邻。",
+          "aliases": [],
+          "shape": "rect"
+        },
+        {
+          "id": "mechanical-parking",
+          "name": "机械停车场",
+          "kind": "service",
+          "x": 705,
+          "y": 328,
+          "width": 172,
+          "height": 111,
+          "description": "位于停车场与车库之间。",
+          "aliases": [],
+          "shape": "rect"
+        },
+        {
+          "id": "administration",
+          "name": "行政楼",
+          "kind": "academic",
+          "x": 172,
+          "y": 452,
+          "width": 77,
+          "height": 247,
+          "description": "位于大门图下方，教学楼旁。",
+          "aliases": [],
+          "shape": "rect"
+        },
+        {
+          "id": "substation",
+          "name": "变电站",
+          "kind": "service",
+          "x": 449,
+          "y": 421,
+          "width": 50,
+          "height": 119,
+          "description": "位于庭院旁、图书馆图上方。",
+          "aliases": [],
+          "shape": "rect"
+        },
+        {
+          "id": "library",
+          "name": "图书馆",
+          "kind": "academic",
+          "x": 285,
+          "y": 565,
+          "width": 234,
+          "height": 179,
+          "description": "图中下方的折角建筑，位于教学楼图上方及图右侧。",
+          "aliases": [],
+          "shape": "polygon",
+          "points": "285,565 519,565 519,744 448,744 448,628 285,628",
+          "markerX": 390,
+          "markerY": 597
+        },
+        {
+          "id": "teaching",
+          "name": "教学楼",
+          "kind": "academic",
+          "x": 260,
+          "y": 641,
+          "width": 187,
+          "height": 98,
+          "description": "位于图书馆图下方、行政楼旁。",
+          "aliases": [
+            "教学主楼"
+          ],
+          "shape": "rect"
+        },
+        {
+          "id": "auditorium",
+          "name": "报告厅",
+          "kind": "academic",
+          "x": 565,
+          "y": 541,
+          "width": 82,
+          "height": 180,
+          "description": "位于图书馆与篮球场之间。",
+          "aliases": [
+            "报告大厅"
+          ],
+          "shape": "rect"
+        },
+        {
+          "id": "basketball-1",
+          "name": "篮球场（一）",
+          "kind": "sports",
+          "x": 731,
+          "y": 466,
+          "width": 95,
+          "height": 78,
+          "description": "位于机械停车场图下方，报告厅旁。",
+          "aliases": [
+            "篮球场"
+          ],
+          "shape": "rect"
+        },
+        {
+          "id": "basketball-2",
+          "name": "篮球场（二）",
+          "kind": "sports",
+          "x": 731,
+          "y": 549,
+          "width": 95,
+          "height": 72,
+          "description": "位于另外两块篮球场之间。",
+          "aliases": [
+            "篮球场"
+          ],
+          "shape": "rect"
+        },
+        {
+          "id": "basketball-3",
+          "name": "篮球场（三）",
+          "kind": "sports",
+          "x": 731,
+          "y": 630,
+          "width": 95,
+          "height": 68,
+          "description": "位于图下方，邻近京顺公路一侧。",
+          "aliases": [
+            "篮球场"
+          ],
+          "shape": "rect"
+        },
+        {
+          "id": "badminton-1",
+          "name": "羽毛球场（一）",
+          "kind": "sports",
+          "x": 852,
+          "y": 484,
+          "width": 40,
+          "height": 79,
+          "description": "位于篮球场与网球场之间。",
+          "aliases": [
+            "羽毛球场"
+          ],
+          "shape": "rect"
+        },
+        {
+          "id": "badminton-2",
+          "name": "羽毛球场（二）",
+          "kind": "sports",
+          "x": 852,
+          "y": 575,
+          "width": 40,
+          "height": 71,
+          "description": "位于另一块羽毛球场旁。",
+          "aliases": [
+            "羽毛球场"
+          ],
+          "shape": "rect"
+        },
+        {
+          "id": "tennis",
+          "name": "网球场",
+          "kind": "sports",
+          "x": 923,
+          "y": 493,
+          "width": 76,
+          "height": 162,
+          "description": "位于图中右下方、羽毛球场旁。",
+          "aliases": [],
+          "shape": "rect"
+        },
+        {
+          "id": "garden-north",
+          "name": "庭院（宿舍区）",
+          "kind": "landscape",
+          "x": 246,
+          "y": 187,
+          "width": 230,
+          "height": 99,
+          "description": "位于2号与3号宿舍楼之间。",
+          "aliases": [
+            "庭院"
+          ],
+          "shape": "rect"
+        },
+        {
+          "id": "garden-south",
+          "name": "庭院（教学区）",
+          "kind": "landscape",
+          "x": 306,
+          "y": 422,
+          "width": 132,
+          "height": 118,
+          "description": "位于行政楼、变电站和图书馆之间。",
+          "aliases": [
+            "庭院"
+          ],
+          "shape": "rect"
+        },
+        {
+          "id": "gate",
+          "name": "大门",
+          "kind": "gate",
+          "x": 103,
+          "y": 377,
+          "width": 24,
+          "height": 56,
+          "description": "原图图左侧入口，连接望京中环南路。",
+          "aliases": [
+            "校门",
+            "学校大门"
+          ],
+          "shape": "rect"
+        }
+      ],
+      "roads": [
+        {
+          "name": "望京中环南路",
+          "x": 40,
+          "y": 427,
+          "rotate": -90
+        },
+        {
+          "name": "京顺公路",
+          "x": 535,
+          "y": 730,
+          "rotate": 0
+        }
+      ],
+      "imageUrl": "/maps/wangjing-original-202608.png"
+    }
+  ]
+}

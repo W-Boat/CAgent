@@ -1,0 +1,107 @@
+import assert from 'node:assert/strict'
+import {mkdirSync,writeFileSync,readFileSync} from 'node:fs'
+import {createRequire} from 'node:module'
+import {fileURLToPath} from 'node:url'
+const require=createRequire(import.meta.url),{chromium}=require('playwright')
+const origin=process.env.MAP_WEB||'http://127.0.0.1:4173',shots=new URL('../../../storage/shots/maps/',import.meta.url)
+mkdirSync(shots,{recursive:true})
+const data=JSON.parse(readFileSync(new URL('../../../knowledge/src/campus-maps.json',import.meta.url),'utf8'))
+const browser=await chromium.launch({headless:true}),context=await browser.newContext({viewport:{width:1440,height:1100}}),page=await context.newPage(),errors=[],checks=[]
+const pass=s=>{checks.push(s);console.log('PASS '+s)}
+page.on('pageerror',e=>errors.push(e.message))
+const screenshot=async name=>page.screenshot({path:fileURLToPath(new URL(name,shots)),fullPage:true})
+try{
+  await page.goto(origin+'/map?campus=liangxiang',{waitUntil:'domcontentloaded'})
+  await page.locator('.map-drawing').waitFor()
+  assert.equal(await page.locator('.map-place').count(),33)
+  assert((await page.locator('.atlas-edition').innerText()).includes('北方向右'))
+  await screenshot('liangxiang-desktop.png')
+  const search=page.getByRole('textbox',{name:'搜索建筑或地点'})
+  await search.fill('悦成')
+  assert.equal(await page.locator('.atlas-place-row').count(),1)
+  await page.locator('.atlas-place-row').click()
+  await page.locator('.map-place.is-selected').waitFor()
+  assert((await page.locator('.atlas-selection').innerText()).includes('南综合楼'))
+  assert(new URL(page.url()).searchParams.has('place'))
+  const viewBox=await page.locator('.map-drawing').getAttribute('viewBox')
+  await page.getByRole('button',{name:'放大地图',exact:true}).click()
+  assert.notEqual(await page.locator('.map-drawing').getAttribute('viewBox'),viewBox)
+  await page.getByRole('button',{name:'查看全校地图',exact:true}).click()
+  assert.equal(await page.locator('.map-drawing').getAttribute('viewBox'),`0 0 ${data.campuses[0].width} ${data.campuses[0].height}`)
+  const image=page.locator('.map-drawing image');assert.equal(await image.getAttribute('href'),data.campuses[0].imageUrl);assert.equal(Number(await image.getAttribute('width')),data.campuses[0].width)
+  const mapImage=await page.request.get(origin+data.campuses[0].imageUrl);assert(mapImage.ok());assert((await mapImage.body()).equals(readFileSync(new URL('../../../apps/web/public'+data.campuses[0].imageUrl,import.meta.url))))
+  await search.fill('不存在的位置')
+  assert.equal(await page.locator('.atlas-place-row').count(),0)
+  await page.getByRole('button',{name:'清空搜索'}).click()
+  const library=data.campuses[0].places.find(p=>p.name==='图书馆')
+  const building=page.locator(`[data-place="${library.id}"]`)
+  await building.focus();await page.keyboard.press('Enter')
+  await page.waitForURL('**place='+library.id)
+  pass('良乡 33 地点、别名搜索、未知地点、定位深链、键盘选择及缩放')
+  await page.getByRole('button',{name:'望京校区',exact:true}).click()
+  await page.waitForURL('**campus=wangjing')
+  await page.waitForFunction(()=>document.querySelectorAll('.map-place').length===25)
+  assert.equal(await page.locator('.map-place').count(),25)
+  assert((await page.locator('.atlas-edition').innerText()).includes('北方向右上'))
+  await screenshot('wangjing-desktop.png')
+  const wangLibrary=data.campuses[1].places.find(p=>p.name==='图书馆')
+  // The L-shaped library's bounding-box center is its courtyard, so click its top wing.
+  await page.locator(`[data-place="${wangLibrary.id}"] .map-footprint`).click({position:{x:30,y:20}})
+  await page.waitForURL('**place='+wangLibrary.id)
+  await page.setViewportSize({width:390,height:844})
+  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+  await screenshot('wangjing-mobile.png')
+  await page.goto(origin+'/map?campus=invalid&place=invalid',{waitUntil:'domcontentloaded'})
+  await page.locator('.map-drawing').waitFor()
+  assert.equal(await page.locator('.map-place').count(),33)
+  assert.equal(await page.locator('.map-place.is-selected').count(),0)
+  pass('望京 25 地点、正确北向、SVG 点击、手机布局及无效深链回退')
+  await page.setViewportSize({width:1440,height:1100})
+  let round=0
+  await page.route('**/api/trial/**',async route=>{
+    if(route.request().url().endsWith('/quota'))return route.fulfill({json:{code:0,data:{used:0,max:5,left:5}}})
+    if(!route.request().url().endsWith('/chat'))return route.continue()
+    round++
+    const query=route.request().postDataJSON().content
+    const card=query.includes('图书馆')?{type:'map',campus:'liangxiang',matches:[{campus:'liangxiang',placeIds:[library.id]},{campus:'wangjing',placeIds:[wangLibrary.id]}]}:{type:'effect',effect:query.includes('辛瓜地')?'melon':query.includes('猫娘')?'cat':'tiger',ruleId:'test-'+round}
+    const events=[['meta',{conversationId:'map-ui-'+round}],['text',{text:'```card\n'+JSON.stringify(card)+'\n```'}],['trial',{roundId:'round-'+round,used:round,max:5,left:5-round}],['done',{status:'SUCCESS'}]]
+    await route.fulfill({contentType:'text/event-stream',body:events.map(([name,p])=>'event: '+name+'\ndata: '+JSON.stringify(p)+'\n\n').join('')})
+  })
+  await page.goto(origin+'/test',{waitUntil:'domcontentloaded'})
+  const input=page.getByRole('textbox',{name:'输入消息'})
+  await input.fill('图书馆在哪里');await page.getByRole('button',{name:'发送',exact:true}).click()
+  await page.locator('.campus-map-card').waitFor()
+  assert.equal(await page.locator('.campus-map-card .is-selected').count(),1)
+  await page.locator('.map-card-tabs').getByRole('button',{name:'望京校区'}).click()
+  await page.waitForFunction(()=>document.querySelectorAll('.campus-map-card .map-place').length===25)
+  assert.equal(await page.locator('.campus-map-card .is-selected').count(),1)
+  assert((await page.locator('.map-open').getAttribute('href')).includes('campus=wangjing'))
+  assert.equal(await page.locator('.campus-map-card image').getAttribute('href'),data.campuses[1].imageUrl)
+  // Pending input and parent message rerenders must not undo the chosen campus.
+  await input.fill('仍在望京地图');await page.waitForTimeout(100)
+  assert.equal(await page.locator('.campus-map-card .map-place').count(),25)
+  assert.equal(await page.locator('.campus-map-card image').getAttribute('href'),data.campuses[1].imageUrl)
+  await page.locator('.map-card-tabs').getByRole('button',{name:'良乡校区'}).click();assert.equal(await page.locator('.campus-map-card .map-place').count(),33)
+  await page.locator('.map-card-tabs').getByRole('button',{name:'望京校区'}).click();assert.equal(await page.locator('.campus-map-card .map-place').count(),25);await input.fill('')
+  await page.locator('.trial-feedback').waitFor()
+  await screenshot('chat-map-card.png')
+  pass('聊天地图卡片定位、两校区歧义切换、展开地图链接')
+  for(const [query,effect] of [['大老虎','tiger'],['辛瓜地','melon'],['猫娘','cat']]){
+    await page.getByRole('button',{name:'新建对话',exact:true}).click()
+    await input.fill(query);await page.getByRole('button',{name:'发送',exact:true}).click()
+    await page.locator('.campus-effect-overlay.'+effect).waitFor()
+    await screenshot('effect-'+effect+'.png')
+    await page.keyboard.press('Escape')
+    await page.locator('.campus-effect-overlay').waitFor({state:'detached'})
+    await page.locator('.trial-feedback').waitFor()
+    await page.getByRole('button',{name:'新建对话',exact:true}).click()
+    await page.locator('.st-conv').filter({hasText:query}).click()
+    assert.equal(await page.locator('.campus-effect-overlay').count(),0)
+  }
+  pass('快速 SSE 的三个全屏彩蛋自动播放，可关闭，切换历史不重播')
+  assert.deepEqual(errors,[])
+}finally{
+  writeFileSync(new URL(origin.startsWith('https')?'production-ui-verification.json':'ui-verification.json',shots),JSON.stringify({origin,checkedAt:new Date().toISOString(),checks,errors,transport:'Map asset and UI real; keyword SSE mocked for timing and history checks'},null,2))
+  await browser.close()
+}
+

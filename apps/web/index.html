@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#101a33" />
+    <meta name="description" content="CAgent 校园智能体平台：多模型对话、技能编排、浏览器操控与校园导览。" />
+    <title>CAgent 校园智能体平台</title>
+
+    <!--
+      Open Graph / 微信分享卡片。
+      
+      这里的值是**首页兜底**：构建时由 scripts/inject-og.mjs 按路由
+      为每个页面生成独立 HTML，并把对应内容替换进来。
+      
+      为什么必须在静态 HTML 里就写好：微信爬虫不执行 JS，
+      只在服务端返回的首屏 HTML 里找这些标签。若靠 Vue 运行时注入，
+      微信抓到的永远是空白卡片。
+      
+      og:image 必须绝对路径（OG 协议要求），尺寸 478×478、<2MB。
+    -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="CAgent" />
+    <meta property="og:title" content="CAgent 校园智能体平台" />
+    <meta
+      property="og:description"
+      content="面向校园场景的 AI 智能体平台：多模型对话、技能编排、校园导览与浏览器操控。"
+    />
+    <meta property="og:url" content="http://localhost:5173/" />
+    <meta property="og:image" content="http://localhost:5173/og-cover.png" />
+    <meta property="og:image:width" content="478" />
+    <meta property="og:image:height" content="478" />
+    <meta property="og:image:type" content="image/png" />
+    <!-- 微信不认 og:* 时回退到标准 name 形式，兼容性更稳 -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="CAgent 校园智能体平台" />
+    <meta
+      name="twitter:description"
+      content="面向校园场景的 AI 智能体平台：多模型对话、技能编排、校园导览与浏览器操控。"
+    />
+    <meta name="twitter:image" content="http://localhost:5173/og-cover.png" />
+    <!--
+      首屏占位样式内联：index.css 要等 JS bundle 才加载，
+      若放在那里，慢网络下会先闪一下无样式的白屏。
+      启动占位先读 localStorage 里的主题，暗色用户不再闪白屏。
+    -->
+    <style>
+      html,
+      body,
+      #app {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      html.dark-boot body {
+        background: #0b1220;
+        color: #e2e8f0;
+      }
+      body {
+        font-family: "Inter", "PingFang SC", "Microsoft YaHei", "Helvetica Neue",
+          Arial, sans-serif;
+        background: #f4f6fb;
+        color: #1f2937;
+        -webkit-font-smoothing: antialiased;
+      }
+      .boot-loading {
+        height: 100vh;
+        height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        padding: 24px;
+        text-align: center;
+        color: #6b7280;
+      }
+      .boot-logo {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 56px;
+        height: 56px;
+        color: #2563eb;
+      }
+      .boot-logo svg {
+        width: 48px;
+        height: 48px;
+      }
+      .boot-spinner {
+        width: 26px;
+        height: 26px;
+        border: 3px solid #dbe3f5;
+        border-top-color: #2563eb;
+        border-radius: 50%;
+        animation: boot-spin 0.9s linear infinite;
+      }
+      .boot-loading p {
+        max-width: 30em;
+        margin: 0;
+        font-size: 13.5px;
+        line-height: 1.7;
+      }
+      /* 主标题（第一行 p）稍大稍粗，与副文案区分 */
+      .boot-loading p[data-boot-title] {
+        font-size: 15px;
+        font-weight: 600;
+        color: #1f2937;
+      }
+      html.dark-boot .boot-loading p[data-boot-title] {
+        color: #e2e8f0;
+      }
+      /* 加载失败态：由下方脚本在超时后切换 */
+      .boot-failed .boot-spinner {
+        display: none;
+      }
+      .boot-failed .boot-logo {
+        color: #9aa6bd;
+      }
+      /* 失败角标：默认隐藏，失败时才出现 */
+      .boot-badge {
+        display: none;
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        color: #b45309;
+        background: #fffbeb;
+        border: 2px solid #f4f6fb;
+        border-radius: 50%;
+      }
+      .boot-failed .boot-badge {
+        display: flex;
+      }
+      .boot-badge svg {
+        width: 14px;
+        height: 14px;
+      }
+      html.dark-boot .boot-badge {
+        border-color: #0b1220;
+        background: rgba(245, 158, 11, 0.16);
+        color: #fbbf24;
+      }
+      .boot-actions {
+        display: none;
+        gap: 10px;
+        justify-content: center;
+        margin-top: 2px;
+      }
+      .boot-failed .boot-actions {
+        display: flex;
+      }
+      .boot-btn {
+        padding: 9px 18px;
+        font-family: inherit;
+        font-size: 13.5px;
+        color: #4b5563;
+        cursor: pointer;
+        background: #fff;
+        border: 1px solid #d5dbe8;
+        border-radius: 8px;
+      }
+      .boot-btn.primary {
+        color: #fff;
+        background: #2563eb;
+        border-color: #2563eb;
+      }
+      html.dark-boot .boot-btn {
+        color: #b7c2dd;
+        background: #111a2e;
+        border-color: #33436b;
+      }
+      html.dark-boot .boot-btn.primary {
+        color: #fff;
+        background: #2563eb;
+        border-color: #2563eb;
+      }
+      @keyframes boot-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .boot-spinner {
+          animation-duration: 2.4s;
+        }
+      }
+    </style>
+    <script>
+      // 阻塞式应用主题，避免暗色用户首帧闪白
+      (function () {
+        try {
+          var policy = JSON.parse(localStorage.getItem("cagent-display-policy") || "null") || {}
+          var saved = policy.allowToggle === false ? null : localStorage.getItem("cagent-theme")
+          var mode = saved || policy.theme || "system"
+          var dark = mode === "dark" || (mode === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches)
+          var personal = policy.unified === false ? localStorage.getItem("cagent-accent") : null
+          var accent = personal || policy.accent || "#4f46e5"
+          if (/^#[0-9a-f]{6}$/i.test(accent)) document.documentElement.style.setProperty("--nx-accent-raw", accent)
+          if (dark) {
+            document.documentElement.classList.add("dark")
+            document.documentElement.classList.add("dark-boot")
+            document.documentElement.style.colorScheme = "dark"
+          }
+        } catch (e) {
+          /* 忽略 */
+        }
+      })()
+
+      /*
+       * 启动兜底：JS 没能接管时给出可操作的重试入口。
+       *
+       * 若入口 bundle 加载失败（chunk 404、网络中断、CDN 故障），
+       * Vue 永远不会启动，index.html 里的占位就会无休止地转圈 ——
+       * 用户只会看到「一直加载中」，既不知道为什么，也无法自救。
+       *
+       * 这段脚本不依赖任何外部资源，因此一定能跑起来。
+       * 正常启动时 Vue 会挂载并清空 #app，这个计时器便失去意义（找不到节点即返回）。
+       */
+      ;(function () {
+        var SLOW_MS = 6000
+        var FAIL_MS = 18000
+
+        function splash() {
+          return document.getElementById("boot-splash")
+        }
+
+        var slowTimer = setTimeout(function () {
+          var el = splash()
+          if (!el || window.__cagentBooted) return
+          var label = el.querySelector("[data-boot-text]")
+          if (label) label.textContent = "网络较慢，正在继续加载…"
+        }, SLOW_MS)
+
+        var failTimer = setTimeout(function () {
+          var el = splash()
+          if (!el || window.__cagentBooted) return
+          var box = el.querySelector(".boot-loading")
+          if (!box) return
+          box.classList.add("boot-failed")
+          var title = el.querySelector("[data-boot-title]")
+          if (title) title.textContent = "加载失败"
+          var label = el.querySelector("[data-boot-text]")
+          if (label) {
+            label.textContent = "无法加载页面资源。请检查网络连接后重试，或稍后再访问。"
+          }
+        }, FAIL_MS)
+
+        // Vue 启动后会派发该事件，计时器随即失效
+        window.addEventListener("cagent:booted", function () {
+          clearTimeout(slowTimer)
+          clearTimeout(failTimer)
+        })
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="app">
+      <div id="boot-splash">
+        <div class="boot-loading">
+          <div class="boot-logo">
+            <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-label="CAgent">
+              <path
+                d="M32 8c-13.8 0-25 9.6-25 21.4 0 6.9 3.8 13 9.7 16.9-.4 3.1-1.7 6-3.9 8.4a1.2 1.2 0 0 0 1 2c4.7-.4 8.9-2.2 12.1-4.7 2 .4 4 .6 6.1.6 13.8 0 25-9.6 25-21.4S45.8 8 32 8Z"
+                fill="currentColor"
+              />
+              <circle cx="32" cy="29.4" r="8.6" fill="none" stroke="#ffffff" stroke-width="4.2" />
+              <circle cx="32" cy="29.4" r="3" fill="#ffffff" />
+              <circle cx="17.5" cy="29.4" r="2.6" fill="#ffffff" opacity="0.55" />
+              <circle cx="46.5" cy="29.4" r="2.6" fill="#ffffff" opacity="0.55" />
+            </svg>
+            <span class="boot-badge" aria-hidden="true">
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path
+                  d="M12 2 1.5 20.5h21L12 2Zm0 6a1.2 1.2 0 0 1 1.2 1.2v5.2a1.2 1.2 0 0 1-2.4 0V9.2A1.2 1.2 0 0 1 12 8Zm0 10.2a1.3 1.3 0 1 1 0-2.6 1.3 1.3 0 0 1 0 2.6Z"
+                  fill="currentColor"
+                />
+              </svg>
+            </span>
+          </div>
+          <div class="boot-spinner"></div>
+          <p data-boot-title>正在加载 CAgent…</p>
+          <p data-boot-text>首次访问需要下载资源，请稍候</p>
+          <div class="boot-actions">
+            <button class="boot-btn primary" type="button" onclick="location.reload()">
+              重新加载
+            </button>
+            <button class="boot-btn" type="button" onclick="location.href='/login'">
+              先去登录页
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,222 @@
+{
+  "schema": "kb/v2",
+  "built_at": "2026-10-11T16:20:03.867Z",
+  "total": 10214,
+  "documents": 10169,
+  "sources": [
+    {
+      "file": "UCASSbook_RAG.json",
+      "bytes": 1663593,
+      "sha256": "a19b55d12b92ee62ca4fb4cc2a589b507514581628adf76face620f2c07c3416",
+      "records": 840
+    },
+    {
+      "file": "campus-maps.json",
+      "bytes": 23643,
+      "sha256": "5b31f48377be88942448085c8d8bc27d744ee73f7857ab17e0bdd5cc507cd3da",
+      "records": 58
+    },
+    {
+      "file": "easy_platform.json",
+      "bytes": 76185,
+      "sha256": "98eaf6520a15d0af931ffc2eda541e3bc51aae43f6575b5737633e012528dd7e",
+      "records": 72
+    },
+    {
+      "file": "pages_01_10.md",
+      "bytes": 12539,
+      "sha256": "8444b71cd84a2fa6dab812348874bbadc5ae08f53f20699704afd20e9545eeef",
+      "records": 14
+    },
+    {
+      "file": "pages_11_20.md",
+      "bytes": 17260,
+      "sha256": "7647db04d8b48e63bed53d6cc997acf440f72ef8787f9608ef4801c3fcafe34a",
+      "records": 17
+    },
+    {
+      "file": "pages_21_30.md",
+      "bytes": 20191,
+      "sha256": "f741344cb00ad1d593b317254b7b36042a3e23b53da999ec4df176622aa465cb",
+      "records": 44
+    },
+    {
+      "file": "pages_31_40.md",
+      "bytes": 17028,
+      "sha256": "72c289d855151f6f4232cd1e8b6fbf46b34f73e680bc17cbdf347a98090a4924",
+      "records": 32
+    },
+    {
+      "file": "pages_41_50.md",
+      "bytes": 18521,
+      "sha256": "cd71536f2e2aefec89b0fc514fcadf4b959d6c4b3abe729fd8ddf28ad1fe3b29",
+      "records": 28
+    },
+    {
+      "file": "pages_51_56.md",
+      "bytes": 7217,
+      "sha256": "84a071916302327bda440b2d5a4da178dbad87cfadd420fc367ba3ef832c89c7",
+      "records": 15
+    },
+    {
+      "file": "ucass_guide.json",
+      "bytes": 2545861,
+      "sha256": "8a075f7fc4cfc6aa4c7051eebd07189d395675265a931b80357a20bb84ffa7f8",
+      "records": 4835
+    },
+    {
+      "file": "ucass_guide_slim.json",
+      "bytes": 1309937,
+      "sha256": "0a9490c2af3463a23a8225a6df9516949540b4d2b87c43f8bcd87d217dcee99b",
+      "records": 0
+    },
+    {
+      "file": "榜题1-行知校园——校园事务智能导办Agent.xlsx",
+      "bytes": 523207,
+      "sha256": "b769c479dfd27ee009b9421dc472232e8f17c86beec55327766021f3241dd453",
+      "records": 692
+    },
+    {
+      "file": "烧烤店辛瓜生存指北_RAG.json",
+      "bytes": 114619,
+      "sha256": "7ee915feff08412e9d4e63d1067211743395e5304e8032aab1badede17b700da",
+      "records": 16
+    },
+    {
+      "file": "社科大外卖红黑榜_RAG.json",
+      "bytes": 891816,
+      "sha256": "4eb4632486d57250be7d58b7def6f22835c7b99d647d7281661b1ec2b1810215",
+      "records": 716
+    },
+    {
+      "file": "社科院课程测评_RAG.json",
+      "bytes": 2894198,
+      "sha256": "02b02cbf4b918fbdfa08802683959fedd60e4b385371c122f9234c80d05078bd",
+      "records": 2835
+    }
+  ],
+  "excluded": [
+    {
+      "file": "ucass_guide_slim.json",
+      "reason": "与 full 逐条校验一致，作为投影视图，不重复索引",
+      "count": 4835
+    },
+    {
+      "file": "榜题1-行知校园——校园事务智能导办Agent.xlsx",
+      "reason": "示例/模拟记录隔离；测试答案、使用说明、意图标签与数据字典仅供治理和评测",
+      "count": 1414
+    },
+    {
+      "file": "社科院课程测评_RAG.json",
+      "reason": "说明/空标题行",
+      "locator": "本科生课程!2"
+    },
+    {
+      "file": "社科院课程测评_RAG.json",
+      "reason": "说明/空标题行",
+      "locator": "本科生课程!3"
+    },
+    {
+      "file": "社科院课程测评_RAG.json",
+      "reason": "说明/空标题行",
+      "locator": "本科生课程!4"
+    },
+    {
+      "file": "社科院课程测评_RAG.json",
+      "reason": "说明/空标题行",
+      "locator": "本科生课程!5"
+    },
+    {
+      "file": "社科院课程测评_RAG.json",
+      "reason": "说明/空标题行",
+      "locator": "本科生课程!6"
+    },
+    {
+      "file": "社科院课程测评_RAG.json",
+      "reason": "说明/空标题行",
+      "locator": "本科生课程!7"
+    },
+    {
+      "file": "社科院课程测评_RAG.json",
+      "reason": "说明/空标题行",
+      "locator": "本科生课程!8"
+    },
+    {
+      "file": "社科院课程测评_RAG.json",
+      "reason": "说明/空标题行",
+      "locator": "本科生课程!9"
+    },
+    {
+      "file": "社科院课程测评_RAG.json",
+      "reason": "说明/空标题行",
+      "locator": "本科生课程!10"
+    },
+    {
+      "file": "社科院课程测评_RAG.json",
+      "reason": "说明/空标题行",
+      "locator": "本科生课程!980"
+    },
+    {
+      "file": "社科院课程测评_RAG.json",
+      "reason": "说明/空标题行",
+      "locator": "研究生课程!2"
+    },
+    {
+      "file": "社科院课程测评_RAG.json",
+      "reason": "说明/空标题行",
+      "locator": "研究生课程!3"
+    }
+  ],
+  "quarantine": 1414,
+  "workbookSheets": [
+    {
+      "name": "00_使用说明",
+      "rows": 49
+    },
+    {
+      "name": "01_事项知识库",
+      "rows": 157
+    },
+    {
+      "name": "02_导办卡步骤库",
+      "rows": 921
+    },
+    {
+      "name": "03_文档模板库",
+      "rows": 99
+    },
+    {
+      "name": "04_信息源清单",
+      "rows": 69
+    },
+    {
+      "name": "05_通知公告库",
+      "rows": 420
+    },
+    {
+      "name": "06_别名同义词库",
+      "rows": 2824
+    },
+    {
+      "name": "07_FAQ问答库",
+      "rows": 1256
+    },
+    {
+      "name": "08_测试集与验证集",
+      "rows": 1359
+    },
+    {
+      "name": "09_实体与部门字典",
+      "rows": 105
+    },
+    {
+      "name": "10_意图标签体系",
+      "rows": 34
+    },
+    {
+      "name": "11_数据字典",
+      "rows": 72
+    }
+  ],
+  "policy": "只读导览；社区经验与整理资料保留来源；测试答案和示例不参与检索"
+}

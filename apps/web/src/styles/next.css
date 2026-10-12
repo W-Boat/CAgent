@@ -1,0 +1,958 @@
+/*
+ * ═══════════════════════════════════════════════════════════════
+ *  Next 界面设计系统（新版管理员端 + 学生端共用）
+ * ═══════════════════════════════════════════════════════════════
+ *
+ * 设计语言：现代扁平、克制、内容优先（对标 Codex / Linear / Vercel）：
+ *   - 靠 1px 发丝线分隔层级，几乎不用阴影；
+ *   - 大面积中性灰 + 唯一强调色（靛蓝），状态色只在小面积出现；
+ *   - 中性色阶取 Zinc 系（比蓝灰更冷静），暗色用近黑暖灰而不是深蓝；
+ *   - 圆角三档 6/10/14，控件高度统一 34px；
+ *   - 字体系统栈，正文 14px，界面小字 12.5px，行高宽松。
+ *
+ * 作用域：所有令牌挂在 `.nx-root` 上 —— 每个 next 视图的根节点都带
+ * 这个 class。离开容器全部失效，与经典版的 --cg-*、学生中国风的
+ * --sc-* 完全隔离，两版界面可以同时存在于一个产物里。
+ *
+ * 暗色跟随全局 `html.dark`（theme store 已在管理），
+ * 因此 index.html 的防闪白脚本对新版同样生效。
+ *
+ * StudentCard 复用说明：components/student/StudentCard.vue 的配色全部
+ * 引用 --sc-* 令牌。这里在 .nx-root 上把这批变量**重映射**到新版配色，
+ * 卡片的渲染与安全逻辑（白名单收敛、交互锁定、危机号码内置）原样
+ * 复用，只换皮肤。映射表见文件末尾。
+ * ===============================================================
+ */
+
+/*
+ * 强调色基准：默认靛蓝。ui store 的「设置强调色」会把 --nx-accent-raw
+ * 写成 <html> 上的内联变量（内联 > 这里），派生色随之整体重算。
+ */
+:root {
+  --nx-accent-raw: #4f46e5;
+}
+
+.nx-root {
+  /* ---------- 中性色 ---------- */
+  --nx-bg: #fafafa;                 /* 页面底 */
+  --nx-bg-soft: #f4f4f5;            /* 次级底（侧栏、内嵌块） */
+  --nx-surface: #ffffff;            /* 卡片 / 面板 */
+  --nx-surface-2: #fcfcfd;          /* 略微下沉的面板（表头、代码条） */
+  --nx-surface-hover: #f4f4f5;      /* 悬停态 */
+  --nx-surface-active: #ebebee;     /* 按下态 */
+
+  --nx-border: #e8e8ec;             /* 发丝线 */
+  --nx-border-strong: #d9d9e0;      /* 输入框描边 */
+  --nx-border-accent: color-mix(in srgb, var(--nx-accent-raw) 34%, transparent);
+
+  --nx-text: #18181b;               /* 主文字 */
+  --nx-text-2: #55555e;             /* 次级文字 */
+  --nx-text-3: #8e8e99;             /* 弱化文字 / 占位 */
+  --nx-text-invert: #ffffff;        /* 强调色上的文字 */
+
+  /*
+   * ---------- 强调色（单变量派生） ----------
+   * 基准只有 --nx-accent-raw 一个（:root 处声明默认值，ui store 可在
+   * <html> 上用内联变量覆盖以实现「设置强调色」）；其余派生色全部用
+   * color-mix 从基准计算。换色 = 改一个变量，明暗两版与所有组件同步。
+   */
+  --nx-accent: var(--nx-accent-raw);
+  --nx-accent-hover: color-mix(in srgb, var(--nx-accent-raw) 86%, #14142b);
+  --nx-accent-active: color-mix(in srgb, var(--nx-accent-raw) 74%, #14142b);
+  --nx-accent-soft: color-mix(in srgb, var(--nx-accent-raw) 9%, transparent);
+  --nx-accent-soft-hover: color-mix(in srgb, var(--nx-accent-raw) 15%, transparent);
+  --nx-accent-border: color-mix(in srgb, var(--nx-accent-raw) 32%, transparent);
+  --nx-focus-ring: 0 0 0 3px color-mix(in srgb, var(--nx-accent-raw) 17%, transparent);
+
+  /* ---------- 语义状态 ---------- */
+  --nx-danger: #dc2626;
+  --nx-danger-soft: rgba(220, 38, 38, 0.08);
+  --nx-success: #16a34a;
+  --nx-success-soft: rgba(22, 163, 74, 0.09);
+  --nx-warning: #d97706;
+  --nx-warning-soft: rgba(217, 119, 6, 0.1);
+
+  /* ---------- 形状与投影 ---------- */
+  --nx-radius-sm: 6px;
+  --nx-radius: 10px;
+  --nx-radius-lg: 14px;
+  --nx-shadow-sm: 0 1px 2px rgba(24, 24, 27, 0.05);
+  --nx-shadow-md: 0 4px 16px rgba(24, 24, 27, 0.07);
+  --nx-shadow-lg: 0 12px 40px rgba(24, 24, 27, 0.14);
+
+  /* ---------- 字体 ---------- */
+  --nx-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "HarmonyOS Sans SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+  --nx-font-mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, "Courier New", monospace;
+
+  /* ---------- 布局 ---------- */
+  --nx-sidebar-width: 248px;
+  --nx-topbar-height: 52px;
+  --nx-content-width: 48rem;        /* 聊天内容列宽（Codex 风格窄列） */
+  --nx-control-height: 34px;
+
+  /* =========================================================
+   * StudentCard 换肤映射（--sc-* → --nx-*）
+   * 只重定义颜色类令牌；字体/圆角映射到新体系的值。
+   * ========================================================= */
+  --sc-paper: var(--nx-bg);
+  --sc-paper-deep: var(--nx-bg-soft);
+  --sc-card: var(--nx-surface);
+  --sc-ink: var(--nx-text);
+  --sc-ink-soft: var(--nx-text-2);
+  --sc-ink-faint: var(--nx-text-3);
+  --sc-cinnabar: var(--nx-accent);
+  --sc-cinnabar-deep: var(--nx-accent-hover);
+  --sc-cinnabar-soft: var(--nx-accent-soft);
+  --sc-dai: var(--nx-accent);
+  --sc-dai-soft: var(--nx-accent-soft);
+  --sc-bamboo: var(--nx-success);
+  --sc-line: var(--nx-border);
+  --sc-line-soft: var(--nx-border);
+  --sc-hover: var(--nx-surface-hover);
+  --sc-active: var(--nx-surface-active);
+  --sc-shadow: var(--nx-shadow-sm);
+  --sc-shadow-lg: var(--nx-shadow-md);
+  --sc-radius: var(--nx-radius);
+  --sc-radius-lg: var(--nx-radius-lg);
+  --sc-font-serif: "Songti SC", "STSong", "Noto Serif SC", Georgia, serif;
+  --sc-font-sans: var(--nx-font-sans);
+
+  color: var(--nx-text);
+  font-family: var(--nx-font-sans);
+}
+
+/* ---------- 暗色（近黑暖灰，强调色提亮） ---------- */
+html.dark .nx-root {
+  --nx-bg: #101013;
+  --nx-bg-soft: #16161a;
+  --nx-surface: #1a1a1f;
+  --nx-surface-2: #1e1e24;
+  --nx-surface-hover: #232329;
+  --nx-surface-active: #2a2a32;
+
+  --nx-border: #26262d;
+  --nx-border-strong: #34343d;
+  --nx-border-accent: color-mix(in srgb, var(--nx-accent) 42%, transparent);
+
+  --nx-text: #f2f2f4;
+  --nx-text-2: #a6a6b0;
+  --nx-text-3: #6e6e79;
+  --nx-text-invert: #ffffff;
+
+  /* 暗色下把基准色向白色方向提亮一档，保证在近黑底上的对比度 */
+  --nx-accent: color-mix(in srgb, var(--nx-accent-raw) 72%, #ffffff);
+  --nx-accent-hover: color-mix(in srgb, var(--nx-accent-raw) 82%, #ffffff);
+  --nx-accent-active: color-mix(in srgb, var(--nx-accent-raw) 92%, #ffffff);
+  --nx-accent-soft: color-mix(in srgb, var(--nx-accent) 14%, transparent);
+  --nx-accent-soft-hover: color-mix(in srgb, var(--nx-accent) 22%, transparent);
+  --nx-accent-border: color-mix(in srgb, var(--nx-accent) 38%, transparent);
+  --nx-focus-ring: 0 0 0 3px color-mix(in srgb, var(--nx-accent) 24%, transparent);
+
+  --nx-danger: #f87171;
+  --nx-danger-soft: rgba(248, 113, 113, 0.12);
+  --nx-success: #4ade80;
+  --nx-success-soft: rgba(74, 222, 128, 0.12);
+  --nx-warning: #fbbf24;
+  --nx-warning-soft: rgba(251, 191, 36, 0.12);
+
+  --nx-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --nx-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.45);
+  --nx-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.55);
+}
+
+/* =========================================================
+ *  共享原语
+ * ========================================================= */
+
+/* ---------- 滚动条：细、悬停才显色 ---------- */
+.nx-root * {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.nx-root *:hover {
+  scrollbar-color: var(--nx-border-strong) transparent;
+}
+
+.nx-root ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.nx-root ::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 4px;
+}
+
+.nx-root *:hover::-webkit-scrollbar-thumb {
+  background: var(--nx-border-strong);
+}
+
+.nx-root ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---------- 按钮 ---------- */
+.nx-root .nx-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: var(--nx-control-height);
+  padding: 0 14px;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  border: 1px solid transparent;
+  border-radius: var(--nx-radius-sm);
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease,
+    opacity 0.15s ease, transform 0.1s ease;
+  user-select: none;
+}
+
+.nx-root .nx-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.nx-root .nx-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.nx-root .nx-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--nx-focus-ring);
+}
+
+/* 主按钮：唯一实心底 */
+.nx-root .nx-btn-primary {
+  color: var(--nx-text-invert);
+  background: var(--nx-accent);
+}
+
+.nx-root .nx-btn-primary:hover:not(:disabled) {
+  background: var(--nx-accent-hover);
+}
+
+/* 次级按钮：描边 */
+.nx-root .nx-btn-secondary {
+  color: var(--nx-text);
+  background: var(--nx-surface);
+  border-color: var(--nx-border-strong);
+}
+
+.nx-root .nx-btn-secondary:hover:not(:disabled) {
+  background: var(--nx-surface-hover);
+}
+
+/* 幽灵按钮：无底无框 */
+.nx-root .nx-btn-ghost {
+  color: var(--nx-text-2);
+  background: transparent;
+}
+
+.nx-root .nx-btn-ghost:hover:not(:disabled) {
+  color: var(--nx-text);
+  background: var(--nx-surface-hover);
+}
+
+/* 危险动作 */
+.nx-root .nx-btn-danger {
+  color: var(--nx-danger);
+  background: transparent;
+  border-color: var(--nx-border);
+}
+
+.nx-root .nx-btn-danger:hover:not(:disabled) {
+  background: var(--nx-danger-soft);
+  border-color: var(--nx-danger);
+}
+
+/* 小尺寸 */
+.nx-root .nx-btn-sm {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12.5px;
+}
+
+.nx-root .nx-btn-block {
+  width: 100%;
+}
+
+/* 方形图标按钮 */
+.nx-root .nx-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  color: var(--nx-text-3);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: var(--nx-radius-sm);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.nx-root .nx-icon-btn:hover {
+  color: var(--nx-text);
+  background: var(--nx-surface-hover);
+}
+
+.nx-root .nx-icon-btn.is-on {
+  color: var(--nx-accent);
+}
+
+.nx-root .nx-icon-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--nx-focus-ring);
+}
+
+.nx-root .nx-icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ---------- 输入 ---------- */
+.nx-root .nx-input,
+.nx-root .nx-textarea {
+  width: 100%;
+  font-family: inherit;
+  font-size: 13.5px;
+  color: var(--nx-text);
+  background: var(--nx-surface);
+  border: 1px solid var(--nx-border-strong);
+  border-radius: var(--nx-radius-sm);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  outline: none;
+}
+
+.nx-root .nx-input {
+  height: var(--nx-control-height);
+  padding: 0 10px;
+}
+
+.nx-root .nx-textarea {
+  padding: 8px 10px;
+  line-height: 1.6;
+  resize: none;
+}
+
+.nx-root .nx-input::placeholder,
+.nx-root .nx-textarea::placeholder {
+  color: var(--nx-text-3);
+}
+
+.nx-root .nx-input:focus,
+.nx-root .nx-textarea:focus {
+  border-color: var(--nx-accent);
+  box-shadow: var(--nx-focus-ring);
+}
+
+.nx-root .nx-input:disabled,
+.nx-root .nx-textarea:disabled {
+  background: var(--nx-bg-soft);
+  cursor: not-allowed;
+}
+
+/* 搜索框（带内嵌图标） */
+.nx-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.nx-search svg {
+  position: absolute;
+  left: 9px;
+  width: 14px;
+  height: 14px;
+  color: var(--nx-text-3);
+  pointer-events: none;
+}
+
+.nx-search .nx-input {
+  padding-left: 30px;
+  background: var(--nx-bg-soft);
+  border-color: transparent;
+}
+
+.nx-search .nx-input:focus {
+  background: var(--nx-surface);
+  border-color: var(--nx-accent);
+}
+
+/* ---------- 卡片 / 面板 ---------- */
+.nx-root .nx-card {
+  background: var(--nx-surface);
+  border: 1px solid var(--nx-border);
+  border-radius: var(--nx-radius-lg);
+}
+
+/*
+ * 卡片内边距（统一节奏，别各页自定）：
+ * 16/18 比经典的 18/20 更紧凑，内容密度高的看板页能多露一行数据；
+ * 需要更松的场景用 .nx-card-lg，而不是自己写 padding。
+ */
+.nx-root .nx-card-pad {
+  padding: 16px 18px;
+}
+
+.nx-root .nx-card-lg {
+  padding: 20px 22px;
+}
+
+/* 卡片标题与内容的统一间距 */
+.nx-root .nx-card-title {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--nx-text);
+}
+
+/* ---------- 标签 chip ---------- */
+.nx-root .nx-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 9px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--nx-text-2);
+  white-space: nowrap;
+  background: var(--nx-bg-soft);
+  border: 1px solid var(--nx-border);
+  border-radius: 999px;
+  transition: all 0.15s ease;
+}
+
+.nx-root button.nx-chip {
+  cursor: pointer;
+}
+
+.nx-root button.nx-chip:hover {
+  color: var(--nx-text);
+  border-color: var(--nx-border-strong);
+  background: var(--nx-surface-hover);
+}
+
+.nx-root .nx-chip.is-accent {
+  color: var(--nx-accent);
+  background: var(--nx-accent-soft);
+  border-color: var(--nx-accent-border);
+}
+
+.nx-root .nx-chip.is-on {
+  color: var(--nx-accent);
+  background: var(--nx-accent-soft);
+  border-color: var(--nx-accent-border);
+}
+
+/* ---------- 文本工具 ---------- */
+.nx-root .nx-h1 {
+  font-size: 19px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--nx-text);
+}
+
+.nx-root .nx-h2 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--nx-text);
+}
+
+.nx-root .nx-muted {
+  color: var(--nx-text-3);
+  font-size: 12.5px;
+}
+
+/* 头像（首字 / 图片 / emoji 共用） */
+.nx-root .nx-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--nx-text-2);
+  background: var(--nx-bg-soft);
+  border: 1px solid var(--nx-border);
+  border-radius: 50%;
+  overflow: hidden;
+  user-select: none;
+}
+
+.nx-root .nx-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.nx-root .nx-avatar.is-accent {
+  color: var(--nx-text-invert);
+  background: var(--nx-accent);
+  border-color: transparent;
+}
+
+/* ---------- 聊天消息骨架（学生端 / 管理端聊天共用） ---------- */
+
+/* 消息行：Codex 风格 —— 用户消息右对齐浅底气泡，助手消息通栏正文 */
+.nx-msg {
+  display: flex;
+  flex-direction: column;
+  /* 消息入场：轻微上浮 + 淡入，流式连发多条时也有层次感 */
+  animation: nx-msg-in 0.22s ease both;
+}
+
+@keyframes nx-msg-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.nx-msg-user {
+  align-items: flex-end;
+}
+
+.nx-msg-user .nx-msg-bubble {
+  max-width: min(85%, 34rem);
+  padding: 9px 14px;
+  font-size: 14.5px;
+  line-height: 1.7;
+  color: var(--nx-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--nx-bg-soft);
+  border: 1px solid var(--nx-border);
+  border-radius: var(--nx-radius-lg);
+  border-bottom-right-radius: 4px;
+}
+
+.nx-msg-ai {
+  align-items: stretch;
+}
+
+.nx-msg-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+
+.nx-msg-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--nx-text);
+}
+
+.nx-msg-time {
+  font-size: 11.5px;
+  color: var(--nx-text-3);
+}
+
+/* 助手正文：直接排版，不包气泡 —— 让 Markdown 与卡片拥有全部宽度 */
+.nx-msg-body {
+  font-size: 14.5px;
+  line-height: 1.75;
+  color: var(--nx-text);
+  word-break: break-word;
+}
+
+.nx-msg-body .markdown-body {
+  font-size: inherit;
+  color: inherit;
+}
+
+/* 图片附件 */
+.nx-msg-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.nx-msg-user .nx-msg-images {
+  justify-content: flex-end;
+}
+
+.nx-msg-images img {
+  width: 108px;
+  height: 108px;
+  object-fit: cover;
+  border: 1px solid var(--nx-border);
+  border-radius: var(--nx-radius);
+}
+
+/* 错误与状态 */
+.nx-msg-error {
+  margin-top: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--nx-danger);
+  background: var(--nx-danger-soft);
+  border-radius: var(--nx-radius-sm);
+}
+
+.nx-msg-status {
+  font-size: 12px;
+  color: var(--nx-text-3);
+}
+
+/* 流式光标 */
+.nx-caret {
+  display: inline-block;
+  width: 7px;
+  height: 15px;
+  margin-left: 2px;
+  vertical-align: -2px;
+  background: var(--nx-accent);
+  border-radius: 1px;
+  animation: nx-caret-blink 1s steps(2, start) infinite;
+}
+
+@keyframes nx-caret-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ---------- 工具调用行（Agent 主动工作的最小可见状态） ---------- */
+.nx-tool {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 12.5px;
+  color: var(--nx-text-2);
+}
+
+.nx-tool + .nx-tool {
+  border-top: 1px solid var(--nx-border);
+}
+
+.nx-tool-dot {
+  position: relative;
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--nx-text-3);
+}
+
+.nx-tool.is-running .nx-tool-dot {
+  background: var(--nx-accent);
+}
+
+.nx-tool.is-running .nx-tool-dot::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1.5px solid var(--nx-accent);
+  opacity: 0;
+  animation: nx-tool-ping 1.2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.nx-tool.is-done .nx-tool-dot {
+  background: var(--nx-success);
+}
+
+.nx-tool-name {
+  font-weight: 550;
+  color: var(--nx-text);
+}
+
+@keyframes nx-tool-ping {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.7;
+  }
+  80%,
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+/* 工具行容器：贴在助手正文上方，像一段「执行轨迹」 */
+.nx-tools {
+  margin-bottom: 10px;
+  padding: 2px 12px;
+  background: var(--nx-bg-soft);
+  border: 1px solid var(--nx-border);
+  border-radius: var(--nx-radius);
+}
+
+/* ---------- 卡片生成占位（流式中，与 StudentCard 体系同语言） ---------- */
+.nx-card-pending {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  padding: 10px 14px;
+  font-size: 12.5px;
+  color: var(--nx-text-3);
+  background: var(--nx-bg-soft);
+  border: 1px dashed var(--nx-border-strong);
+  border-radius: var(--nx-radius);
+}
+
+.nx-card-pending-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--nx-accent);
+  animation: nx-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes nx-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* ---------- 欢迎页开场建议 ---------- */
+.nx-starters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.nx-root .nx-starter {
+  padding: 7px 14px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--nx-text-2);
+  cursor: pointer;
+  background: var(--nx-surface);
+  border: 1px solid var(--nx-border);
+  border-radius: 999px;
+  transition: all 0.15s ease;
+}
+
+.nx-root .nx-starter:hover {
+  color: var(--nx-accent);
+  background: var(--nx-accent-soft);
+  border-color: var(--nx-accent-border);
+}
+
+/* ---------- 顶部通知条（自动路由提示 / 建议） ---------- */
+.nx-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  font-size: 12.5px;
+  color: var(--nx-text-2);
+  background: var(--nx-accent-soft);
+  border: 1px solid var(--nx-accent-border);
+  border-radius: var(--nx-radius);
+}
+
+.nx-notice .nx-link-btn {
+  margin-left: auto;
+}
+
+.nx-root .nx-link-btn {
+  padding: 0;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 550;
+  color: var(--nx-accent);
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+.nx-root .nx-link-btn:hover {
+  text-decoration: underline;
+}
+
+/* ---------- 骨架屏 ---------- */
+.nx-skel {
+  border-radius: var(--nx-radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--nx-bg-soft) 25%,
+    var(--nx-surface-hover) 50%,
+    var(--nx-bg-soft) 75%
+  );
+  background-size: 200% 100%;
+  animation: nx-shimmer 1.4s ease infinite;
+}
+
+@keyframes nx-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* ---------- 通用淡入过渡 ---------- */
+.nx-fade-enter-active,
+.nx-fade-leave-active {
+  transition: opacity 0.18s ease;
+}
+
+.nx-fade-enter-from,
+.nx-fade-leave-to {
+  opacity: 0;
+}
+
+.nx-pop-enter-active,
+.nx-pop-leave-active {
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.nx-pop-enter-from,
+.nx-pop-leave-to {
+  opacity: 0;
+  transform: translateY(4px);
+}
+
+/* =========================================================
+ *  Element Plus 扁平化适配（仅在新外壳内生效）
+ *
+ *  18 个后台 CRUD 页仍由 Element Plus 渲染。经典外壳里它们维持
+ *  经典观感；放进新外壳时用下面的覆盖让 EP 向新版设计语言靠拢：
+ *  去大圆角、去重投影、发丝线边框、统一的悬停灰。
+ *  变量本身由 index.css / EP dark css-vars 管理，这里只动形状。
+ * ========================================================= */
+
+.nx-root .el-button {
+  --el-button-hover-bg-color: var(--nx-surface-hover);
+  --el-button-hover-border-color: var(--nx-border-strong);
+  font-family: inherit;
+  border-radius: var(--nx-radius-sm);
+}
+
+.nx-root .el-button--primary:not(.is-plain):not(.is-text):not(.is-link) {
+  --el-button-bg-color: var(--nx-accent);
+  --el-button-border-color: var(--nx-accent);
+  --el-button-hover-bg-color: var(--nx-accent-hover);
+  --el-button-hover-border-color: var(--nx-accent-hover);
+}
+
+.nx-root .el-card,
+.nx-root .el-dialog {
+  border-radius: var(--nx-radius-lg);
+}
+
+.nx-root .el-card {
+  --el-card-border-color: var(--nx-border);
+  --el-card-border-radius: var(--nx-radius-lg);
+  box-shadow: var(--nx-shadow-sm);
+}
+
+.nx-root .el-dialog {
+  --el-dialog-border-radius: var(--nx-radius-lg);
+  box-shadow: var(--nx-shadow-lg);
+}
+
+.nx-root .el-table {
+  --el-table-border-color: var(--nx-border);
+  --el-table-header-bg-color: var(--nx-surface-2);
+  --el-table-row-hover-bg-color: var(--nx-surface-hover);
+}
+
+.nx-root .el-table th.el-table__cell {
+  font-weight: 600;
+  color: var(--nx-text-2);
+}
+
+.nx-root .el-input__wrapper,
+.nx-root .el-select__wrapper,
+.nx-root .el-textarea__inner {
+  border-radius: var(--nx-radius-sm);
+}
+
+.nx-root .el-tag {
+  border-radius: 999px;
+}
+
+.nx-root .el-dropdown__popper,
+.nx-root .el-select__popper,
+.nx-root .el-popper {
+  border-radius: var(--nx-radius);
+}
+
+.nx-root .el-pagination {
+  --el-pagination-button-bg-color: transparent;
+}
+
+.nx-root .el-loading-mask {
+  background-color: color-mix(in srgb, var(--nx-surface) 72%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+/* =========================================================
+ *  滚动细节：聊天滚动区隐藏 hover 前的滚动条由各视图自行控制
+ * ========================================================= */
+
+/* Shared brand tokens reach both admin forms and student surfaces. */
+html:root,html:root.dark {
+ --nx-accent:var(--nx-accent-raw);--nx-accent-hover:color-mix(in srgb,var(--nx-accent-raw) 86%,#14142b);
+ --cg-brand:var(--nx-accent);--cg-brand-strong:var(--nx-accent-hover);--cg-brand-soft:color-mix(in srgb,var(--nx-accent) 10%,transparent);--cg-brand-soft-hover:color-mix(in srgb,var(--nx-accent) 16%,transparent);
+ --cg-sidebar-brand:var(--nx-accent);--cg-sidebar-active:var(--cg-brand-soft);--cg-sidebar-active-text:var(--nx-accent);--el-color-primary:var(--nx-accent);
+ --el-color-primary-light-3:color-mix(in srgb,var(--nx-accent) 70%,var(--el-bg-color,#fff));--el-color-primary-light-5:color-mix(in srgb,var(--nx-accent) 50%,var(--el-bg-color,#fff));--el-color-primary-light-7:color-mix(in srgb,var(--nx-accent) 30%,var(--el-bg-color,#fff));--el-color-primary-light-8:color-mix(in srgb,var(--nx-accent) 20%,var(--el-bg-color,#fff));--el-color-primary-light-9:color-mix(in srgb,var(--nx-accent) 10%,var(--el-bg-color,#fff));--el-color-primary-dark-2:var(--nx-accent-hover);
+}
+html:root.dark{--nx-accent:color-mix(in srgb,var(--nx-accent-raw) 72%,#fff);--nx-accent-hover:color-mix(in srgb,var(--nx-accent-raw) 82%,#fff)}
+.nx-root{--nx-text-invert:var(--platform-accent-text,#fff)}
+html.dark .nx-root{--nx-text-invert:var(--platform-accent-text-dark,#fff)}
+.el-button--primary{--el-button-text-color:var(--platform-accent-text,#fff)}
+html.dark .el-button--primary{--el-button-text-color:var(--platform-accent-text-dark,#fff)}
+
+/* Element Plus popup content is teleported to body: inherit the same root
+ * palette rather than relying on a .nx-root ancestor. */
+html:root {--platform-on-accent:var(--platform-accent-text,#fff);accent-color:var(--nx-accent)}
+html:root.dark {--platform-on-accent:var(--platform-accent-text-dark,#fff)}
+html .el-button--primary {
+ --el-button-text-color:var(--platform-on-accent);
+ --el-button-hover-text-color:var(--platform-on-accent);
+ --el-button-active-text-color:var(--platform-on-accent);
+ --el-button-disabled-text-color:var(--platform-on-accent);
+}
+html .el-button--primary.is-plain {
+ --el-button-text-color:var(--el-color-primary);
+ --el-button-hover-bg-color:var(--el-color-primary);
+ --el-button-hover-border-color:var(--el-color-primary);
+ --el-button-hover-text-color:var(--platform-on-accent);
+ --el-button-active-text-color:var(--platform-on-accent);
+}
+html .el-button--primary.is-text,html .el-button--primary.is-link {
+ --el-button-text-color:var(--el-color-primary);
+ --el-button-hover-text-color:var(--el-color-primary);
+ --el-button-active-text-color:var(--el-color-primary-dark-2);
+}
+html .el-radio-button {
+ --el-radio-button-checked-text-color:var(--platform-on-accent);
+}
+html .el-checkbox{--el-checkbox-checked-icon-color:var(--platform-on-accent)}
+html .el-radio__input.is-checked:not(.is-disabled) .el-radio__inner:after{background:var(--platform-on-accent)}
+.el-tag.el-tag--primary.el-tag--dark{--el-tag-text-color:var(--platform-on-accent)}
+.el-pagination.is-background .el-pager li.is-active {color:var(--platform-on-accent)}

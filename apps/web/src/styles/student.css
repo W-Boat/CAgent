@@ -1,0 +1,1636 @@
+/* =========================================================
+ * 学生端 · 现代扁平中国风
+ *
+ * 配色取自宣纸与墨：
+ *   宣纸米白（底） · 墨黑（字） · 朱砂红（点缀） · 黛青（次要点缀）
+ *
+ * ── 为什么单独一个文件 ──
+ *
+ * 学生端与管理端是两种气质：管理端要信息密度与克制，
+ * 学生端要留白与温润。把中国风令牌写进全局 index.css 会污染管理端，
+ * 因此这里只定义在 `.student-app` 作用域内 —— 离开该容器即失效，
+ * 两套视觉可以各自演化。
+ *
+ * ── 现代扁平 vs 传统 ──
+ *
+ * 保留传统的**色**（宣纸/墨/朱砂）与**形**（圆角克制、细描边、
+ * 印章式点缀），但不要拟物的纹理与阴影：用大面积留白、
+ * 极浅的纸纹、单一描边色，达成「扁平而不寡淡」。
+ * ========================================================= */
+
+.student-app {
+  /* ---------- 纸与墨 ---------- */
+
+  /* 宣纸：极浅的暖白，比纯白柔和，长时间阅读不刺眼 */
+  --sc-paper: #faf7f2;
+  /* 略深一档的纸色，用于侧栏与卡片分层 */
+  --sc-paper-deep: #f4efe6;
+  /* 卡片：比纸更亮一点，形成「纸上的纸」的层次 */
+  --sc-card: #fffdfa;
+
+  /* 墨：不是纯黑。纯黑在米白上对比过硬，久了眼睛累 */
+  --sc-ink: #1c1a17;
+  /* 次级墨色：正文之外的说明文字 */
+  --sc-ink-soft: #57514a;
+  /* 淡墨：时间戳、占位符这类最弱的信息 */
+  --sc-ink-faint: #8c857b;
+
+  /* 朱砂：印章与强调。饱和度略降，避免在米白上发飘 */
+  --sc-cinnabar: #b03a2e;
+  --sc-cinnabar-deep: #8f2d23;
+  --sc-cinnabar-soft: #f7e8e5;
+
+  /* 黛青：次要点缀（辅助信息、链接）。与朱砂形成冷暖对比 */
+  --sc-dai: #3d5a5b;
+  --sc-dai-soft: #e6ecec;
+
+  /* 竹青：成功/已完成状态 */
+  --sc-bamboo: #5b7a5a;
+
+  /* ---------- 线与面 ---------- */
+
+  /* 描边：像毛笔的淡墨线，不用灰色（灰会显脏） */
+  --sc-line: #e5ded1;
+  --sc-line-soft: #efe9df;
+  /* 悬停底：极淡的暖色，比灰底温润 */
+  --sc-hover: #f3ece1;
+  --sc-active: #ece3d6;
+
+  /* 阴影：中国风忌重投影，只用极浅的一层把卡片托起 */
+  --sc-shadow: 0 1px 2px rgba(60, 50, 38, 0.05), 0 4px 16px rgba(60, 50, 38, 0.05);
+  --sc-shadow-lg: 0 8px 32px rgba(60, 50, 38, 0.1);
+
+  /* ---------- 尺寸 ---------- */
+
+  /* 圆角克制：传统器物少有正圆，8~12px 在扁平与温润之间 */
+  --sc-radius: 10px;
+  --sc-radius-lg: 14px;
+
+  /* 字体：正文用无衬线保证可读，标题用衬线取「书卷气」 */
+  --sc-font-serif: "Songti SC", "STSong", "SimSun", "Noto Serif SC", Georgia, serif;
+  --sc-font-sans: "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", -apple-system,
+    "Helvetica Neue", sans-serif;
+}
+
+/*
+ * ---------- 暗色：夜阑 ----------
+ *
+ * 底色取「墨」而非纯黑：纯黑配朱砂会显得刺眼，
+ * 用带一点暖调的深墨，朱砂在其上仍然温润。
+ */
+.student-app.is-dark {
+  --sc-paper: #14120f;
+  --sc-paper-deep: #100e0c;
+  --sc-card: #1c1916;
+
+  --sc-ink: #ece6dc;
+  --sc-ink-soft: #b8b0a3;
+  --sc-ink-faint: #857d70;
+
+  /* 暗底上的朱砂要提亮，否则会「陷」进背景里 */
+  --sc-cinnabar: #d9604f;
+  --sc-cinnabar-deep: #c04d3d;
+  --sc-cinnabar-soft: rgba(217, 96, 79, 0.14);
+
+  --sc-dai: #7fa3a3;
+  --sc-dai-soft: rgba(127, 163, 163, 0.14);
+  --sc-bamboo: #8fae8d;
+
+  --sc-line: #302b25;
+  --sc-line-soft: #262219;
+  --sc-hover: #241f1a;
+  --sc-active: #2c2620;
+
+  --sc-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.28);
+  --sc-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.48);
+}
+
+/* =========================================================
+ * 外壳
+ * ========================================================= */
+
+.student-app {
+  display: flex;
+  height: 100vh;
+  /* dvh 跟随移动端地址栏伸缩，避免底部被地址栏切掉 */
+  height: 100dvh;
+  overflow: hidden;
+  font-family: var(--sc-font-sans);
+  color: var(--sc-ink);
+  background: var(--sc-paper);
+}
+
+/*
+ * 纸纹。
+ *
+ * 用两层极淡的径向渐变模拟手工纸的纤维感 —— 比贴一张纹理图轻得多
+ * （零请求、零解码），也不会有图片在暗色下变脏的问题。
+ * 透明度压到 0.5% 左右：放大能看出质感，正常距离只觉温润。
+ */
+.student-app::before {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  content: "";
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(140, 120, 90, 0.05) 0 1px, transparent 1px),
+    radial-gradient(circle at 70% 65%, rgba(140, 120, 90, 0.04) 0 1px, transparent 1px);
+  background-size: 24px 24px, 32px 32px;
+}
+
+.student-app.is-dark::before {
+  opacity: 0.5;
+}
+
+/* =========================================================
+ * 侧边栏
+ * ========================================================= */
+
+.sc-side {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  width: 268px;
+  background: var(--sc-paper-deep);
+  border-right: 1px solid var(--sc-line);
+}
+
+/* 印章式品牌区 */
+.sc-brand {
+  display: flex;
+  gap: 11px;
+  align-items: center;
+  height: 68px;
+  padding: 0 18px;
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid var(--sc-line-soft);
+}
+
+/*
+ * 朱砂印章。
+ *
+ * 中国风最凝练的符号就是这方红印 —— 一个方块、一个反白字，
+ * 比任何插画都更直接。也是整个界面里唯一饱和的色块，
+ * 用来锚定视觉重心。
+ */
+.sc-seal {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  font-family: var(--sc-font-serif);
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  background: var(--sc-cinnabar);
+  /* 2px 圆角是印章的典型特征：方而不锐 */
+  border-radius: 3px;
+  box-shadow: 0 2px 8px rgba(176, 58, 46, 0.24);
+}
+
+.sc-brand-text {
+  min-width: 0;
+}
+
+.sc-brand-name {
+  overflow: hidden;
+  font-family: var(--sc-font-serif);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--sc-ink);
+  text-overflow: ellipsis;
+  letter-spacing: 1.5px;
+  white-space: nowrap;
+}
+
+.sc-brand-sub {
+  margin-top: 1px;
+  font-size: 10.5px;
+  color: var(--sc-ink-faint);
+  letter-spacing: 2px;
+}
+
+/* ---------- 会话列表 ---------- */
+
+.sc-side-head {
+  padding: 14px 14px 10px;
+}
+
+/*
+ * 新建对话：主按钮做成墨色描边 + 悬停填墨。
+ * 不用实心朱砂 —— 朱砂留给印章这一个焦点，到处用就散了。
+ */
+.sc-new {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 40px;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--sc-ink);
+  cursor: pointer;
+  background: var(--sc-card);
+  border: 1px solid var(--sc-line);
+  border-radius: var(--sc-radius);
+  transition: all 0.18s ease;
+}
+
+.sc-new:hover {
+  color: var(--sc-paper);
+  background: var(--sc-ink);
+  border-color: var(--sc-ink);
+}
+
+.sc-new:active {
+  transform: scale(0.985);
+}
+
+.sc-new svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* 搜索框 */
+.sc-search {
+  position: relative;
+  padding: 0 14px 10px;
+}
+
+.sc-search svg {
+  position: absolute;
+  top: 50%;
+  left: 25px;
+  width: 14px;
+  height: 14px;
+  color: var(--sc-ink-faint);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.sc-search input {
+  width: 100%;
+  height: 34px;
+  padding: 0 10px 0 32px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--sc-ink);
+  background: var(--sc-card);
+  border: 1px solid var(--sc-line-soft);
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.18s ease;
+}
+
+.sc-search input::placeholder {
+  color: var(--sc-ink-faint);
+}
+
+.sc-search input:focus {
+  border-color: var(--sc-cinnabar);
+}
+
+/* 会话滚动区 */
+.sc-convs {
+  flex: 1;
+  min-height: 0;
+  padding: 0 10px 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.sc-conv {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 9px 10px;
+  margin-bottom: 2px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+}
+
+.sc-conv:hover {
+  background: var(--sc-hover);
+}
+
+/*
+ * 选中态：左侧一道朱砂竖线，而不是整块底色。
+ * 竖线的意象接近书页的「签」，也比满底色更轻。
+ */
+.sc-conv.is-active {
+  background: var(--sc-active);
+}
+
+.sc-conv.is-active::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 3px;
+  height: 20px;
+  content: "";
+  background: var(--sc-cinnabar);
+  border-radius: 0 2px 2px 0;
+  transform: translateY(-50%);
+}
+
+.sc-conv-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.sc-conv-title {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  overflow: hidden;
+  font-size: 13.5px;
+  color: var(--sc-ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sc-conv.is-active .sc-conv-title {
+  font-weight: 600;
+}
+
+/*
+ * 置顶标记。
+ * 用印章同源的朱砂色，但饱和度低一档 —— 它是状态提示，
+ * 不该与「新建对话」那个真正的强调色抢注意力。
+ */
+.sc-pin {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  color: var(--sc-cinnabar);
+  opacity: 0.75;
+}
+
+.sc-conv-meta {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--sc-ink-faint);
+}
+
+.sc-conv-del {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  color: var(--sc-ink-faint);
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-radius: 6px;
+  opacity: 0;
+  transition: all 0.15s ease;
+}
+
+.sc-conv:hover .sc-conv-del,
+.sc-conv-del:focus-visible {
+  opacity: 1;
+}
+
+.sc-conv-del:hover {
+  color: var(--sc-cinnabar);
+  background: var(--sc-cinnabar-soft);
+}
+
+.sc-conv-del svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* 触屏设备没有 hover，删除按钮必须常驻 */
+@media (hover: none) {
+  .sc-conv-del {
+    opacity: 1;
+  }
+}
+
+.sc-empty {
+  padding: 32px 16px;
+  font-size: 13px;
+  color: var(--sc-ink-faint);
+  text-align: center;
+}
+
+/* 骨架屏 */
+.sc-skel {
+  padding: 0 4px;
+}
+
+.sc-skel-row {
+  height: 42px;
+  margin-bottom: 6px;
+  background: linear-gradient(90deg, var(--sc-hover), var(--sc-active), var(--sc-hover));
+  background-size: 200% 100%;
+  border-radius: 8px;
+  animation: sc-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes sc-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* ---------- 侧栏底部用户区 ---------- */
+
+.sc-user {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  padding: 12px 14px;
+  border-top: 1px solid var(--sc-line-soft);
+}
+
+.sc-avatar {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  overflow: hidden;
+  font-family: var(--sc-font-serif);
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--sc-dai);
+  border-radius: 50%;
+}
+
+.sc-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sc-user-meta {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.sc-user-name {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--sc-ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sc-user-role {
+  font-size: 10.5px;
+  color: var(--sc-ink-faint);
+}
+
+.sc-icon-btn {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  color: var(--sc-ink-faint);
+  cursor: pointer;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  transition: all 0.16s ease;
+}
+
+.sc-icon-btn:hover {
+  color: var(--sc-ink);
+  background: var(--sc-hover);
+  border-color: var(--sc-line-soft);
+}
+
+.sc-icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* =========================================================
+ * 主区
+ * ========================================================= */
+
+.sc-main {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* 顶栏 */
+.sc-top {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  height: 68px;
+  flex: 0 0 68px;
+  padding: 0 22px;
+  background: color-mix(in srgb, var(--sc-paper) 82%, transparent);
+  border-bottom: 1px solid var(--sc-line-soft);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* color-mix 在旧浏览器不支持，退回不透明纸色 */
+@supports not (background: color-mix(in srgb, red 50%, blue)) {
+  .sc-top {
+    background: var(--sc-paper);
+  }
+}
+
+.sc-hamburger {
+  display: none;
+}
+
+.sc-title-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.sc-title {
+  overflow: hidden;
+  font-family: var(--sc-font-serif);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--sc-ink);
+  text-overflow: ellipsis;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.sc-subtitle {
+  margin-top: 1px;
+  overflow: hidden;
+  font-size: 11.5px;
+  color: var(--sc-ink-faint);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * 智能体 / 模型选择器的样式已随控件一起移除。
+ *
+ * 学生端不再有这两个下拉（选择权收归系统，见 StudentChatView 顶部注释），
+ * 原有的 .sc-select 规则、自绘箭头 data URI、暗色重绘都成了死代码，
+ * 一并删掉 —— 留着会让后来人以为还有下拉可改。
+ */
+/* =========================================================
+ * 自动路由提示条
+ *
+ * 学生不能自己选智能体，所以「系统替你换了人」必须说出来 ——
+ * 否则学生会以为回答还是原来那个智能体给的，答得不对也无从归因。
+ * 提示条同时提供「切回」，把选择权在事后还给学生。
+ * ========================================================= */
+.sc-notice {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  max-width: 340px;
+  padding: 6px 8px 6px 12px;
+  font-size: 12.5px;
+  color: var(--sc-dai);
+  background: var(--sc-dai-soft);
+  border: 1px solid rgb(60 92 106 / 22%);
+  border-radius: 999px;
+}
+
+.sc-notice-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sc-notice-undo {
+  flex: none;
+  padding: 2px 9px;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--sc-dai);
+  cursor: pointer;
+  background: none;
+  border: 1px solid currentcolor;
+  border-radius: 999px;
+  transition: background-color 0.16s ease;
+}
+
+.sc-notice-undo:hover {
+  background: rgb(60 92 106 / 12%);
+}
+
+.sc-notice-close {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--sc-ink-faint);
+  cursor: pointer;
+  background: none;
+  border: none;
+  border-radius: 50%;
+}
+
+.sc-notice-close:hover {
+  color: var(--sc-ink);
+  background: rgb(0 0 0 / 6%);
+}
+
+/* =========================================================
+ * 语义路由建议
+ *
+ * 与上面的「自动切换提示」不同：提示是告知（已经发生的事），
+ * 这里是**征求意见**（尚未发生），所以要有明确的接受/拒绝两个出口。
+ * 用朱砂做左边一道竖线：它是「需要你看一眼」的信号，
+ * 但不用填充色，避免像报错那样吓人 —— 这只是个建议。
+ * ========================================================= */
+.sc-suggest {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: var(--sc-card);
+  border: 1px solid var(--sc-line);
+  border-left: 3px solid var(--sc-cinnabar);
+  border-radius: 10px;
+}
+
+.sc-suggest-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.sc-suggest-line {
+  font-size: 13px;
+  color: var(--sc-ink);
+}
+
+.sc-suggest-reason {
+  margin-top: 3px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--sc-ink-faint);
+}
+
+.sc-suggest-actions {
+  display: flex;
+  flex: none;
+  gap: 6px;
+  align-items: center;
+}
+
+.sc-suggest-ok,
+.sc-suggest-no {
+  padding: 4px 12px;
+  font-family: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  border-radius: 999px;
+  transition: background-color 0.16s ease;
+}
+
+.sc-suggest-ok {
+  color: #fff;
+  background: var(--sc-cinnabar);
+  border: 1px solid var(--sc-cinnabar);
+}
+
+.sc-suggest-ok:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.sc-suggest-ok:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.sc-suggest-no {
+  color: var(--sc-ink-faint);
+  background: none;
+  border: 1px solid var(--sc-line);
+}
+
+.sc-suggest-no:hover {
+  color: var(--sc-ink);
+}
+
+/* 窄屏：按钮换到下一行，别把理由文字挤成一条缝 */
+@media (max-width: 560px) {
+  .sc-suggest {
+    flex-direction: column;
+  }
+
+  .sc-suggest-actions {
+    align-self: flex-end;
+  }
+}
+
+/* 进出：轻微下滑即可，不要弹跳（顶部工具条频繁变化会分散注意） */
+.sc-notice-enter-active,
+.sc-notice-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.sc-notice-enter-from,
+.sc-notice-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+/* 窄屏放不下提示条时让它换行，而不是把关闭按钮挤出可视区 */
+@media (max-width: 640px) {
+  .sc-notice {
+    max-width: 100%;
+  }
+
+  .sc-notice-text {
+    white-space: normal;
+  }
+}
+
+/* =========================================================
+ * 消息区
+ * ========================================================= */
+
+.sc-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sc-scroll {
+    scroll-behavior: auto;
+  }
+}
+
+.sc-body {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 26px 22px 20px;
+}
+
+/* ---------- 迎宾页 ---------- */
+
+.sc-welcome {
+  padding: 40px 0 16px;
+  text-align: center;
+}
+
+.sc-welcome-seal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 20px;
+  font-family: var(--sc-font-serif);
+  font-size: 30px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--sc-cinnabar);
+  border-radius: 5px;
+  box-shadow: 0 6px 20px rgba(176, 58, 46, 0.26);
+}
+
+.sc-welcome h1 {
+  margin: 0 0 8px;
+  font-family: var(--sc-font-serif);
+  font-size: 25px;
+  font-weight: 600;
+  color: var(--sc-ink);
+  letter-spacing: 2px;
+}
+
+.sc-welcome-desc {
+  max-width: 460px;
+  margin: 0 auto;
+  font-size: 13.5px;
+  line-height: 1.85;
+  color: var(--sc-ink-soft);
+}
+
+/* 开场白：做成「题跋」样式的小块 */
+.sc-greeting {
+  display: inline-block;
+  max-width: 560px;
+  padding: 12px 18px;
+  margin-top: 18px;
+  font-size: 13.5px;
+  line-height: 1.8;
+  text-align: left;
+  background: var(--sc-card);
+  border: 1px solid var(--sc-line);
+  border-radius: var(--sc-radius);
+}
+
+/* 开场建议 */
+.sc-starters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.sc-starter {
+  padding: 8px 15px;
+  font-family: inherit;
+  font-size: 12.5px;
+  color: var(--sc-ink-soft);
+  cursor: pointer;
+  background: var(--sc-card);
+  border: 1px solid var(--sc-line);
+  border-radius: 20px;
+  transition: all 0.16s ease;
+}
+
+.sc-starter:hover {
+  color: var(--sc-cinnabar);
+  background: var(--sc-cinnabar-soft);
+  border-color: var(--sc-cinnabar);
+}
+
+/* 智能体卡片 */
+.sc-agents {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(196px, 1fr));
+  gap: 10px;
+  margin-top: 30px;
+  text-align: left;
+}
+
+.sc-agent {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 13px;
+  cursor: pointer;
+  background: var(--sc-card);
+  border: 1px solid var(--sc-line);
+  border-radius: var(--sc-radius);
+  transition: all 0.16s ease;
+}
+
+.sc-agent:hover {
+  border-color: var(--sc-cinnabar);
+  box-shadow: var(--sc-shadow);
+  transform: translateY(-1px);
+}
+
+.sc-agent.is-on {
+  background: var(--sc-cinnabar-soft);
+  border-color: var(--sc-cinnabar);
+}
+
+.sc-agent-avatar {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  overflow: hidden;
+  font-family: var(--sc-font-serif);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--sc-dai);
+  background: var(--sc-dai-soft);
+  border-radius: 8px;
+}
+
+.sc-agent-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sc-agent-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--sc-ink);
+}
+
+.sc-agent-desc {
+  margin-top: 3px;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--sc-ink-faint);
+}
+
+/* ---------- 消息 ---------- */
+
+.sc-msg {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 26px;
+}
+
+.sc-msg.is-user {
+  flex-direction: row-reverse;
+}
+
+.sc-msg-avatar {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin-top: 2px;
+  overflow: hidden;
+  font-family: var(--sc-font-serif);
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--sc-dai);
+  border-radius: 50%;
+}
+
+.sc-msg-avatar.is-bot {
+  color: #fff;
+  background: var(--sc-cinnabar);
+}
+
+.sc-msg-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sc-msg-body {
+  min-width: 0;
+  max-width: calc(100% - 46px);
+}
+
+.sc-msg-who {
+  margin-bottom: 6px;
+  font-size: 11.5px;
+  color: var(--sc-ink-faint);
+}
+
+.sc-msg.is-user .sc-msg-who {
+  text-align: right;
+}
+
+/*
+ * 气泡。
+ *
+ * 用户侧用墨色实底（像落款），助手侧用纸色描边（像正文）——
+ * 一眼能分清谁说的，又不用两种彩色。
+ */
+.sc-bubble {
+  padding: 12px 16px;
+  font-size: 14.5px;
+  line-height: 1.8;
+  color: var(--sc-ink);
+  word-break: break-word;
+  background: var(--sc-card);
+  border: 1px solid var(--sc-line);
+  border-radius: var(--sc-radius);
+}
+
+.sc-msg.is-user .sc-bubble {
+  color: var(--sc-paper);
+  white-space: pre-wrap;
+  background: var(--sc-ink);
+  border-color: var(--sc-ink);
+}
+
+.student-app.is-dark .sc-msg.is-user .sc-bubble {
+  color: var(--sc-paper);
+  background: #2f2a24;
+  border-color: #3a342c;
+}
+
+/* 流式光标 */
+.sc-caret {
+  display: inline-block;
+  width: 7px;
+  height: 15px;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: var(--sc-cinnabar);
+  animation: sc-blink 1.1s step-end infinite;
+}
+
+@keyframes sc-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* 消息底部操作 */
+.sc-msg-actions {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  margin-top: 7px;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.sc-msg:hover .sc-msg-actions,
+.sc-msg-actions:focus-within {
+  opacity: 1;
+}
+
+/* 触屏无 hover：常驻显示 */
+@media (hover: none) {
+  .sc-msg-actions {
+    opacity: 1;
+  }
+}
+
+.sc-act {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  color: var(--sc-ink-faint);
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-radius: 7px;
+  transition: all 0.15s ease;
+}
+
+.sc-act:hover {
+  color: var(--sc-ink);
+  background: var(--sc-hover);
+}
+
+.sc-act.is-on {
+  color: var(--sc-cinnabar);
+  background: var(--sc-cinnabar-soft);
+}
+
+.sc-act svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* 工具调用块 */
+.sc-tool {
+  padding: 10px 13px;
+  margin-bottom: 9px;
+  font-size: 12.5px;
+  background: var(--sc-paper-deep);
+  border: 1px dashed var(--sc-line);
+  border-radius: 9px;
+}
+
+.sc-tool-head {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  color: var(--sc-ink-soft);
+}
+
+.sc-tool-name {
+  font-weight: 600;
+}
+
+.sc-tool-state {
+  padding: 1px 7px;
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--sc-dai);
+  background: var(--sc-dai-soft);
+  border-radius: 10px;
+}
+
+.sc-tool-state.is-running {
+  color: var(--sc-cinnabar);
+  background: var(--sc-cinnabar-soft);
+}
+
+/* 错误提示 */
+.sc-error {
+  padding: 9px 13px;
+  margin-top: 9px;
+  font-size: 12.5px;
+  color: var(--sc-cinnabar);
+  background: var(--sc-cinnabar-soft);
+  border-radius: 8px;
+}
+
+/* 「回到底部」浮标 */
+.sc-tobottom {
+  position: absolute;
+  right: 24px;
+  bottom: 132px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  color: var(--sc-ink-soft);
+  cursor: pointer;
+  background: var(--sc-card);
+  border: 1px solid var(--sc-line);
+  border-radius: 50%;
+  box-shadow: var(--sc-shadow);
+  transition: all 0.18s ease;
+}
+
+.sc-tobottom:hover {
+  color: var(--sc-cinnabar);
+  border-color: var(--sc-cinnabar);
+}
+
+.sc-tobottom svg {
+  width: 17px;
+  height: 17px;
+}
+
+/* =========================================================
+ * 输入区
+ * ========================================================= */
+
+.sc-composer {
+  flex: 0 0 auto;
+  padding: 12px 22px calc(18px + env(safe-area-inset-bottom));
+  background: var(--sc-paper);
+}
+
+.sc-composer-inner {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+/* 图片预览 */
+.sc-previews {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 9px;
+}
+
+.sc-preview {
+  position: relative;
+  width: 62px;
+  height: 62px;
+  overflow: hidden;
+  border: 1px solid var(--sc-line);
+  border-radius: 9px;
+}
+
+.sc-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sc-preview button {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  font-size: 13px;
+  line-height: 1;
+  color: #fff;
+  cursor: pointer;
+  background: rgba(28, 26, 23, 0.62);
+  border: 0;
+  border-radius: 50%;
+}
+
+/*
+ * 输入框外框。
+ *
+ * 「宣纸卡片」的意象：白底、细墨边、聚焦时边框转朱砂。
+ * 不用 Element Plus 的 textarea 是为了拿掉它自带的一整套
+ * 边框/阴影/字号覆盖，这里样式完全自主，代码反而更短。
+ */
+.sc-input-wrap {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 14px 9px;
+  background: var(--sc-card);
+  border: 1px solid var(--sc-line);
+  border-radius: var(--sc-radius-lg);
+  box-shadow: var(--sc-shadow);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.sc-input-wrap:focus-within {
+  border-color: var(--sc-cinnabar);
+  box-shadow: 0 0 0 3px var(--sc-cinnabar-soft), var(--sc-shadow);
+}
+
+.sc-textarea {
+  width: 100%;
+  min-height: 46px;
+  max-height: 190px;
+  padding: 0;
+  font-family: inherit;
+  font-size: 14.5px;
+  line-height: 1.75;
+  color: var(--sc-ink);
+  resize: none;
+  background: none;
+  border: 0;
+  outline: none;
+}
+
+.sc-textarea::placeholder {
+  color: var(--sc-ink-faint);
+}
+
+.sc-input-foot {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 7px;
+}
+
+.sc-input-left,
+.sc-input-right {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.sc-hint {
+  font-size: 11.5px;
+  color: var(--sc-ink-faint);
+}
+
+/* 发送按钮：朱砂实底，整个界面唯一的实心强调色 */
+.sc-send {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  padding: 0 17px;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #fff;
+  cursor: pointer;
+  background: var(--sc-cinnabar);
+  border: 1px solid var(--sc-cinnabar);
+  border-radius: 8px;
+  transition: all 0.16s ease;
+}
+
+.sc-send:hover:not(:disabled) {
+  background: var(--sc-cinnabar-deep);
+  border-color: var(--sc-cinnabar-deep);
+}
+
+.sc-send:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.sc-send:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.sc-send.is-stop {
+  color: var(--sc-cinnabar);
+  background: transparent;
+}
+
+.sc-send.is-stop:hover {
+  color: #fff;
+  background: var(--sc-cinnabar);
+}
+
+.sc-send svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* 隐藏的文件输入 */
+.sc-file {
+  display: none;
+}
+
+/* =========================================================
+ * 内置卡片区（欢迎页）
+ * ========================================================= */
+
+.sc-builtin {
+  max-width: 620px;
+  margin: 34px auto 0;
+  /*
+   * 必须显式左对齐。
+   *
+   * 外层 .sc-welcome 为了居中迎宾语用了 text-align: center，
+   * 而该属性会**继承**进内置卡片 —— 实测选项文字全部跑到中间、
+   * 「开始」按钮也偏左下，卡片看起来像坏掉的表单。
+   * 迎宾区居中、卡片区左对齐，是两种阅读需求，不能共用一个值。
+   */
+  text-align: left;
+}
+
+/*
+ * 交互提示。
+ *
+ * 学生不知道方块能点，就不会去点。这句话的价值高于多放两张卡，
+ * 所以放在卡片区最上方而不是页脚。
+ */
+.sc-builtin-hint {
+  padding-left: 10px;
+  margin: 0 0 14px;
+  font-size: 12.5px;
+  color: var(--sc-ink-faint);
+  border-left: 2px solid var(--sc-cinnabar);
+}
+
+.sc-builtin-group + .sc-builtin-group {
+  margin-top: 20px;
+}
+
+/* 分组标题：眉标式小字距，与卡片内部的 mc-kind 同一语言 */
+.sc-builtin-title {
+  margin: 0 0 8px;
+  font-family: var(--sc-font-serif);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sc-ink-soft);
+  letter-spacing: 3px;
+}
+
+/* =========================================================
+ * 技能启用条
+ * ========================================================= */
+
+.sc-skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.sc-skills-label {
+  font-size: 11.5px;
+  color: var(--sc-ink-faint);
+  letter-spacing: 1px;
+}
+
+.sc-skill {
+  padding: 4px 11px;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--sc-ink-soft);
+  cursor: pointer;
+  background: var(--sc-card);
+  border: 1px solid var(--sc-line);
+  border-radius: 14px;
+  transition: all 0.16s ease;
+}
+
+.sc-skill:hover {
+  border-color: var(--sc-dai);
+}
+
+.sc-skill.is-on {
+  color: var(--sc-dai);
+  background: var(--sc-dai-soft);
+  border-color: var(--sc-dai);
+}
+
+/* 摘除按钮：让「点一下就关」这件事在视觉上可见 */
+.sc-skill-x {
+  margin-left: 4px;
+  font-size: 13px;
+  line-height: 1;
+  opacity: 0.7;
+}
+
+/* =========================================================
+ * 卡片占位（流式期间围栏尚未闭合）
+ *
+ * 不显示半截 JSON —— 那会闪，且可能渲染出一半的可点选项。
+ * ========================================================= */
+
+.mc-pending {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 14px 2px;
+  font-size: 12.5px;
+  color: var(--sc-ink-faint);
+}
+
+.mc-pending-dot {
+  width: 12px;
+  height: 12px;
+  background: var(--sc-cinnabar);
+  border-radius: 2px;
+  animation: mc-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes mc-pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.82);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mc-pending-dot {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+
+/* =========================================================
+ * 移动端
+ * ========================================================= */
+
+/* 抽屉遮罩 */
+.sc-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: rgba(28, 26, 23, 0.42);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  animation: sc-fade 0.18s ease-out;
+}
+
+@keyframes sc-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 860px) {
+  /* 侧栏转为抽屉浮层，不再挤压消息区 */
+  .sc-side {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 31;
+    width: min(84vw, 296px);
+    box-shadow: var(--sc-shadow-lg);
+    transition: transform 0.26s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* 用 transform 移出，避免触发主区回流 */
+  .sc-side.is-hidden {
+    transform: translateX(-101%);
+  }
+
+  .sc-hamburger {
+    display: flex;
+  }
+
+  .sc-top {
+    gap: 8px;
+    height: auto;
+    min-height: 58px;
+    padding: 9px 12px;
+  }
+
+  .sc-title {
+    font-size: 15px;
+  }
+
+  .sc-body {
+    padding: 16px 13px 14px;
+  }
+
+  /* 头像不占整列，气泡可用满宽度 */
+  .sc-msg {
+    gap: 9px;
+    margin-bottom: 20px;
+  }
+
+  .sc-msg-avatar {
+    display: none;
+  }
+
+  .sc-msg-body {
+    max-width: 100%;
+  }
+
+  .sc-bubble {
+    font-size: 15px;
+  }
+
+  .sc-composer {
+    padding: 9px 13px calc(11px + env(safe-area-inset-bottom));
+  }
+
+  .sc-hint {
+    display: none;
+  }
+
+  /*
+   * 触控目标不小于 40px。
+   * 视觉尺寸可以小，但可点区域必须够 —— 否则图标按钮点不准。
+   */
+  .sc-act,
+  .sc-tobottom {
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .sc-tobottom {
+    right: 14px;
+    bottom: 116px;
+  }
+
+  .sc-send {
+    height: 40px;
+    padding: 0 18px;
+  }
+
+  .sc-starter {
+    min-height: 44px;
+    padding: 9px 15px;
+  }
+
+  .sc-agent {
+    min-height: 60px;
+  }
+
+  /* 欢迎区的印章缩小，给消息让出空间 */
+  .sc-welcome {
+    padding: 24px 0 10px;
+  }
+
+  .sc-welcome-seal {
+    width: 50px;
+    height: 50px;
+    font-size: 26px;
+  }
+
+  .sc-welcome h1 {
+    font-size: 21px;
+  }
+}
+
+@media (max-width: 420px) {
+  .sc-body {
+    padding: 12px 10px;
+  }
+
+  .sc-bubble {
+    font-size: 14.5px;
+  }
+}
+
+/* =========================================================
+ * 尊重系统「减少动态效果」
+ * ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  .sc-skel-row,
+  .sc-caret {
+    animation: none;
+  }
+
+  .sc-agent:hover {
+    transform: none;
+  }
+}

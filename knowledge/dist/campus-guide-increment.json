@@ -1,0 +1,20 @@
+{
+  "meta": {
+    "schema": "guide/v4",
+    "built_at": "2026-10-02",
+    "note": "门户/一网通办相对平台库 guide_v4（2026-09-23）的增量，可由 scripts/import-campus-guide.mjs 导入"
+  },
+  "items": [
+    {
+      "id": 317094894,
+      "title": "社会学与社会工作学术大讲堂—展敏：Financial Hardship and Stress of Student Loan Borrowers: Implications for Social Work Policy and Practice",
+      "url": "https://info.ucass.edu.cn/site/management/noticedetails?id=21626&tab=index&type=tzgg",
+      "cat": "通知公告",
+      "type": "通知公告",
+      "source": "校园门户",
+      "detail_status": "link_only",
+      "access": "公网",
+      "summary_short": ""
+    }
+  ]
+}
