@@ -65,15 +65,16 @@ notice:{type:"notice",title:string,body:string}
 原生 care/crisis/map/places/dinner 仍使用专用卡。流程用 steps，材料用 checklist，澄清用实际 options，不重复追问已提供的条件。读过清单不代表完成办理。不要输出工具调用文本或正文来源编号。当前事项：${JSON.stringify(plan.contextQuery||query)}。${context.clarifyChoices?.length?'真实候选：'+JSON.stringify(context.clarifyChoices):''}`
  return `【统一呈现协议 Agent UI v0.1】本段是最终呈现规则，取代旧会话/旧智能体中的通用 facts/compare/guide/sections 等排版示例。页面实验室的组件就是正式聊天可用组件，不需要用户说“卡片”才能用。
 请用用户提问的语言直接交付结果。中文问题用中文回答；工具调用前不要输出 I will / I\'ll 或“我将去查询”之类预告。
+已有证据时，先用一句简短中文交付关键结论，再输出完整页面；这句必须是实际答案，便于用户先读到结果。
 本轮策略：${plan.reason}。${plan.mode==='native'?'保留原生专用卡，不能用通用页面替代。':'办理事项、多实体推荐、同维度比较、收集任务条件应主动生成 page 界面；不是把生成后的长文重新包起来。'}
 先理解意图与证据，再组织内容：字段→info_card；多事项→card_group；流程→steps；材料→checklist；日期/阶段→timeline；限制→notice；问答→faq；比较→table；真实数值→chart；缺条件→form；已知候选澄清→options；入口→button link。不要把步骤/材料写成 summary 或连续 text。可组合信息、清单、流程和入口，各块内容勿重复。缺条件要主动用选项或表单询问，不只在末尾说“你告诉我”。候选来自上下文，不编造可办事项；用户选定或提供条件后完成任务，不反复询问。读过清单不代表备齐材料或完成办理，未确认进度时给条件步骤或用选项询问。简单事实/闲聊/文章仍用 Markdown。
 ${plan.contextQuery?'本轮连续追问，上一轮事项：'+JSON.stringify(plan.contextQuery)+'。沿用事项，不因短问句改回闲聊/通用文字。':''}${context.clarifyChoices?.length?'真实澄清候选：'+JSON.stringify(context.clarifyChoices.slice(0,4)):''}
 必须用完整的 \`\`\`card JSON 围栏。所有新组件放入一个 page.children，不能把 form/table/info_card 当顶层页面，也不要把字段写成伪代码。根格式：{type:"page",version:"0.1",id:"answer",layout:"stack"或"grid",fallback:"完整简明文字答案，包括事实与操作条件",children:[组件]}。示例仅示范结构，不能照抄示例事实：
 ${JSON.stringify(example)}
 注册表（? 表示可省略字段；实际输出只用合法 JSON）：
-${shapes}
+${Object.entries(UI_COMPONENTS).filter(([type])=>['text','info_card','notice','button','card_group',...plan.components,...(plan.intent==='adaptive'?['steps','checklist','table','options']:[])].includes(type)).map(([type,v])=>type+':{type:"'+type+'",id:string,'+v.shape+'}').join('\n')}
 每个 page/组件的 sourceRefs 最多8个，不需要罗列所有命中来源，只选直接支撑该组件的依据。每页最多48组件/4层，每组最多16项；流程/清单/时间线/问答24条、选项2–12个、表格8列40行、图表24标签3系列、表单8字段。id 唯一且只用英文字母数字下划线。完成标记由用户操作，不输出 done/checked。不要 HTML/CSS/JS 或额外字段。图表不得编造；图片用证据里的 HTTPS 图像。表单不收密码/令牌，不能直接登录、申请或写库；ask 是点击后下一轮问题，link 逐字复制真实完整 http(s) 地址。
-care/crisis/map/places/dinner/effect/poem/agents 等专用原生卡仍按场景使用。来源只在知识库来源区域；不要 sources 卡或可见索引编号。引用事实的 page/组件用 sourceRefs:["本轮来源ID"]，无证据则省略；可选授权ID：${JSON.stringify([...sourceIds].slice(0,16))}（也可使用当前工具检索结果中的ID）。未知/冲突按来源说明。
+care/crisis/map/places/dinner/effect/poem/agents 等专用原生卡仍按场景使用。来源只在知识库来源区域；不要 sources 卡或可见索引编号。sourceRefs 是可省略的元数据；只能逐字复制本轮完整授权ID，最多8个并去重，不写序号/URL/猜测ID。无法确认时省略此字段，不影响事实回答。可选授权ID：${JSON.stringify([...sourceIds].slice(0,16))}（也可使用当前工具检索结果中的完整ID）。未知/冲突按来源说明。
 输出前检查：本轮是否需要业务/比较/条件收集界面？若需要且已有足够信息，不以纯 Markdown 或旧通用卡代替。所有新组件是否包在 page.children？字段/数值/来源/链接是否来自真实上下文？
 ${plan.mode==='page'?`【本轮交付格式】必须输出一个有效 page，优先组件：${plan.components.join('、')}。${plan.contextQuery?'这是已有事项的连续追问；短句不等于简单事实，保留结构化界面，仅更新用户本轮关注的部分。':''}材料清单不能只给 Markdown 列表，流程不能只给文字编号，澄清不能只在末尾问一句。证据不足时如实显示缺项或用 options/form 收集必要条件，不补造事实。`:'【本轮交付格式】按本轮语义选择，专用原生卡与简单文字要求优先。'}`
 }

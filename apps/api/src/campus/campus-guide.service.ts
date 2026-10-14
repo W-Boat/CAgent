@@ -1,5 +1,5 @@
 import {contentFormat,managedContent} from "./knowledge-content"
-import { Injectable, NotFoundException } from "@nestjs/common"
+import { Injectable, NotFoundException, type OnApplicationBootstrap } from "@nestjs/common"
 import { Prisma } from "@prisma/client"
 import { PrismaService } from "../prisma/prisma.service"
 import { KnowledgeRetriever, metadata, terms, excerptForQuery, type KnowledgeRow, type RetrievalOptions } from './knowledge-retriever'
@@ -64,20 +64,22 @@ export interface GuideHit {
 }
 
 @Injectable()
-export class CampusGuideService {
+export class CampusGuideService implements OnApplicationBootstrap {
   constructor(private readonly prisma: PrismaService,private readonly store:KnowledgeStoreService) {}
+  onApplicationBootstrap(){void this.index().catch(()=>undefined)}
   private loadedRevision:unknown
   private snapshot?: { index: KnowledgeRetriever; expires: number }
   private loading?: Promise<KnowledgeRetriever>
   private async catalogWhere():Promise<Prisma.CampusGuideItemWhereInput> {
     const unified = this.snapshot?.index.rows.some(r=>r.extra?.kb?.schema==='kb/v2') || await this.prisma.campusGuideItem.count({where:{externalId:{gte:500000000,lt:900000000}}})
-    return {AND:[...(unified?[{NOT:{externalId:{gte:2000000,lt:3000000}}}]:[]),await this.store.embeddedWhere()]}
+    return {AND:[...(unified?[{NOT:{externalId:{gte:2000000,lt:3000000}}}]:[]),{NOT:{OR:[{title:{contains:'人文之光'}},{title:{contains:'情侣空间'}},{source:{contains:'editorial',mode:'insensitive'}},{source:{contains:'loveline',mode:'insensitive'}}]}},await this.store.embeddedWhere()]}
   }
 
   /** All rows are indexed in stable pages. No arbitrary candidate cap can hide the right subject. */
   private async index(): Promise<KnowledgeRetriever> {
     const revision = await this.store.revision()
-    if (this.snapshot && this.snapshot.expires > Date.now() && this.loadedRevision === revision) return this.snapshot.index
+    // Semantic edits/mount changes bump revision; a timer must not reload the whole catalog.
+    if (this.snapshot && this.loadedRevision === revision) return this.snapshot.index
     if (this.loading) {
       await this.loading
       return this.index()

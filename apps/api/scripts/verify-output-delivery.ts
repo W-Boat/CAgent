@@ -42,7 +42,7 @@ async function main(){
  assert.deepEqual(cacheHistory([{role:'user',content:'题目'},{role:'assistant',content:'回答'},{role:'user',content:'题目'}],'题目'),[]);assert.equal(cacheHistory([{role:'user',content:'另一题'},{role:'assistant',content:'回答'},{role:'user',content:'追问'}],'追问').length,0)
  assert(!cacheableAnswer('```card\n{"type":"page"'));assert(!cacheableAnswer('```card\nnot json\n```'));assert(!cacheableAnswer('<｜DSML｜invoke>隐藏</｜DSML｜invoke>'))
  const directory=await mkdtemp(resolve(root,'.tmp/cache-verification-')),cwd=process.cwd();process.chdir(directory);let revision=1,enabled=true,days=3
- const aggregate={aggregate:async()=>({_count:1,_max:{updatedAt:revision}})},cache=new ResponseCacheService({knowledgeBase:aggregate,knowledgeEntry:aggregate,campusGuideItem:aggregate,setting:aggregate,skill:aggregate} as any,{get:async(k:string)=>k==='answer_cache_enabled'?enabled:days} as any);process.chdir(cwd)
+ const aggregate={aggregate:async()=>({_count:1,_max:{updatedAt:1}})},cache=new ResponseCacheService({setting:{findMany:async()=>[{key:'knowledge_revision',value:revision}]},skill:aggregate} as any,{get:async(k:string)=>k==='answer_cache_enabled'?enabled:days} as any);process.chdir(cwd)
  try{const context={user:'one',model:'one',preference:'adaptive',history:[]},ticket=(await cache.prepare(context))!;assert(ticket);await cache.put(ticket,{content:'安全回答',sources:[],presentation:{valid:true}});assert.equal((await cache.get(ticket))?.content,'安全回答')
   for(const change of [{user:'two'},{model:'two'},{preference:'text'}])assert.equal(await cache.get(await cache.prepare({...context,...change})),null)
   assert.equal((await cache.get(await cache.prepare({...context,history:[{role:'user',content:'另一主题'}],trialScope:'another-session'})))?.content,'安全回答')

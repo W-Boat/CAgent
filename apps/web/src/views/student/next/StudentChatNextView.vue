@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {retainCardReadingPosition} from "@/utils/chat-follow"
 import AnswerVersions from '@/components/AnswerVersions.vue'
 import ImageTransferProgress from '@/components/ImageTransferProgress.vue'
 import {useImageAttachments} from '@/composables/useImageAttachments'
@@ -256,7 +257,7 @@ const typer = createStreamTyper({
     const proxy = messages.value.find((m) => m.id === id) ?? (raw as ChatMessage)
     proxy.content = text
   },
-  onFrame: () => scrollIfPinned()
+  onFrame: () => void nextTick(scrollIfPinned)
 })
 
 // ---------------- 卡片渲染 ----------------
@@ -621,6 +622,7 @@ async function scrollToBottom(smooth = false) {
 function scrollIfPinned() {
   const el = scrollEl.value
   if (!el || !pinnedToBottom.value) return
+  if(retainCardReadingPosition(messages.value.at(-1)?.content||"",el.scrollHeight-el.scrollTop-el.clientHeight,el.clientHeight)){pinnedToBottom.value=false;return}
   el.scrollTop = el.scrollHeight
 }
 
@@ -1159,7 +1161,7 @@ async function runSend(isAutoRetry: boolean,bypassCache=false,revision?:ChatMess
     onToolStart: (p) => {
       target.toolEvents = target.toolEvents || []
       target.toolEvents.push({ id: p.id, name: p.name, state: "running" })
-      if (pinnedToBottom.value) void scrollToBottom()
+      if (pinnedToBottom.value) void nextTick(scrollIfPinned)
     },
     onToolResult: (p) => {
       const ev = target.toolEvents?.find((t) => t.id === p.id)
@@ -1196,7 +1198,7 @@ async function runSend(isAutoRetry: boolean,bypassCache=false,revision?:ChatMess
     // 否则光标在文本还没播完时就消失了。
     // 标题可能由后端自动生成，拉一次列表让侧栏跟上
     await loadConversations().catch(() => undefined)
-    if (pinnedToBottom.value) await scrollToBottom()
+    if (pinnedToBottom.value) await nextTick(scrollIfPinned)
   }
 
   /*
@@ -1351,7 +1353,7 @@ onMounted(async () => {
 watch(
   () => messages.value.length,
   () => {
-    if (pinnedToBottom.value) void scrollToBottom()
+    if (pinnedToBottom.value) void nextTick(scrollIfPinned)
   }
 )
 

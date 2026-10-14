@@ -89,7 +89,17 @@ export class KnowledgeStoreService {
   async embeddedCounts(){
     return this.prisma.$queryRaw<{sourceKey:string;collections:string[];count:bigint}[]>`SELECT CASE WHEN extra #>> '{kb,collection}' = 'campus-v2-contest' THEN CASE WHEN extra #>> '{kb,file}' = 'database/campus.sqlite' THEN 'campus-v2-contest/database/campus.sqlite' ELSE 'campus-v2-contest/knowledge' END ELSE COALESCE(NULLIF(extra #>> '{kb,file}', ''), 'legacy/guide_v4.json') END AS "sourceKey", array_agg(DISTINCT COALESCE(NULLIF(extra #>> '{kb,collection}', ''), 'legacy')) AS collections, count(*) AS count FROM campus_guide_items WHERE (external_id < 2000000 OR external_id >= 3000000 OR NOT EXISTS(SELECT 1 FROM campus_guide_items WHERE external_id >= 500000000 AND external_id < 900000000)) AND (extra #>> '{kb,superseded}') IS DISTINCT FROM 'true' GROUP BY 1`
   }
+  private embeddedSnapshot?:{revision:unknown;expires:number;counts:Awaited<ReturnType<KnowledgeStoreService['embeddedCounts']>>}
+  private embeddedRequest:Promise<Awaited<ReturnType<KnowledgeStoreService['embeddedCounts']>>>|null=null
   async ensureEmbedded(){
+    const revision=await this.revision()
+    if(this.embeddedSnapshot?.revision===revision&&this.embeddedSnapshot.expires>Date.now())return this.embeddedSnapshot.counts
+    if(this.embeddedRequest)return this.embeddedRequest
+    const request=this.refreshEmbedded()
+    this.embeddedRequest=request
+    try{const counts=await request;this.embeddedSnapshot={revision:await this.revision(),expires:Date.now()+30000,counts};return counts}finally{if(this.embeddedRequest===request)this.embeddedRequest=null}
+  }
+  private async refreshEmbedded(){
     const counts=await this.embeddedCounts(),existing=await this.prisma.knowledgeBase.findMany({where:{kind:{in:['EMBEDDED','EMBEDDED_GROUP','REMOVED']}}}),sources=new Set(existing.filter(b=>(b.connection as any)?.sourceKey).map(b=>b.id)),groups=existing.filter(b=>b.kind!=='REMOVED'&&!(b.connection as any)?.sourceKey),missing=counts.filter(c=>!sources.has(sourceDefinition(c.sourceKey,c.collections).id))
     const retiring=groups.filter(b=>b.kind==='EMBEDDED')
     if(missing.length||retiring.length)await this.prisma.$transaction(async tx=>{for(const c of missing){const data=sourceDefinition(c.sourceKey,c.collections),parents=groups.filter(b=>c.collections.includes((b.connection as any)?.collection));if(parents.length)data.mounted=data.mounted&&parents.every(b=>b.mounted);await tx.knowledgeBase.upsert({where:{id:data.id},create:data,update:{}})}if(retiring.length)await tx.knowledgeBase.updateMany({where:{id:{in:retiring.map(b=>b.id)}},data:{kind:'EMBEDDED_GROUP'}});await this.bump(tx)})
@@ -115,6 +125,7 @@ export class KnowledgeStoreService {
   }
   async revision() { return (await this.prisma.setting.findUnique({where:{key:'knowledge_revision'}}))?.value || '' }
   async bump(tx:any = this.prisma) {
+    this.embeddedSnapshot=undefined
     const value = `${Date.now()}-${Math.random()}`
     await tx.setting.upsert({where:{key:'knowledge_revision'},create:{key:'knowledge_revision',group:'campus',value},update:{value}})
   }

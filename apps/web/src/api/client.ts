@@ -23,6 +23,7 @@ export const tokenStore = {
     if (refresh) localStorage.setItem(REFRESH_KEY, refresh)
   },
   clear() {
+    sessionEpoch++
     localStorage.removeItem(ACCESS_KEY)
     localStorage.removeItem(REFRESH_KEY)
   }
@@ -69,8 +70,10 @@ export function setUnauthorizedHandler(fn: () => void) {
   onUnauthorized = fn
 }
 
-async function doRefresh(): Promise<string> {
-  const refreshToken = tokenStore.refresh
+let sessionEpoch = 0
+async function doRefresh(rejectedToken?:string): Promise<string> {
+  if(rejectedToken && tokenStore.access && tokenStore.access!==rejectedToken)return tokenStore.access
+  const refreshToken = tokenStore.refresh, epoch=sessionEpoch
   if (!refreshToken) throw new Error("NO_REFRESH_TOKEN")
   // 使用裸 axios，避免再次进入拦截器造成递归
   const res = await axios.post<ApiEnvelope<{ accessToken: string; refreshToken: string }>>(
@@ -80,8 +83,36 @@ async function doRefresh(): Promise<string> {
   )
   const data = res.data?.data
   if (!data?.accessToken) throw new Error("REFRESH_FAILED")
+  if(epoch!==sessionEpoch || tokenStore.refresh!==refreshToken){
+    if(tokenStore.access&&tokenStore.refresh)return tokenStore.access
+    throw new Error('SESSION_CHANGED')
+  }
   tokenStore.set(data.accessToken, data.refreshToken)
   return data.accessToken
+}
+
+/** Shared refresh for JSON/SSE; cross-tab locks protect one-use rotated tokens. */
+export async function ensureAccessToken(rejectedToken?:string):Promise<string>{
+  const current=tokenStore.access
+  if(!rejectedToken&&current){try{const exp=JSON.parse(atob(current.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))).exp;if(typeof exp==='number'&&exp*1000>Date.now()+30000)return current}catch{return current}}
+  if(rejectedToken&&current&&current!==rejectedToken)return current
+  if(!tokenStore.refresh)return current
+  if(refreshing)return refreshing
+  const rejectedRefresh=tokenStore.refresh,epoch=sessionEpoch
+  const work=async()=>{
+    try{return await doRefresh(rejectedToken||current)}catch(error){
+      if(epoch===sessionEpoch&&tokenStore.refresh!==rejectedRefresh&&tokenStore.access)return tokenStore.access
+      const status=(error as AxiosError)?.response?.status
+      if(epoch===sessionEpoch&&tokenStore.refresh===rejectedRefresh&&(status===401||status===403)){
+        tokenStore.clear();onUnauthorized?.()
+      }
+      throw error
+    }
+  }
+  const locks=typeof navigator!=='undefined'?navigator.locks:undefined
+  const pending:Promise<string>=(async()=>locks?await locks.request('cagent-session-refresh',work):await work())()
+  refreshing=pending
+  try{return await pending}finally{if(refreshing===pending)refreshing=null}
 }
 
 http.interceptors.response.use(
@@ -96,18 +127,10 @@ http.interceptors.response.use(
       if (!isAuthRoute && tokenStore.refresh) {
         original._retried = true
         try {
-          refreshing = refreshing || doRefresh()
-          const token = await refreshing
-          refreshing = null
+          const token = await ensureAccessToken(String(original.headers?.Authorization||'').replace(/^Bearer /,''))
           original.headers = { ...(original.headers || {}), Authorization: `Bearer ${token}` }
           return http.request(original)
         } catch (refreshError) {
-          refreshing = null
-          const status = (refreshError as AxiosError)?.response?.status
-          if (status === 401 || status === 403 || (refreshError as Error)?.message === 'REFRESH_FAILED') {
-            tokenStore.clear()
-            onUnauthorized?.()
-          }
           return Promise.reject(refreshError)
         }
       } else if (!isAuthRoute) {

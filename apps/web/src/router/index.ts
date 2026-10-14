@@ -63,7 +63,10 @@ router.beforeEach(async (to) => {
   const identity = needsIdentity && tokenStore.access && !auth.user
     ? auth.fetchMe().then(() => null, error => error)
     : Promise.resolve(null)
-  if (!auth.settings) await auth.loadPublicSettings()
+  if (!auth.settings) {
+    if(to.meta.feature)await auth.loadPublicSettings()
+    else void auth.loadPublicSettings()
+  }
 
   if (isPublic) {
     // 已登录用户访问登录页时按角色进入各自的落地页

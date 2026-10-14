@@ -85,3 +85,6 @@ knowledge/dist/workbook-source.json
 knowledge/dist/quarantine.json
 knowledge/dist/retrieval-cases.json
 榜题1-测试集对齐报告.xlsx
+
+# Local operational handoff
+handoff.md

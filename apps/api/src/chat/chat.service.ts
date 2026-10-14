@@ -382,6 +382,7 @@ export class ChatService {
       })
 
       // 5) 组装上下文
+      send('runtime',{stage:'context',round:0,maxRounds:MAX_TOOL_ROUNDS})
       const systemPrompts: string[] = []
 
       /*
@@ -1104,7 +1105,7 @@ export class ChatService {
     const question = (dto.content || "").trim()
     if (!question) return { suggestion: null }
 
-    // 候选清单走 available()，因此自动继承「情侣空间关闭时不出现」等过滤
+    // 候选清单通过 available() 继承已下线能力过滤
     const agents = await this.agents.available()
     if (agents.length < 2) return { suggestion: null }
 

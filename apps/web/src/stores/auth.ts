@@ -156,7 +156,7 @@ export const useAuthStore = defineStore("auth", {
         return null
       }
       const token=tokenStore.access, version=identityVersion
-      if(currentUserRequest?.token===token)return currentUserRequest.promise
+      if(currentUserRequest)return currentUserRequest.promise
       const request=(async()=>{try {
         const me = await authApi.me()
         if(!tokenStore.access || version !== identityVersion)return null
@@ -165,13 +165,13 @@ export const useAuthStore = defineStore("auth", {
         this.roles = me.roles || []
         return me
       } catch (error) {
-        if(version === identityVersion && (!tokenStore.access || (error as any)?.response?.status === 401 || (error as any)?.response?.status === 403)){
+        if(version === identityVersion && !tokenStore.access){
           tokenStore.clear()
           this.user = null
           this.permissions = []
           this.roles = []
         }
-        throw new Error(errorMessage(error))
+        throw error
       } finally {
         if(tokenStore.access===token || !tokenStore.access)this.initialized = true
       }})()

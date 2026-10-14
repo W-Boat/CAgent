@@ -26,14 +26,18 @@ export async function readSse(response:Response,onFrame:(frame:SseFrame)=>boolea
  }finally{void reader.cancel().catch(()=>undefined);reader.releaseLock()}
 }
 
-export function requestSse(options:{url:string;body:unknown;headers?:Record<string,string>;onUploadProgress?:(percent:number)=>void;onFrame:(frame:SseFrame)=>void;onDone:(result:any)=>void;onError:(message:string)=>void}){
+export function requestSse(options:{url:string;body:unknown;headers?:Record<string,string>;authorize?:(rejectedToken?:string)=>Promise<string>;onUploadProgress?:(percent:number)=>void;onFrame:(frame:SseFrame)=>void;onDone:(result:any)=>void;onError:(message:string)=>void}){
  const controller=new AbortController();let settled=false,serverError:string|undefined
  const finish=(result:any)=>{if(settled)return;settled=true;options.onDone(result)}
  const error=(message:string)=>{if(!serverError){serverError=message;options.onError(message)}}
  const done=(async()=>{
   try{
-   const headers={'Content-Type':'application/json',Accept:'text/event-stream',...options.headers},body=JSON.stringify(options.body)
-   const response=options.onUploadProgress?await uploadStream(options.url,body,headers,controller.signal,options.onUploadProgress):await fetch(options.url,{method:'POST',headers,body,signal:controller.signal})
+   const headers:Record<string,string>={'Content-Type':'application/json',Accept:'text/event-stream',...options.headers},body=JSON.stringify(options.body)
+   if(options.authorize){const token=await options.authorize();if(token)headers.Authorization='Bearer '+token}
+   const send=()=>options.onUploadProgress?uploadStream(options.url,body,headers,controller.signal,options.onUploadProgress):fetch(options.url,{method:'POST',headers,body,signal:controller.signal})
+   if(controller.signal.aborted)throw new DOMException('已停止生成','AbortError')
+   let response=await send()
+   if(response.status===401&&options.authorize){const token=await options.authorize((headers.Authorization||'').replace(/^Bearer /,''));if(token&&!controller.signal.aborted){headers.Authorization='Bearer '+token;response=await send()}}
    if(!response.ok){const payload=await response.json().catch(()=>null);throw new Error(payload?.message||`请求失败（HTTP ${response.status}）`)}
    if(!response.headers.get('content-type')?.includes('text/event-stream'))throw new Error('服务器没有返回流式响应，请重试')
    await readSse(response,frame=>{

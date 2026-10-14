@@ -980,11 +980,6 @@ model CampusGuideItem {
   @@map("campus_guide_items")
 }
 
-/// 人文之光社论语料（读者投稿合集）。
-///
-/// 定位：**可溯源的检索与引述**，不是观点生成器。
-/// 这些是历次投稿的原文，回答时必须给出篇号与原文片段，
-
 /// 导览会话：一次「打开页面 + 逐步提示」的记录，用于后台审计与断点续看
 model CampusGuideRun {
   id     String @id @default(cuid())

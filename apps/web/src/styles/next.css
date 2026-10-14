@@ -956,3 +956,4 @@ html .el-checkbox{--el-checkbox-checked-icon-color:var(--platform-on-accent)}
 html .el-radio__input.is-checked:not(.is-disabled) .el-radio__inner:after{background:var(--platform-on-accent)}
 .el-tag.el-tag--primary.el-tag--dark{--el-tag-text-color:var(--platform-on-accent)}
 .el-pagination.is-background .el-pager li.is-active {color:var(--platform-on-accent)}
+.ac-scroll,.st-scroll{overflow-anchor:none}

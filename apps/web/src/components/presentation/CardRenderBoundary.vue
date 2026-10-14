@@ -1,6 +1,6 @@
 <template>
   <div v-if="failed" key="failed" class="card-render-failure" role="status">
-    <strong>这张卡片暂时无法显示</strong><p>回答已保留，可以重新加载卡片组件。</p>
+    <MarkdownView v-if="fallback" :content="fallback"/><strong>卡片组件暂时无法显示</strong><p>可先阅读文字回答，也可以重新加载卡片。</p>
     <button type="button" :disabled="disabled || recovering" @click="retry(false)">{{recovering?'正在自动重渲…':'重新渲染'}}</button><small>{{recovering?'首次失败自动重渲一次。':'后续重渲由你确认，不调用模型；诊断已上报。'}}</small>
   </div>
   <div v-else :key="'content-'+attempt"><slot :ready="ready"/></div>
@@ -8,7 +8,8 @@
 <script setup lang="ts">
 import {onErrorCaptured,nextTick,ref,watch,onBeforeUnmount} from 'vue'
 import {reportRender,type RenderErrorType} from '@/utils/presentation-errors'
-const props=defineProps<{identity:unknown;disabled?:boolean;reportKey?:string}>(),failed=ref(false),attempt=ref(0),recovering=ref(false)
+import MarkdownView from '../MarkdownView.vue'
+const props=defineProps<{identity:unknown;fallback?:string;disabled?:boolean;reportKey?:string}>(),failed=ref(false),attempt=ref(0),recovering=ref(false)
 let autoUsed=false,active=true,errorType:RenderErrorType='component',retryMode:'initial'|'automatic'|'manual'='initial'
 onBeforeUnmount(()=>active=false)
 function automatic(){if(autoUsed||props.disabled||!active)return;autoUsed=true;recovering.value=true;void nextTick(()=>retry(true))}

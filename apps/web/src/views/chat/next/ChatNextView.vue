@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {retainCardReadingPosition} from "@/utils/chat-follow"
 import AnswerVersions from '@/components/AnswerVersions.vue'
 import ImageTransferProgress from '@/components/ImageTransferProgress.vue'
 import {useImageAttachments} from '@/composables/useImageAttachments'
@@ -193,7 +194,7 @@ const typer = createStreamTyper({
     const proxy = messages.value.find((m) => m.id === id) ?? (raw as ChatMessage)
     proxy.content = text
   },
-  onFrame: () => scrollIfPinned()
+  onFrame: () => void nextTick(scrollIfPinned)
 })
 
 const activeConversation = computed(() =>
@@ -502,6 +503,7 @@ async function scrollToBottom(smooth = false) {
 function scrollIfPinned() {
   const el = scrollEl.value
   if (!el || !pinnedToBottom.value) return
+  if(retainCardReadingPosition(messages.value.at(-1)?.content||"",el.scrollHeight-el.scrollTop-el.clientHeight,el.clientHeight)){pinnedToBottom.value=false;return}
   el.scrollTop = el.scrollHeight
 }
 
@@ -752,7 +754,7 @@ async function runSend(bypassCache=false,revision?:ChatMessage) {
         args: p.arguments,
         state: "running"
       })
-      if (pinnedToBottom.value) void scrollToBottom()
+      if (pinnedToBottom.value) void nextTick(scrollIfPinned)
     },
     onToolResult: (p) => {
       const ev = target.toolEvents?.find((t) => t.id === p.id)
@@ -805,7 +807,7 @@ async function runSend(bypassCache=false,revision?:ChatMessage) {
     // target.streaming 由 typer.end 的播完回调撤下，这里不能提前关
     // 标题可能由后端自动生成，拉一次列表让侧栏跟上
     await loadConversations().catch(() => undefined)
-    if (pinnedToBottom.value) await scrollToBottom()
+    if (pinnedToBottom.value) await nextTick(scrollIfPinned)
   }
 }
 

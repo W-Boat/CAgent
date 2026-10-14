@@ -25,7 +25,7 @@ onBeforeUnmount(()=>{if(timer)clearInterval(timer);selectionVersion++})
  <div class="evaluation-page">
   <header class="evaluation-header"><div><h1>批量对话测试</h1><p>导入测试集或验证集，让 Agent 按批次完成多轮回复，下载可核对的结果。</p></div><el-button @click="list" :loading="loading">刷新任务</el-button></header>
   <div class="evaluation-grid">
-   <section class="evaluation-panel"><h2>准备测试集</h2><label for="evaluation-title">任务名称</label><el-input id="evaluation-title" v-model="title" maxlength="120" placeholder="输入任务名称"/>
+   <section class="evaluation-panel"><h2>准备测试集</h2><p class="evaluation-help">问题来自你上传的 JSON/CSV 或手动编辑。「载入示例」是代码内置的 3 道演示题，不是正式评测数据。测试集与验证集当前仅用于分类标记，不会训练模型或自动评分。</p><label for="evaluation-title">任务名称</label><el-input id="evaluation-title" v-model="title" maxlength="120" placeholder="输入任务名称"/>
     <div class="evaluation-fields"><div><label>文件格式</label><el-select v-model="format" aria-label="文件格式"><el-option label="JSON" value="json"/><el-option label="CSV" value="csv"/></el-select></div><div><label>默认数据集</label><el-select v-model="split" aria-label="默认数据集"><el-option label="测试集" value="test"/><el-option label="验证集" value="validation"/></el-select></div></div>
     <div class="evaluation-actions"><el-button @click="fileInput?.click()">导入文件</el-button><el-button @click="example">载入示例</el-button><span v-if="!parsed.error">{{parsed.batches}} 个批次 · {{parsed.total}} 道题</span></div><input ref="fileInput" type="file" accept=".json,.csv" class="evaluation-file" @change="importFile"/>
     <el-input v-model="data" type="textarea" :rows="10" aria-label="测试集内容" placeholder="粘贴 JSON 或 CSV 测试集"/><p v-if="parsed.error" class="evaluation-error" role="alert">{{parsed.error}}</p><p class="evaluation-help">相同批次按轮次保留上下文，不同批次独立。最多 500 题，每批最多 100 轮。CSV 列：batch_id、split、turn、question。</p>

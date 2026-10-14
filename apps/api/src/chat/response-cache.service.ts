@@ -12,7 +12,9 @@ export interface CachedAnswer {content:string;sources:KnowledgeSource[];presenta
 export const normalizedCacheQuestion=(text:string)=>text.normalize('NFC').trim().replace(/\r\n/g,'\n')
 /** Exact-question reuse is deliberately independent of conversation history. */
 export function cacheHistory(_history:{role:string;content:string}[],_question:string){return []}
-export function cacheEligible(query:string,images?:string[],bypass?:boolean){return !bypass&&!images?.length&&query.length<=6000&&!/今天|明天|昨天|今晚|本周|周末|最近|最新|现在|当前|天气|今日|本月|下周|今年|提醒|课表|几点|截止|日程|随机|抽签|换一个|重新生成|记录|保存|添加|修改|删除|提交|发送|订阅|更新|创建|自杀|自伤|不想活|\b(?:today|tomorrow|yesterday|tonight|current|latest|weather|random|remind|save|add|modify|delete|submit|send|subscribe|update|create)\b/i.test(query)}
+export function cacheEligible(query:string,images?:string[],bypass?:boolean){return !bypass&&!images?.length&&query.length<=6000&&!/今天|明天|昨天|今晚|本周|周末|最近|最新|现在|当前|天气|今日|本月|下周|今年|提醒|随机|抽签|换一个|重新生成|记录|保存|添加|修改|删除|提交|发送|订阅|更新|创建|自杀|自伤|不想活|\b(?:today|tomorrow|yesterday|tonight|current|latest|weather|random|remind|save|add|modify|delete|submit|send|subscribe|update|create)\b/i.test(query)}
+const semanticSettings=['knowledge_revision','default_system_prompt','default_temperature','enable_tools','skill_enabled','browser_enabled','memory_enabled','knowledge_retrieval_depth','knowledge_continuous_retrieval']
+const canonical=(value:any):any=>value instanceof Date?value.toISOString():Array.isArray(value)?value.map(canonical):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().filter(key=>value[key]!==undefined).map(key=>[key,canonical(value[key])])):value
 @Injectable()
 export class ResponseCacheService {
  private readonly directory=resolve(process.cwd(),'storage','.private','answer-cache');private lastClean=0
@@ -22,11 +24,12 @@ export class ResponseCacheService {
    if(!await this.settings.get<boolean>('answer_cache_enabled'))return null
    const days=Number(await this.settings.get('answer_cache_days'));if(!Number.isInteger(days)||days<1||days>30)return null
    const revision=await Promise.all([
-    this.prisma.knowledgeBase.aggregate({_count:true,_max:{updatedAt:true}}),this.prisma.knowledgeEntry.aggregate({_count:true}),
-    this.prisma.campusGuideItem.aggregate({_count:true,_max:{updatedAt:true}}),this.prisma.setting.aggregate({_count:true,_max:{updatedAt:true}}),this.prisma.skill.aggregate({_count:true,_max:{updatedAt:true}})
-   ]) // Entry hit counters change updatedAt; semantic edits also bump knowledge_revision in settings.
+    this.prisma.setting.findMany({where:{key:{in:semanticSettings}},select:{key:true,value:true},orderBy:{key:'asc'}}),
+    this.prisma.skill.aggregate({_count:true,_max:{updatedAt:true}})
+   ]) // Semantic changes bump knowledge_revision; views, hit counts and sync status do not invalidate answers.
    const {history:_,trialScope:__,...stable}=context
-   const key=createHash('sha256').update(JSON.stringify({version:'answer-cache-v5',context:stable,revision})).digest('hex');return {key,days}
+   if(Array.isArray(stable.skills))stable.skills=[...stable.skills].sort()
+   const key=createHash('sha256').update(JSON.stringify(canonical({version:'answer-cache-v6',context:stable,revision}))).digest('hex');return {key,days}
   }catch{return null}
  }
  async get(ticket:{key:string;days:number}|null):Promise<CachedAnswer|null>{

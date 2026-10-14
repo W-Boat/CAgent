@@ -169,6 +169,8 @@ export function normalizeUiDocument(value:unknown):unknown {
   const node=(v:unknown,depth:number):unknown=>{if(!object(v)||depth>4||++count>48)return v;const result={...v};let id=typeof v.id==='string'&&/^[A-Za-z0-9_]{1,80}$/.test(v.id)?v.id:'ui_n'+(++serial);while(ids.has(id))id='ui_n'+(++serial);ids.add(id);result.id=id
    if(v.type==='page'){result.version=v.version??UI_VERSION;result.layout=v.layout??'stack';result.fallback=v.fallback??uiContentText(v)}
    if(v.type==='card_group')result.layout=v.layout??'stack'
+   const spec=UI_COMPONENTS[v.type as keyof typeof UI_COMPONENTS]
+   if(spec)for(const key of spec.fields)if(!(spec.required as readonly string[]).includes(key)&&(result[key]===null||result[key]===''||Array.isArray(result[key])&&(result[key] as unknown[]).length===0))delete result[key]
    if(Array.isArray(v.children))result.children=v.children.map(child=>node(child,depth+1));return result}
   return node(root,0)
  }

@@ -16,7 +16,7 @@ for(let i=0;i<10000;i++){
  if(kind===3)raw=raw.replace(/\}$/,',}')
  if(kind===4)raw='/*格式注释*/'+raw
  if(kind===6){doc.version='99';raw=JSON.stringify(doc)}
- if(kind===7){doc.sourceRefs=['unauthorized'];raw=JSON.stringify(doc)}
+ if(kind===7){doc.sourceRefs=['unauthorized'];raw=JSON.stringify(doc);group='valid'}
  if(kind===8)raw=raw.slice(0,raw.lastIndexOf('}'))
  if(kind===9)raw='{"type":"page","children":['
  const input=(i%2?'前文紧邻':'前文\n\n')+'```'+(i%3?'card':'json')+'\n'+raw+(kind===8||kind===9?'':'\n```'),sourceIds=new Set<string>()
@@ -26,6 +26,7 @@ for(let i=0;i<10000;i++){
   assert.equal(streamed,normalized,'arbitrary stream chunks must match stored answer')
   const parsed=answerSegments(normalized,{streaming:false,sourceIds})
   assert(!parsed.some((s:any)=>s.kind==='pending'||s.kind==='broken'))
+  if(kind===7)assert(!normalized.includes('unauthorized'),'Invalid provenance never becomes a verified reference')
   if(group==='valid'){tally.valid.total++;assert(parsed.some((s:any)=>s.kind==='card'));for(const block of normalized.matchAll(/```card\n([\s\S]*?)\n```/g))assert(validateUiDocument(parseCardJson(block[1]),{sourceIds}).ok);tally.valid.success++}
   else if(group==='recoverable'){tally.recoverable.total++;assert(!normalized.includes('"type":'));assert(normalized.includes(doc.fallback)||normalized.includes(doc.children[0].title||doc.children[0].content||doc.children[0].alt));assert(!normalized.includes('未完整生成'));tally.recoverable.success++}
   else{tally.incomplete.total++;assert(normalized.includes('未完整生成'));tally.incomplete.explicit++}

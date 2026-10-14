@@ -53,13 +53,13 @@ export function formatCardBlock(raw:string,language:string,preference:AnswerPref
  if(!value||typeof value!=='object'||Array.isArray(value)||typeof value.type!=='string')return original
  if(natives.has(value.type))return original
  if(isUiDocument(value)){
-  // References are metadata: bound an oversized list only when every ID is authorized.
-  // Unknown references still fail the strict gate; never turn them into verified evidence.
+  // Discard invalid provenance metadata; never invent, alias or authorize a source ID.
+  // Original validation errors remain in server diagnostics. Content can still render.
   let nodes=0
   const references=(node:any,depth:number):any=>{
    if(!node||typeof node!=='object'||Array.isArray(node)||depth>4||++nodes>49)return node
    const copy={...node},refs=node.sourceRefs
-   if(Array.isArray(refs)&&refs.length<=64&&refs.every((id:any)=>typeof id==='string'&&id.length<=160&&sourceIds.has(id))){const unique=[...new Set(refs)];if(unique.length)copy.sourceRefs=unique.slice(0,8);else delete copy.sourceRefs}
+   if(refs!==undefined){const unique=Array.isArray(refs)&&refs.length<=256?[...new Set(refs.filter((id:any)=>typeof id==='string'&&id.length<=160&&sourceIds.has(id)))]:[];if(unique.length)copy.sourceRefs=unique.slice(0,8);else delete copy.sourceRefs}
    if(Array.isArray(node.children))copy.children=node.children.slice(0,17).map((child:any)=>references(child,depth+1))
    return copy
   }

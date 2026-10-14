@@ -1,6 +1,6 @@
 import {requestSse} from './sse'
 import {campusOrigin} from "@/utils/campus-activity"
-import { tokenStore } from "./client"
+import { tokenStore,ensureAccessToken } from "./client"
 
 const BASE_URL = import.meta.env.VITE_API_BASE || "/api"
 
@@ -81,7 +81,7 @@ export function streamChat(payload:SendMessagePayload,handlers:ChatStreamHandler
  return chatRequest('/chat/completions',{...payload,origin:campusOrigin()},handlers)
 }
 function chatRequest(path:string,payload:unknown,handlers:ChatStreamHandlers){
- return requestSse({url:BASE_URL+path,body:payload,onUploadProgress:(payload as SendMessagePayload).images?.length?handlers.onUploadProgress:undefined,headers:tokenStore.access?{Authorization:'Bearer '+tokenStore.access}:{},onError:message=>handlers.onError?.(message),onDone:result=>handlers.onDone?.(result),onFrame:({event,data})=>{
+ return requestSse({url:BASE_URL+path,body:payload,authorize:ensureAccessToken,onUploadProgress:(payload as SendMessagePayload).images?.length?handlers.onUploadProgress:undefined,headers:tokenStore.access?{Authorization:'Bearer '+tokenStore.access}:{},onError:message=>handlers.onError?.(message),onDone:result=>handlers.onDone?.(result),onFrame:({event,data})=>{
   const value=data as any
   switch(event){
    case 'runtime':handlers.onRuntime?.(value);break

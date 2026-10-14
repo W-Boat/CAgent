@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {retainCardReadingPosition} from "@/utils/chat-follow"
 import OutputPreferenceSelect from "@/components/OutputPreferenceSelect.vue"
 import AnswerVersionControls from '@/components/AnswerVersionControls.vue'
 import {useOutputPreference} from "@/composables/useOutputPreference"
@@ -63,7 +64,7 @@ function onViewportChange(e: MediaQueryListEvent) { isNarrow.value = e.matches; 
 function onScroll() { const el = scrollEl.value; if (el) pinnedToBottom.value = el.scrollHeight - el.scrollTop - el.clientHeight < 80 }
 function scrollToBottom(force = false) {
   if (!force && !pinnedToBottom.value) return
-  void nextTick(() => { const el = scrollEl.value; if (el) el.scrollTop = el.scrollHeight })
+  void nextTick(() => { const el = scrollEl.value;if(!el||!force&&!pinnedToBottom.value)return;if(!force&&retainCardReadingPosition(messages.value.at(-1)?.content||"",el.scrollHeight-el.scrollTop-el.clientHeight,el.clientHeight)){pinnedToBottom.value=false;return}el.scrollTop = el.scrollHeight })
   if (force) pinnedToBottom.value = true
 }
 function autoGrow() { const el = inputEl.value; if (el) { el.style.height = 'auto'; el.style.height = `${Math.min(el.scrollHeight, 190)}px` } }
