@@ -44,7 +44,7 @@ export interface KnowledgeRow {
   name?: string | null; summaryShort?: string; detail?: string | null; extra?: any; url?: string
   detailStatus?: string; verifiedAt?: string | null; [key: string]: any
 }
-export interface RetrievalOptions { collection?: string; topic?:string; previousQuery?: string; limit?: number; agentId?:string|null; managedOnly?:boolean }
+export interface RetrievalOptions { collection?: string; topic?:string; previousQuery?: string; limit?: number; agentId?:string|null; managedOnly?:boolean; sourceKeys?:readonly string[] }
 export interface RankedRow { row: KnowledgeRow; score: number; reasons: string[]; related: KnowledgeRow[] }
 export function metadata(row: KnowledgeRow) {
   const extra = row.extra && !Array.isArray(row.extra) ? row.extra : {}

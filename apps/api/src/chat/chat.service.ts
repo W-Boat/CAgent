@@ -1,4 +1,5 @@
 import {KnowledgeRetrievalBudget} from './knowledge-retrieval-policy'
+import {type EvaluationPolicy,EVALUATION_POLICY_VERSION,EVALUATION_V2_SOURCES,STRICT_PROMPT,STRICT_FALLBACK,strictPlainText,reviewStrictReply} from '../evaluation/evaluation-policy'
 import {appOrigin} from '../common/app-origin'
 import {CampusActivityService} from "../campus/campus-activity.service"
 import {ANSWER_CARD_PROTOCOL,supportCardFallback} from './answer-card-protocol'
@@ -246,7 +247,12 @@ export class ChatService {
   //  流式对话
   // ============================================================
 
-  async streamChat(user: AuthUser, dto: SendMessageDto, res: Response, revisionMessageId?:string, internal?:{evaluation?:boolean;signal?:AbortSignal}) {
+  async streamChat(user: AuthUser, dto: SendMessageDto, res: Response, revisionMessageId?:string, internal?:{evaluation?:boolean;signal?:AbortSignal;evaluationPolicy?:EvaluationPolicy}) {
+    const policy=internal?.evaluation?internal.evaluationPolicy:undefined,strict=policy?.strictMode===true,v2Only=policy?.knowledgeScope==='v2-only',controlled=strict||v2Only
+    const retrievalScope=v2Only?{sourceKeys:EVALUATION_V2_SOURCES,managedOnly:false}:{}
+    const strictEvidence:string[]=[]
+    if(strict)dto={...dto,outputPreference:'text'}
+    let strictReleased=false
     const requestStarted=Date.now()
     const scope=abortScope(internal?.signal,300_000)
     const onClose=()=>{if(!res.writableEnded)scope.controller.abort(new DOMException('已停止生成','AbortError'))}
@@ -264,6 +270,9 @@ export class ChatService {
 
     const send = (event: string, data: unknown) => {
       if (res.writableEnded || res.destroyed) return
+      if(strict&&['reasoning','kb','tool_call','tool_result'].includes(event))return
+      if(strict&&event==='text'&&!strictReleased)return
+      if(strict&&event==='error')data={message:'本题未能完成，请稍后重试或检查任务配置。'}
       res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
     }
 
@@ -273,6 +282,7 @@ export class ChatService {
 
     try {
       checkAbort(scope.signal)
+      if(v2Only&&!user.permissions.includes('*')&&!user.permissions.includes('campus:read'))throw new BadRequestException('仅 2.0 两库评测需要校园知识库读取权限')
       send('runtime',{stage:'preparing',round:0,maxRounds:MAX_TOOL_ROUNDS})
       // 1) 会话校验 / 自动创建
       let conversation = dto.conversationId
@@ -295,15 +305,15 @@ export class ChatService {
       }
       const knowledgeAgentId = selectedAgentId || (await this.prisma.agent.findFirst({where:{key:'ucass-guide',enabled:true},select:{id:true}}))?.id || null
       const previousMapQuery=conversation?await this.prisma.message.findFirst({where:{conversationId:conversation.id,role:'user'},orderBy:{seq:'desc'},select:{content:true}}):null
-      const mapAnswer=isSupportUrgent(dto.content)||!await this.knowledgeStore.embeddedEnabled('maps',knowledgeAgentId)?null:resolveCampusMap(dto.content,previousMapQuery?.content || '')
+      const mapAnswer=controlled||isSupportUrgent(dto.content)||!await this.knowledgeStore.embeddedEnabled('maps',knowledgeAgentId)?null:resolveCampusMap(dto.content,previousMapQuery?.content || '')
       const mapOnly=mapAnswer && !/开馆|开放|营业|时间|办理|借书|借阅|申请|报名|费用|收费|历史|介绍|概况|用途|功能|怎么用/.test(dto.content)
-      const rules=await this.knowledgeStore.keywordRules(dto.content,knowledgeAgentId)
+      const rules=controlled?[]:await this.knowledgeStore.keywordRules(dto.content,knowledgeAgentId)
       const ruleExtras=rules.map(({entry,rule})=>keywordCardMarkup(rule,entry.id)).join('')
       const instructionRules=rules.filter(r=>r.rule.behavior==='INSTRUCT')
       const replaced=rules.filter(r=>r.rule.behavior==='REPLACE')
       const effectOnly=rules.length && rules.every(r=>!!r.rule.effect && !r.rule.instruction && !r.rule.text)
       const ruleDirect=!instructionRules.length && (replaced.length || effectOnly)
-      const fixedEntry = isSupportUrgent(dto.content)||instructionRules.length?null:await this.knowledgeStore.fixed(campusQuery(dto.content),knowledgeAgentId)
+      const fixedEntry = controlled||isSupportUrgent(dto.content)||instructionRules.length?null:await this.knowledgeStore.fixed(campusQuery(dto.content),knowledgeAgentId)
       const fixed = fixedEntry ? {...fixedEntry,answer:fixedEntry.answer+ruleExtras+(mapAnswer?'\n\n```card\n'+JSON.stringify(mapAnswer.card)+'\n```':'')}
         : ruleDirect ? {id:rules[0].entry.id,baseId:rules[0].entry.baseId,source:rules[0].entry.source,answer:rules.map(r=>r.rule.text).filter(Boolean).join('\n\n')+ruleExtras+(mapAnswer?'\n\n```card\n'+JSON.stringify(mapAnswer.card)+'\n```':'')}
         : mapOnly && !instructionRules.length ? {id:'campus-map',baseId:'campus-maps',source:'用户提供的手绘校园地图',answer:mapAnswerContent(mapAnswer!)+ruleExtras} : null
@@ -439,7 +449,7 @@ export class ChatService {
           // 自学习闭环：注入管理员已审核通过的经验。
           // 只取 APPROVED —— 未经审核的反馈绝不进提示词，否则一条错误经验
           // 会污染此后所有学生的回答。
-          const learned = await this.learning
+          const learned = controlled?null:await this.learning
             .buildLearningPrompt(agent.id,dto.content)
             .catch(() => null)
           if (learned) systemPrompts.push(learned)
@@ -453,15 +463,15 @@ export class ChatService {
       if (memoryPrompt) systemPrompts.push(memoryPrompt)
 
       // 本次请求显式选择的技能
-      const requestedSkillIds = dto.skills ?? []
+      const requestedSkillIds = controlled?[]:dto.skills ?? []
       const explicitPrompts = await this.skills.collectPromptFragments(
         requestedSkillIds,
         user.permissions,
         dto.content
       )
       systemPrompts.push(...explicitPrompts)
-      const promptCatalog=await this.skills.promptCatalog(boundPromptIds,user.permissions,dto.content)
-      const canReadSkills=target.supportsTools&&agentMeta?.mode!=='CHAT'&&(dto.enableTools??await this.settings.get<boolean>('enable_tools')??true)
+      const promptCatalog=controlled?[]:await this.skills.promptCatalog(boundPromptIds,user.permissions,dto.content)
+      const canReadSkills=!controlled&&target.supportsTools&&agentMeta?.mode!=='CHAT'&&(dto.enableTools??await this.settings.get<boolean>('enable_tools')??true)
       const lazySkills=promptCatalog.filter(skill=>!requestedSkillIds.includes(skill.id)&&!requestedSkillIds.includes(skill.key))
       if(canReadSkills&&lazySkills.length)systemPrompts.push('【可用技能指引】技能是完成任务的工作流程，知识问题请查 knowledge_search。适用时先用 skill_read 读取对应指引，再执行。\n'+lazySkills.map(skill=>`${skill.key}（${skill.name}）：${skill.description}`).join('\n'))
       else if(lazySkills.length)systemPrompts.push(...await this.skills.collectPromptFragments(lazySkills.filter(skill=>skill.relevant).slice(0,2).map(skill=>skill.id),user.permissions,dto.content))
@@ -484,11 +494,12 @@ export class ChatService {
       presentationContext.outputPreference=dto.outputPreference||'adaptive'
       const cacheTicket=this.responseCache&&cacheEligible(dto.content,dto.images,dto.bypassCache)&&!rules.length&&!mapAnswer?await this.responseCache.prepare({
         user:user.id,permissions:[...user.permissions].sort(),trialScope:dto.origin==='trial-chat'?conversation.id:undefined,question:normalizedCacheQuestion(dto.content),
-        target,agentId:knowledgeAgentId,agentMeta,boundPromptIds,temperature:dto.temperature,preference:presentationContext.outputPreference,prompts:systemPrompts.slice(1),history:cacheHistory(history,dto.content),skills:dto.skills||[],enableTools:dto.enableTools,memoryEnabled:dto.memoryEnabled
+        target,agentId:knowledgeAgentId,agentMeta,boundPromptIds,temperature:dto.temperature,preference:presentationContext.outputPreference,prompts:systemPrompts.slice(1),history:cacheHistory(history,dto.content),skills:dto.skills||[],enableTools:dto.enableTools,memoryEnabled:dto.memoryEnabled,evaluationPolicy:policy?{...policy,version:EVALUATION_POLICY_VERSION,previousQuestions:strict?history.filter(m=>m.role==='user').slice(-4).map(m=>m.content):undefined}:undefined
       }):null
       const cached=await this.responseCache?.get(cacheTicket)
       if(cached){
         checkAbort(scope.signal)
+        strictReleased=true
         const metrics={cacheHit:true,modelTurns:0,toolCalls:0,cachedCalls:0,failedTools:0,removedTurns:0,truncatedResults:0,peakInputTokens:0,latencyMs:Date.now()-requestStarted,limitReached:false},cache={hit:true,createdAt:new Date(cached.createdAt).toISOString(),retentionDays:cacheTicket!.days}
         send('cache',cache);send('kb',{hits:cached.sources,phase:'final'});send('text',{text:cached.content});send('runtime',{stage:'finalizing',round:0,maxRounds:MAX_TOOL_ROUNDS})
         await this.prisma.message.update({where:{id:assistantMessage.id},data:{content:cached.content,status:'SUCCESS',finishReason:'cache_hit',promptTokens:0,completionTokens:0,totalTokens:0,attachments:{...versionMeta,knowledgeSources:cached.sources,presentation:cached.presentation,agentRun:metrics,cache} as any}})
@@ -499,21 +510,22 @@ export class ChatService {
       }
       const [retrievalDepth,continuousRetrieval]=await Promise.all([this.settings.get('knowledge_retrieval_depth'),this.settings.get('knowledge_continuous_retrieval')])
       const retrievalBudget=new KnowledgeRetrievalBudget(retrievalDepth,continuousRetrieval)
-      const campusAgent = !agentMeta || KB_GROUNDING_AGENT_KEYS.includes(agentMeta.key) || boundKnowledge
+      const campusAgent = controlled || !agentMeta || KB_GROUNDING_AGENT_KEYS.includes(agentMeta.key) || boundKnowledge
       const hasManagedKnowledge = !!knowledgeAgentId && await this.knowledgeStore.hasMountedBase(knowledgeAgentId)
       if ((user.permissions.includes('*') || user.permissions.includes('campus:read')) && (campusAgent || hasManagedKnowledge)) {
         const queryText = campusQuery(dto.content || "").trim()
         if (queryText && !isSupportUrgent(dto.content) && needsAutomaticKnowledge(queryText)) {
           try {
-            systemPrompts.push(await this.campusGuide.catalogBlock({agentId:knowledgeAgentId,managedOnly:!campusAgent}))
+            systemPrompts.push(await this.campusGuide.catalogBlock({agentId:knowledgeAgentId,managedOnly:!campusAgent,...retrievalScope}))
             const previousQuery = presentationContext.previousQuery || ''
             const remaining = target.contextWindow - target.maxOutputTokens -
               systemPrompts.reduce((sum,p) => sum + estimateTokens(p),0) - estimateTokens(dto.content) - 512
             retrievalBudget.reserve()
             const evidence = await this.campusGuide.answerEvidence(queryText, "guide", 8, {
-              previousQuery, agentId:knowledgeAgentId,managedOnly:!campusAgent,budgetTokens:Math.max(0,Math.min(2200, Math.floor(remaining * 0.5)))
+              previousQuery, agentId:knowledgeAgentId,managedOnly:!campusAgent,...retrievalScope,budgetTokens:Math.max(0,Math.min(2200, Math.floor(remaining * 0.5)))
             })
             const block=evidence.text
+            if(strict)strictEvidence.push(block)
             if(evidence.guidance?.stage==='clarify')presentationContext.clarifyChoices=evidence.guidance.choices
             rememberSources(evidence.sources)
             await this.activity?.chat(dto.origin==='trial-chat'?null:user.id,dto.origin||'api',assistantMessage.id,dto.content,[...sourcePool.values()],false)
@@ -527,6 +539,7 @@ export class ChatService {
               )
             }
           } catch (err) {
+            if(v2Only)throw err
             this.logger.warn(`知识库检索兜底失败（不影响对话）：${(err as Error)?.message || err}`)
           }
         }
@@ -599,11 +612,14 @@ export class ChatService {
       }
 
       if(canReadSkills&&lazySkills.length)toolDefs.push({name:'skill_read',description:'按需读取本轮已授权技能的工作流程指引；不是知识库检索。长指引按 offset 继续读取。',parameters:{type:'object',properties:{name:{type:'string',enum:lazySkills.map(skill=>skill.key)},offset:{type:'integer',minimum:0,maximum:1000000}},required:['name'],additionalProperties:false}})
+      if(controlled)toolDefs=toolDefs.filter(def=>def.name==='knowledge_search'&&!skillToolNames.has(def.name))
       // Keep one authoritative contract after older agent prompts and evidence, with real source IDs.
       systemPrompts.splice(presentationPromptIndex,1)
       systemPrompts.push(presentationPrompt(dto.content,presentationSourceIds(),presentationContext))
       if(toolDefs.length)systemPrompts.push('【工具调用协议】工具只能通过接口的标准工具调用字段请求；正文禁止输出 DSML、invoke、function_calls 或模拟工具执行。不需要工具时直接回答，不能用文字工具调用替代接口调用。')
       systemPrompts.push(`【管理员检索策略】本轮知识库查询最多 ${retrievalBudget.limit} 次（已自动查询 ${retrievalBudget.count} 次）。达到上限后依据现有证据完成回答，缺项说明未收录，不编造。`)
+      if(v2Only)systemPrompts.push('【本轮资料范围】只可查询校园事务 2.0 的 SQLite 与 Markdown 两库。不得使用其他知识库、技能资料、外网或通用知识补齐缺失事实。2.0 包含赛事模拟资料，必须保留模拟性质，不当作实时校方通知。')
+      if(strict)systemPrompts.push(STRICT_PROMPT)
       // One model boundary accounts for history, image costs and tool schemas together.
       const messages=this.contextBuilder.build({systemPrompts,history,budgetTokens:target.contextWindow,maxOutputTokens:target.maxOutputTokens,currentQuery:dto.content,tools:toolDefs})
       checkAbort(scope.signal)
@@ -618,7 +634,8 @@ export class ChatService {
           if(skillToolNames.has(def.name))return this.skills.invokeByKey(def.name,args,{userId:user.id,conversationId:conversation!.id,input:args,userPermissions:user.permissions,signal,beforeKnowledgeRetrieval:retrievalBudget.reserve,onKnowledgeEvidence:sources=>{checkAbort(signal);rememberSources(sources);send('kb',{hits:[...sourcePool.values()],phase:'retrieved'})}})
           if(def.name==='knowledge_search'){
             retrievalBudget.reserve()
-            const evidence=await this.campusGuide.answerEvidence(String(args.query||''),args.mode==='full'&&(user.permissions.includes('*')||user.permissions.includes('campus:full'))?'full':'guide',8,{collection:args.collection?String(args.collection):undefined,topic:args.topic?String(args.topic):undefined,agentId:knowledgeAgentId,managedOnly:!campusAgent,budgetTokens:2200})
+            const evidence=await this.campusGuide.answerEvidence(String(args.query||''),args.mode==='full'&&(user.permissions.includes('*')||user.permissions.includes('campus:full'))?'full':'guide',8,{collection:args.collection?String(args.collection):undefined,topic:args.topic?String(args.topic):undefined,agentId:knowledgeAgentId,managedOnly:!campusAgent,...retrievalScope,budgetTokens:2200})
+            if(strict)strictEvidence.push(evidence.text)
             checkAbort(signal);rememberSources(evidence.sources);send('kb',{hits:[...sourcePool.values()],phase:'retrieved'});return evidence.text
           }
           if(def.name==='browser_control')return this.runBrowserTool(user,args,conversation!.id,signal)
@@ -626,11 +643,12 @@ export class ChatService {
           return typeof output==='string'?output:JSON.stringify(output,null,2)
         }
       })).filter(tool=>!internal?.evaluation||tool.readOnly===true)
-      const layoutPreference=presentationPlan(dto.content,presentationContext).mode==='plain'?'text':presentationContext.outputPreference!
+      const layoutPreference=strict?'text':presentationPlan(dto.content,presentationContext).mode==='plain'?'text':presentationContext.outputPreference!
       const layout=new AnswerPresentationStream(layoutPreference,presentationSourceIds)
       const run=await new AgentRuntime().run({provider:this.llmFactory.resolve(target.providerType),request:{model:target.modelKey,apiKey,baseUrl,temperature:dto.temperature??target.temperature,maxTokens:target.maxOutputTokens},messages,tools:runtimeTools,contextWindow:target.contextWindow,maxToolRounds:agentMeta?.maxToolRounds??MAX_TOOL_ROUNDS,signal:scope.signal,
-        checkpoint:this.runtimeCheckpoints?{runId:revisionMessageId?assistantMessage.id+'-'+randomUUID():assistantMessage.id,scopeKey:createHash('sha256').update(JSON.stringify({user:user.id,permissions:[...user.permissions].sort(),agent:knowledgeAgentId,model:target.modelId,conversation:conversation.id,policy:systemPrompts,revision:await this.knowledgeStore.revision()})).digest('hex'),save:state=>this.runtimeCheckpoints!.save(state)}:undefined,
+        checkpoint:!strict&&this.runtimeCheckpoints?{runId:revisionMessageId?assistantMessage.id+'-'+randomUUID():assistantMessage.id,scopeKey:createHash('sha256').update(JSON.stringify({user:user.id,permissions:[...user.permissions].sort(),agent:knowledgeAgentId,model:target.modelId,conversation:conversation.id,policy:systemPrompts,revision:await this.knowledgeStore.revision()})).digest('hex'),save:state=>this.runtimeCheckpoints!.save(state)}:undefined,
         emit:(event,data)=>{
+          if(strict){if(event==='runtime')send(event,data);return}
           if(event==='text'){
             const rendered=layout.push(data.text);partialText+=rendered;const visible=citationStream.push(rendered);if(visible)send('text',{text:visible})
             if(!keyVerified&&keyId){keyVerified=true;void this.providers.reportKeySuccess(keyId)}
@@ -642,24 +660,42 @@ export class ChatService {
       let fullText=formatAnswerPresentation(run.text,layoutPreference,presentationSourceIds()),fullReasoning=run.reasoning
       Object.assign(run.metrics,{knowledgeRetrievals:retrievalBudget.count,knowledgeRetrievalLimit:retrievalBudget.limit,continuousKnowledgeRetrieval:retrievalBudget.continuous})
       run.metrics.removedTurns+=Math.max(0,contextTurns(history).length-contextTurns(messages).length)
-      const {promptTokens,completionTokens,finishReason,aborted}=run
+      let {promptTokens,completionTokens}=run
+      const {finishReason}=run
+      let aborted=run.aborted
       let failure=run.failure
       if(!failure&&!aborted&&fullText.includes('这部分回答未完整生成，请重新生成以补全内容。'))failure='部分回答未完整生成，请生成新版本以补全。'
-      const toolsUsed=run.tools,latencyMs=run.metrics.latencyMs
+      const toolsUsed=run.tools
       const tail=citationStream.finish();if(tail)send('text',{text:tail})
       if(mapAnswer && !aborted){
         const mapCard='\n\n```card\n'+JSON.stringify(mapAnswer.card)+'\n```'
         fullText+=mapCard;send('text',{text:mapCard})
       }
       if(ruleExtras && !aborted){fullText+=ruleExtras;send('text',{text:ruleExtras})}
-      if(!failure&&!aborted){const fallback=supportCardFallback(dto.content,fullText,isSupportUrgent(dto.content));if(fallback){fullText+=fallback;send('text',{text:fallback})}}
+      if(!strict&&!failure&&!aborted){const fallback=supportCardFallback(dto.content,fullText,isSupportUrgent(dto.content));if(fallback){fullText+=fallback;send('text',{text:fallback})}}
+
+      let strictReview:Record<string,unknown>|undefined
+      if(strict){
+        fullReasoning=''
+        const candidate=strictPlainText(stripKnowledgeCitations(fullText,citationIds()),presentationSourceIds())
+        const review=!failure&&!aborted&&candidate!==STRICT_FALLBACK&&strictEvidence.length?await reviewStrictReply(this.llmFactory.resolve(target.providerType),{model:target.modelKey,apiKey,baseUrl},
+          {question:dto.content,previousQuestions:history.filter(m=>m.role==='user').slice(-4).map(m=>m.content),reply:candidate,evidence:strictEvidence.join('\n').slice(0,24000)},scope.signal):{allowed:false,promptTokens:0,completionTokens:0}
+        promptTokens+=review.promptTokens;completionTokens+=review.completionTokens
+        strictReview={policyVersion:EVALUATION_POLICY_VERSION,allowed:review.allowed,promptTokens:review.promptTokens,completionTokens:review.completionTokens}
+        fullText=review.allowed?candidate:STRICT_FALLBACK
+        aborted=aborted||scope.signal.aborted
+        Object.assign(run.metrics,{strictReview})
+        run.metrics.latencyMs=Date.now()-requestStarted
+      }
 
       const costUsd =
         (promptTokens / 1_000_000) * target.inputPricePerM +
         (completionTokens / 1_000_000) * target.outputPricePerM
+      const latencyMs=run.metrics.latencyMs
 
       // 7) 内容审计：命中敏感词自动标记
       const flagged = await this.detectSensitive(fullText)
+      if(strict&&flagged)fullText=STRICT_FALLBACK
 
       /*
        * Key 池健康回报：
@@ -676,8 +712,9 @@ export class ChatService {
       const originalErrors=originalPresentation.documents.filter(d=>!d.ok).flatMap(d=>d.errors).slice(0,8)
       const presentation={...deliveredPresentation,fallbackApplied:originalPresentation.valid===false&&deliveredPresentation.rendered==='text'||!!failure&&fullText.includes('未完整生成'),referenceRepairApplied:originalErrors.some(error=>error.includes('.sourceRefs'))&&deliveredPresentation.rendered==='page',originalErrors,hint:presentationHint(dto.content,presentationContext)}
       const refs=new Set([...originalPresentation.sourceRefs,...presentation.sourceRefs])
-      const sources=markCitedSources([...sourcePool.values()],fullText).map(s=>({...s,used:s.used||refs.has(s.id)||!!s.citationId&&refs.has(s.citationId)}))
+      const sources=strict?[]:markCitedSources([...sourcePool.values()],fullText).map(s=>({...s,used:s.used||refs.has(s.id)||!!s.citationId&&refs.has(s.citationId)}))
       fullText=stripKnowledgeCitations(fullText,citationIds())
+      if(strict){strictReleased=true;send('text',{text:fullText})}
       if(sourcePool.size || (user.permissions.includes('*')||user.permissions.includes('campus:read')))await this.activity?.chat(dto.origin==='trial-chat'?null:user.id,dto.origin||'api',assistantMessage.id,dto.content,sources,!failure&&!aborted)
       send('kb',{hits:sources,phase:'final'})
       // 8) 落库最终结果
@@ -691,7 +728,7 @@ export class ChatService {
         where: { id: assistantMessage.id },
         data: {
           content: fullText,
-          attachments: {...versionMeta,knowledgeSources:sources,presentation,agentRun:run.metrics,modelMessages:!failure&&!aborted?run.modelMessages.map(message=>message.role==='tool'&&message.content.length>4000?{...message,content:message.content.slice(0,4000)+'\n[历史工具结果已裁剪，如需细节请重新查询]'}:message):undefined} as any,
+          attachments: {...versionMeta,knowledgeSources:sources,presentation,agentRun:run.metrics,evaluationPolicy:policy?{...policy,version:EVALUATION_POLICY_VERSION}:undefined,modelMessages:!strict&&!failure&&!aborted?run.modelMessages.map(message=>message.role==='tool'&&message.content.length>4000?{...message,content:message.content.slice(0,4000)+'\n[历史工具结果已裁剪，如需细节请重新查询]'}:message):undefined} as any,
           reasoning: fullReasoning || null,
           status,
           promptTokens,
@@ -732,7 +769,7 @@ export class ChatService {
         success: !failure&&!aborted,
         errorCode: failure ?? null
       })
-      if(!failure&&!aborted&&!flagged&&presentation.valid&&cacheableAnswer(fullText)&&run.tools.every(tool=>runtimeTools.find(t=>t.name===tool.name)?.readOnly&&!['datetime','weather','exchange_rate','browser_control'].includes(tool.name)))await this.responseCache?.put(cacheTicket,{content:fullText,sources,presentation})
+      if(!failure&&!aborted&&!flagged&&(!strict||strictReview?.allowed===true)&&presentation.valid&&cacheableAnswer(fullText)&&run.tools.every(tool=>runtimeTools.find(t=>t.name===tool.name)?.readOnly&&!['datetime','weather','exchange_rate','browser_control'].includes(tool.name)))await this.responseCache?.put(cacheTicket,{content:fullText,sources,presentation})
 
       if (failure) {
         send("error", { message: failure })

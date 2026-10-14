@@ -26,6 +26,7 @@ import {KnowledgeRetrievalBudget} from '../src/chat/knowledge-retrieval-policy'
 import {SettingsService} from '../src/settings/settings.service'
 import {SETTING_MAP} from '../src/settings/setting-defs'
 import {ResponseCacheService} from '../src/chat/response-cache.service'
+import {STRICT_FALLBACK,EVALUATION_V2_SOURCES} from '../src/evaluation/evaluation-policy'
 import {mkdtemp,rm} from 'node:fs/promises'
 
 const root=resolve(__dirname,'../../..'),checks:string[]=[],pass=(s:string)=>{checks.push(s);console.log('PASS '+s)}
@@ -125,6 +126,28 @@ async function database(){
    assert(evaluated.frames.join('').includes('"status":"SUCCESS"'),evaluated.frames.join(''));assert.equal(evaluationMemoryReads,0)
    pass('真实 ChatService 批量执行强制隔离记忆，不向模型暴露有写入副作用的工具')
   }finally{(chat as any).memory=originalMemory;(chat as any).llmFactory.resolve=originalResolve;await prisma.skill.delete({where:{id:unsafe.id}})}
+  const originalCatalog=guide.catalogBlock,originalEvidence=guide.answerEvidence,originalRules=store.keywordRules,originalFixed=store.fixed
+  try{
+   let deny=false,generations=0,reviews=0,recordedTokens=0
+   guide.catalogBlock=async options=>{assert.deepEqual(options?.sourceKeys,EVALUATION_V2_SOURCES);return '只含两库的目录'}
+   guide.answerEvidence=async(_q,_m,_l,options)=>{assert.deepEqual(options?.sourceKeys,EVALUATION_V2_SOURCES);return {text:'办理校园卡携带学生证原件。',sources:[{id:'scope-only',title:'校园卡窗口',collection:'campus-v2-contest',source:'2.0模拟资料',summary:'办理校园卡携带学生证原件。',used:true}],guidance:{}} as any}
+   store.keywordRules=async()=>{throw Error('受限评测不允许关键词规则')};store.fixed=async()=>{throw Error('受限评测不允许外挂固定回答')}
+   const strictProvider={type:'OPENAI_COMPATIBLE',async*stream(options:any){
+    if(options.messages[0].content.includes('独立输出审查器')){reviews++;const input=JSON.parse(options.messages[1].content);assert(input.evidence.includes('学生证'));assert(!options.tools);yield {type:'text',text:JSON.stringify({campusGuide:true,neutral:!deny,safe:true,grounded:true})};yield {type:'usage',usage:{promptTokens:30,completionTokens:5,totalTokens:35}}}
+    else{generations++;assert((options.tools||[]).every((t:any)=>t.name==='knowledge_search'));yield {type:'reasoning',text:'PRIVATE_STRICT_REASONING'};yield {type:'text',text:'```card\n'+JSON.stringify({type:'page',children:[{type:'text',content:deny?'待拦截的负面评价':'办理校园卡请携带学生证原件。'}]})+'\n```'};yield {type:'usage',usage:{promptTokens:100,completionTokens:20,totalTokens:120}}}
+    yield {type:'done',finishReason:'stop'}
+   }} as any
+   const strictChat=new ChatService(store,prisma,{assertWithinQuota:async()=>{},recordUsage:async(u:any)=>recordedTokens+=u.promptTokens+u.completionTokens} as any,audit,{resolveCredentials:async()=>({apiKey:'fake'}),reportKeySuccess:async()=>{}} as any,{} as any,{get:async(key:string)=>key==='enable_tools'?true:undefined} as any,skills,{} as any,{} as any,{resolve:()=>strictProvider} as any,builder,{buildLearningPrompt:async()=>{throw Error('受限模式不读学习条目')}} as any,{buildMemoryPrompt:async()=>{throw Error('评测不读记忆')}} as any,guide)
+   for(const rejected of [false,true]){
+    deny=rejected;const output=new Response();await strictChat.streamChat({id:userId,email:user.email,permissions:['campus:read']} as any,{content:'校园卡怎么办',agentId,modelId:model.id,memoryEnabled:false},output as any,undefined,{evaluation:true,evaluationPolicy:{strictMode:true,knowledgeScope:'v2-only'}})
+    const frames=output.frames.join('');assert(frames.includes('"status":"SUCCESS"'),frames)
+    assert(!frames.includes('```card')&&!frames.includes('PRIVATE_STRICT_REASONING')&&!frames.includes('待拦截的负面评价'))
+    const answer=await prisma.message.findFirst({where:{userId,role:'assistant'},orderBy:{createdAt:'desc'}});assert(answer);assert.equal(answer.totalTokens,155);assert.equal(answer.reasoning,null);assert(!(answer.attachments as any).modelMessages)
+    assert.equal(answer.content,rejected?STRICT_FALLBACK:'办理校园卡请携带学生证原件。');assert(frames.includes(answer.content))
+   }
+   assert.equal(generations,2);assert.equal(reviews,2);assert.equal(recordedTokens,310)
+   pass('严格两库真实 ChatService：原始卡片/推理/被拒内容不进入流或持久化，独立审核通过/拒绝及双调用155 token记账')
+  }finally{guide.catalogBlock=originalCatalog;guide.answerEvidence=originalEvidence;store.keywordRules=originalRules;store.fixed=originalFixed}
   const guideSkill=await prisma.skill.create({data:{key:'source-guide-'+stamp,name:'来源传递验证',description:'导览查询',type:'TOOL',config:{builtin:'campus_guide'}}})
   const originalSearch=guide.search,originalRender=guide.renderAnswer
   try{
@@ -149,6 +172,8 @@ async function database(){
    const testBase=await prisma.knowledgeBase.create({data:{name:'cache-counter-fixture-'+userId,kind:'LOCAL',mounted:true}})
    try{const counterEntry=await prisma.knowledgeEntry.create({data:{baseId:testBase.id,title:'计数夹具',question:'cache-counter-'+userId,questionKey:'cache-counter-'+userId,answer:'固定答案',mode:'FIXED',status:'APPROVED'}}),context={user:userId,question:'缓存版本夹具'},before=await answerCache.prepare(context)
     await store.fixed(counterEntry.question,null,true);assert.equal((await answerCache.prepare(context))?.key,before?.key)
+    const restricted=await answerCache.prepare({...context,evaluationPolicy:{strictMode:true,knowledgeScope:'v2-only',version:'evaluation-v1'}}),twoOnly=await answerCache.prepare({...context,evaluationPolicy:{strictMode:false,knowledgeScope:'v2-only',version:'evaluation-v1'}})
+    assert.notEqual(restricted?.key,before?.key);assert.notEqual(restricted?.key,twoOnly?.key);assert.notEqual(twoOnly?.key,before?.key)
     await store.bump();assert.notEqual((await answerCache.prepare(context))?.key,before?.key)
     pass('真实固定回答命中计数不破坏缓存，资料内容修订仍失效')
    }finally{await prisma.knowledgeEntry.deleteMany({where:{baseId:testBase.id}});await prisma.knowledgeBase.delete({where:{id:testBase.id}})}

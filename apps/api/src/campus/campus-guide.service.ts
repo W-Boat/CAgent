@@ -1,5 +1,6 @@
 import {contentFormat,managedContent} from "./knowledge-content"
-import { Injectable, NotFoundException, type OnApplicationBootstrap } from "@nestjs/common"
+import { BadRequestException, Injectable, NotFoundException, type OnApplicationBootstrap } from "@nestjs/common"
+import {CONTEST_SQLITE,CONTEST_MARKDOWN,embeddedSourceId,embeddedSourceWhere} from '../knowledge/embedded-knowledge'
 import { Prisma } from "@prisma/client"
 import { PrismaService } from "../prisma/prisma.service"
 import { KnowledgeRetriever, metadata, terms, excerptForQuery, type KnowledgeRow, type RetrievalOptions } from './knowledge-retriever'
@@ -70,6 +71,24 @@ export class CampusGuideService implements OnApplicationBootstrap {
   private loadedRevision:unknown
   private snapshot?: { index: KnowledgeRetriever; expires: number }
   private loading?: Promise<KnowledgeRetriever>
+  private evaluationSnapshot?:{revision:unknown;index:KnowledgeRetriever}
+  private evaluationLoading?:Promise<KnowledgeRetriever>
+  /** Explicit administrator evaluation scope; never changes global mounted flags. */
+  private async retrievalIndex(options:RetrievalOptions):Promise<KnowledgeRetriever>{
+    if(!options.sourceKeys)return this.index()
+    if(options.sourceKeys.length!==2||![CONTEST_SQLITE,CONTEST_MARKDOWN].every(key=>options.sourceKeys!.includes(key)))throw new BadRequestException('无效的评测知识库范围')
+    const bases=await this.prisma.knowledgeBase.findMany({where:{id:{in:[CONTEST_SQLITE,CONTEST_MARKDOWN].map(embeddedSourceId)},kind:'EMBEDDED',OR:[{agentId:null},...(options.agentId?[{agentId:options.agentId}]:[])]},select:{id:true}})
+    if(bases.length!==2)throw new BadRequestException('2.0 两个知识库尚未导入、已移除或不在授权范围内')
+    const revision=await this.store.revision()
+    if(this.evaluationSnapshot?.revision===revision)return this.evaluationSnapshot.index
+    if(this.evaluationLoading){await this.evaluationLoading;return this.retrievalIndex(options)}
+    this.evaluationLoading=(async()=>{
+      const rows:KnowledgeRow[]=[];let cursor:string|undefined
+      do{const page=await this.prisma.campusGuideItem.findMany({where:{OR:[CONTEST_SQLITE,CONTEST_MARKDOWN].map(embeddedSourceWhere)},orderBy:{id:'asc'},take:1000,...(cursor?{cursor:{id:cursor},skip:1}:{})});rows.push(...page);cursor=page.length===1000?page.at(-1)!.id:undefined}while(cursor)
+      const index=new KnowledgeRetriever(rows);this.evaluationSnapshot={revision,index};return index
+    })()
+    try{return await this.evaluationLoading}finally{this.evaluationLoading=undefined}
+  }
   private async catalogWhere():Promise<Prisma.CampusGuideItemWhereInput> {
     const unified = this.snapshot?.index.rows.some(r=>r.extra?.kb?.schema==='kb/v2') || await this.prisma.campusGuideItem.count({where:{externalId:{gte:500000000,lt:900000000}}})
     return {AND:[...(unified?[{NOT:{externalId:{gte:2000000,lt:3000000}}}]:[]),{NOT:{OR:[{title:{contains:'人文之光'}},{title:{contains:'情侣空间'}},{source:{contains:'editorial',mode:'insensitive'}},{source:{contains:'loveline',mode:'insensitive'}}]}},await this.store.embeddedWhere()]}
@@ -237,7 +256,7 @@ export class CampusGuideService implements OnApplicationBootstrap {
   /** Compact, permission-scoped navigation; expose categories without dumping documents. */
   async catalogBlock(options:RetrievalOptions={},budgetTokens=550):Promise<string> {
     const groups=new Map<string,Set<string>>()
-    for(const row of (await this.index()).rows) {
+    for(const row of (await this.retrievalIndex(options)).rows) {
       const m=metadata(row)
       if((m.agentId && m.agentId!==options.agentId) || (options.collection && m.collection!==options.collection)
         || (options.managedOnly && !String(m.collection).startsWith('base:')))continue
@@ -274,7 +293,8 @@ export class CampusGuideService implements OnApplicationBootstrap {
     tip: string
     guidance:KnowledgeGuidance
   }> {
-    const meta = await this.meta()
+    const scopedIndex=options.sourceKeys?await this.retrievalIndex(options):undefined
+    const meta = scopedIndex?{verifiedAt:null,total:scopedIndex.rows.length,schema:'evaluation/v2-only'}:await this.meta()
     const raw = (query || "").trim()
     if (!raw) {
       return {
@@ -287,7 +307,7 @@ export class CampusGuideService implements OnApplicationBootstrap {
       }
     }
 
-    const result = (await this.index()).search(raw, {...options, limit})
+    const result = (scopedIndex||await this.index()).search(raw, {...options, limit})
     const allRows = result.hits.flatMap(h => [h.row, ...h.related])
     const fullRows = allRows.length ? await this.prisma.campusGuideItem.findMany({
       where: {id: {in:allRows.filter(r => !r.id.startsWith('managed:') && (mode==='full' || r.extra?.kb?.schema==='kb/v2')).map(r => r.id)}}, select:{id:true, detail:true, detailParts:true}
