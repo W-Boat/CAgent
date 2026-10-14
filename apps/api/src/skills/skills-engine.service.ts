@@ -502,7 +502,7 @@ export class SkillsEngineService {
       case "HTTP":
         return this.runHttp(skill, ctx)
         case "BROWSER":
-          throw new BadRequestException('浏览器目前仅开放个人课表读取，请使用 /timetable')
+          throw new BadRequestException('浏览器操控已停用；课程安排请查询集体课表知识库')
       case "PROMPT":
         return skill.systemPrompt ?? ""
       case "TOOL":
@@ -694,7 +694,7 @@ export class SkillsEngineService {
 
     // 内置技能：网页摘要 / 网页问答（浏览器抓取 + 模型总结）
     if (builtin === "web_summary" || builtin === "web_qa") {
-      throw new BadRequestException('浏览器目前仅开放个人课表读取，请使用 /timetable')
+      throw new BadRequestException('浏览器操控已停用；课程安排请查询集体课表知识库')
     }
 
     // 内置工具库：本地计算、文本处理、免费网络查询等。

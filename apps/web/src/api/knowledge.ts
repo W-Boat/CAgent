@@ -7,6 +7,7 @@ export interface WechatCollection {id:string;name?:string;status:string;message:
 export interface WechatBatch {id:string;status:string;total:number;items:{index:number;id?:string;name:string;status:string;message:string}[]}
 export interface WechatTestResult {connected:boolean;mode:string;totalAccounts:number;testedAccounts:number;ready:number;elapsedMs:number;checkedAt:string;tip:string;accounts:{id:string;name:string;status:'READY'|'NO_BODY'|'EMPTY'|'FAILED';message:string;sample?:{title:string;url:string;published:string;excerpt:string}}[]}
 export const knowledgeApi = {
+  importCollective:(data:unknown)=>post<{baseId:string;semester:string;indexed:number;rawCount:number;mounted:boolean}>('/knowledge/collective-timetable/import',data),
   collectorStatus:()=>get<{available:boolean;loggedIn:boolean;qrReady:boolean;engine?:string;loginState?:string;message?:string}>('/knowledge/wechat/collector/status'),
   collectorArticle:(data:{url:string;name?:string})=>post<{id:string;name:string}>('/knowledge/wechat/collector/article',data),
   collectorBatch:(items:{id?:string;url?:string;name?:string}[])=>post<WechatBatch>('/knowledge/wechat/collector/batch',{items}),

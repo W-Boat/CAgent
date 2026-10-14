@@ -148,7 +148,6 @@ model User {
   feedback          MessageFeedback[]
   reviewedLearnings AgentLearning[]   @relation("LearningReviewer")
   memories          UserMemory[]
-  timetable         UserTimetable?
 
   evaluationJobs EvaluationJob[]
 
@@ -157,22 +156,7 @@ model User {
   @@map("users")
 }
 
-/// Private, owner-scoped snapshot. Never placed in global knowledge or shared learning.
-model UserTimetable {
-  userId              String   @id @map("user_id")
-  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  semester            String
-  courses             Json
-  warnings            Json
-  semesterStart       String?  @map("semester_start")
-  campus              String   @default("liangxiang")
-  useInChat           Boolean  @default(false) @map("use_in_chat")
-  remindersEnabled    Boolean  @default(false) @map("reminders_enabled")
-  reminderLeadMinutes Int      @default(15) @map("reminder_lead_minutes")
-  updatedAt           DateTime @updatedAt @map("updated_at")
-
-  @@map("user_timetables")
-}
+// Historical user_timetables table is retained by the existing migration; no active ORM/API.
 
 model Role {
   id          String   @id @default(cuid())

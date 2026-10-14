@@ -1,5 +1,4 @@
 import { Module } from "@nestjs/common"
-import { TimetableModule } from './timetable/timetable.module'
 import { APP_GUARD } from "@nestjs/core"
 import { ScheduleModule } from "@nestjs/schedule"
 import { CommonModule } from "./common/common.module"
@@ -30,7 +29,6 @@ import { KnowledgeAdminModule } from './knowledge/knowledge-admin.module'
 @Module({
   imports: [
     ScheduleModule.forRoot(),
-    TimetableModule,
     CommonModule,
     PrismaModule,
     AuthModule,

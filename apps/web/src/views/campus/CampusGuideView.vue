@@ -399,6 +399,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue"
+import {useRoute} from 'vue-router'
 import { campusApi } from "@/api"
 import { toastError, toastOk } from "@/api/client"
 import type {
@@ -420,7 +421,8 @@ const auth = useAuthStore()
 const QUICK = ["校园卡补办", "四六级报名", "报销流程", "VPN 怎么连", "宿舍报修", "成绩查询"]
 
 const keyword = ref("")
-const collection=ref('')
+const courseRoute=useRoute()
+const collection=ref(courseRoute.query.collection==='collective-timetable'?'collective-timetable':'')
 const contentType=ref(''),libraryPage=ref(1),libraryTotal=ref(0),browsing=ref(false)
 const FORMATS={article:'文章 / 知识块',link:'入口与正文',document:'文档 / 附件',map:'校园地图',fixed:'固定问答 / 纠错',rule:'关键词约定',cards:'排版卡片'}
 async function loadLibrary(){searching.value=true;try{const data=await campusApi.library({collection:collection.value||undefined,format:contentType.value||undefined,keyword:keyword.value||undefined,page:libraryPage.value,pageSize:20});hits.value=data.items;libraryTotal.value=data.total;searched.value=true;guidance.value=undefined}catch(e){toastError(e,'知识库浏览失败')}finally{searching.value=false}}

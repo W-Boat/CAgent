@@ -6,7 +6,6 @@ import {ResponseCacheService,cacheEligible,cacheHistory,normalizedCacheQuestion,
 import {stripToolMarkup} from '../presentation/output-boundary'
 import {presentationPrompt,inspectPresentation,presentationHint,presentationPlan,presentationContextFromHistory} from '../presentation/presentation-engine'
 import {AnswerPresentationStream,formatAnswerPresentation} from '../presentation/answer-presentation'
-import {TimetableService} from '../timetable/timetable.service'
 import {visibleCapabilityWhere} from '../common/retired-capabilities'
 import {AgentRuntime,type RuntimeTool} from './runtime/agent-runtime'
 import {RuntimeCheckpointService} from './runtime/runtime-checkpoint.service'
@@ -104,7 +103,6 @@ export class ChatService {
     private readonly memory: MemoryService,
     private readonly campusGuide: CampusGuideService,
     @Optional() private readonly activity?:CampusActivityService,
-    @Optional() private readonly timetable?:TimetableService,
     @Optional() private readonly responseCache?:ResponseCacheService,
     @Optional() private readonly runtimeCheckpoints?:RuntimeCheckpointService
   ) {}
@@ -296,18 +294,17 @@ export class ChatService {
         if (!selected || (selected.visibility==='PRIVATE' && selected.ownerId!==user.id && !user.permissions.includes('*'))) throw new BadRequestException('智能体不存在或不可用')
       }
       const knowledgeAgentId = selectedAgentId || (await this.prisma.agent.findFirst({where:{key:'ucass-guide',enabled:true},select:{id:true}}))?.id || null
-      const timetableAnswer = isSupportUrgent(dto.content)?null:await this.timetable?.answer(user.id,dto.content)
       const previousMapQuery=conversation?await this.prisma.message.findFirst({where:{conversationId:conversation.id,role:'user'},orderBy:{seq:'desc'},select:{content:true}}):null
-      const mapAnswer=timetableAnswer||isSupportUrgent(dto.content)||!await this.knowledgeStore.embeddedEnabled('maps',knowledgeAgentId)?null:resolveCampusMap(dto.content,previousMapQuery?.content || '')
+      const mapAnswer=isSupportUrgent(dto.content)||!await this.knowledgeStore.embeddedEnabled('maps',knowledgeAgentId)?null:resolveCampusMap(dto.content,previousMapQuery?.content || '')
       const mapOnly=mapAnswer && !/开馆|开放|营业|时间|办理|借书|借阅|申请|报名|费用|收费|历史|介绍|概况|用途|功能|怎么用/.test(dto.content)
-      const rules=timetableAnswer?[]:await this.knowledgeStore.keywordRules(dto.content,knowledgeAgentId)
+      const rules=await this.knowledgeStore.keywordRules(dto.content,knowledgeAgentId)
       const ruleExtras=rules.map(({entry,rule})=>keywordCardMarkup(rule,entry.id)).join('')
       const instructionRules=rules.filter(r=>r.rule.behavior==='INSTRUCT')
       const replaced=rules.filter(r=>r.rule.behavior==='REPLACE')
       const effectOnly=rules.length && rules.every(r=>!!r.rule.effect && !r.rule.instruction && !r.rule.text)
       const ruleDirect=!instructionRules.length && (replaced.length || effectOnly)
-      const fixedEntry = timetableAnswer||isSupportUrgent(dto.content)||instructionRules.length?null:await this.knowledgeStore.fixed(campusQuery(dto.content),knowledgeAgentId)
-      const fixed = timetableAnswer ? {id:'personal-timetable',baseId:'private-timetable',source:'本人确认导入的个人课表',answer:timetableAnswer} : fixedEntry ? {...fixedEntry,answer:fixedEntry.answer+ruleExtras+(mapAnswer?'\n\n```card\n'+JSON.stringify(mapAnswer.card)+'\n```':'')}
+      const fixedEntry = isSupportUrgent(dto.content)||instructionRules.length?null:await this.knowledgeStore.fixed(campusQuery(dto.content),knowledgeAgentId)
+      const fixed = fixedEntry ? {...fixedEntry,answer:fixedEntry.answer+ruleExtras+(mapAnswer?'\n\n```card\n'+JSON.stringify(mapAnswer.card)+'\n```':'')}
         : ruleDirect ? {id:rules[0].entry.id,baseId:rules[0].entry.baseId,source:rules[0].entry.source,answer:rules.map(r=>r.rule.text).filter(Boolean).join('\n\n')+ruleExtras+(mapAnswer?'\n\n```card\n'+JSON.stringify(mapAnswer.card)+'\n```':'')}
         : mapOnly && !instructionRules.length ? {id:'campus-map',baseId:'campus-maps',source:'用户提供的手绘校园地图',answer:mapAnswerContent(mapAnswer!)+ruleExtras} : null
       const sourcePool=new Map<string,KnowledgeSource>()
@@ -328,7 +325,7 @@ export class ChatService {
         pendingAssistantId = assistant.id
         if(revisionMessageId)versionMeta={answerVersions:(assistant.attachments as any)?.answerVersions,selectedAnswerVersion:(assistant.attachments as any)?.selectedAnswerVersion,versionRunStartedAt:(assistant.attachments as any)?.versionRunStartedAt}
         send('meta',{conversationId:conversation.id,userMessageId:userMessage.id,assistantMessageId:assistant.id,title:conversation.title,
-          model:{id:null,key:timetableAnswer?'personal-timetable':fixedEntry?'fixed-answer':ruleDirect?'keyword-rule':'campus-map',name:timetableAnswer?'我的课表':fixedEntry?'已审核固定答案':ruleDirect?'校园约定':'校园地图',provider:'knowledge'}})
+          model:{id:null,key:fixedEntry?'fixed-answer':ruleDirect?'keyword-rule':'campus-map',name:fixedEntry?'已审核固定答案':ruleDirect?'校园约定':'校园地图',provider:'knowledge'}})
         fixed.answer=stripToolMarkup(fixed.answer)
         const presentation=inspectPresentation(fixed.answer,presentationSourceIds())
         const sources=markCitedSources([...sourcePool.values()],fixed.answer).map(s=>({...s,used:s.used||presentation.sourceRefs.includes(s.id)||!!s.citationId&&presentation.sourceRefs.includes(s.citationId)}))
@@ -595,7 +592,7 @@ export class ChatService {
               topic:{type:'string',description:'可选目录主题，如学生社团、超市；保留在对应章节内查询'},mode:{type:'string',enum:['guide','full']}},required:['query']}})
         }
 
-        // Browser actions are currently limited to the dedicated server timetable reader.
+        // Browser actions are unavailable; collective schedules are knowledge content.
         // No generic browser_control schema is exposed to the LLM.
 
       }

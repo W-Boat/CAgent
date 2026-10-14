@@ -32,7 +32,6 @@ export class SettingsController {
       browser_enabled: all.browser_enabled,
       memory_enabled:all.memory_enabled,
       onboarding_enabled:all.onboarding_enabled,
-        timetable_enabled: all.timetable_enabled,
       default_system_prompt: all.default_system_prompt,
       default_temperature: all.default_temperature,
       /*

@@ -1387,7 +1387,6 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="st-side-actions">
-        <button v-if="display.timetableEntry" type="button" class="nx-btn nx-btn-block" @click="router.push('/timetable')">我的课表与提醒</button>
         <button type="button" class="nx-btn nx-btn-primary nx-btn-block st-new" @click="newConversation">
           <IconPlus />
           新建对话

@@ -220,7 +220,7 @@ export class CampusGuideService {
   // ---------- 查询 ----------
   async collections(includeScoped=false) {
     const counts = new Map<string,{value:string;label:string;count:number}>()
-    const labels:Record<string,string>={maps:'校园地图',portal:'校园门户',services:'一站式服务',matters:'办理事项',courses:'课程测评',takeout:'外卖红黑榜',survival:'生活经验',handbook:'同学手册',freshman:'2026 新生指南',legacy:'原平台资料'}
+    const labels:Record<string,string>={'collective-timetable':'集体课表',maps:'校园地图',portal:'校园门户',services:'一站式服务',matters:'办理事项',courses:'课程测评',takeout:'外卖红黑榜',survival:'生活经验',handbook:'同学手册',freshman:'2026 新生指南',legacy:'原平台资料'}
     for (const row of (await this.index()).rows) {
       const m=metadata(row)
       if(m.agentId&&!includeScoped)continue
@@ -244,7 +244,7 @@ export class CampusGuideService {
       if(path.length>=2)topics.add(path.slice(0,2).join(' / '))
       groups.set(m.collection,topics)
     }
-    const labels:Record<string,string>={maps:'校园地图',portal:'校园门户',services:'一站式服务',matters:'办理事项',courses:'课程测评',takeout:'外卖经验',survival:'生活经验',handbook:'学生生活手册',freshman:'新生指南'}
+    const labels:Record<string,string>={'collective-timetable':'集体课表',maps:'校园地图',portal:'校园门户',services:'一站式服务',matters:'办理事项',courses:'课程测评',takeout:'外卖经验',survival:'生活经验',handbook:'学生生活手册',freshman:'新生指南'}
     let text='【可查询的知识分类】分类目录只用于选库，不是问题答案。检索传核心主题词；概况、名单、数量先查章节概览，再查具体条目。手册名单不等于现行完整名单。\n'
     for(const [collection,topics] of [...groups].sort(([a],[b])=>a==='handbook'?-1:b==='handbook'?1:a.localeCompare(b))) {
       const line=`${collection}（${labels[collection] || collection}）${topics.size?'：'+[...topics].slice(0,16).join('；'):''}\n`

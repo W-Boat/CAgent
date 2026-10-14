@@ -1,5 +1,14 @@
-import { IsArray, IsBoolean, IsIn, IsInt, IsObject, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator'
+import { IsArray, ArrayMinSize, ArrayMaxSize, IsBoolean, IsIn, IsInt, IsObject, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator'
 import {Transform} from 'class-transformer'
+
+export class CollectiveTimetableDto {
+  @Transform(({obj})=>obj.complete) @IsBoolean() complete!:boolean
+  @IsString() @MaxLength(50) semester!:string
+  @IsString() @MaxLength(50) capturedAt!:string
+  @IsString() @MaxLength(500) sourcePage!:string
+  @IsOptional() @IsIn(['良乡','望京','通用']) campus?:string
+  @Transform(({obj})=>obj.records) @IsArray() @ArrayMinSize(1) @ArrayMaxSize(5000) @IsObject({each:true}) records!:Record<string,unknown>[]
+}
 
 export class BaseDto {
   @IsString() @MinLength(1) @MaxLength(120) name!:string

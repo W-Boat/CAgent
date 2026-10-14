@@ -95,7 +95,6 @@ export const menuGroups: MenuGroup[] = [
     items: [
       { title: "工作台", path: "/dashboard", icon: "Odometer" },
       { title: "智能对话", path: "/chat", icon: "ChatDotRound" },
-      { title: "我的课表", path: "/timetable", icon: "Calendar" },
       // 用 Guide 而不是 MapLocation：校园导览是「一路指引」，不是地图打点
       { title: "校园导览", path: "/campus", icon: "Guide", permission: "campus:read" },
       { title: "技能中心", path: "/skills", icon: "MagicStick" },
@@ -134,8 +133,8 @@ export const menuGroups: MenuGroup[] = [
 ]
 
 export const routes: RouteRecordRaw[] = [
-  {path:'/timetable',name:'timetable',component:()=>import('@/views/timetable/TimetableView.vue'),meta:{studentAllowed:true,title:'我的课表'}},
-  {path:'/browser',redirect:'/timetable',meta:{studentAllowed:true}},
+  {path:'/timetable',redirect:'/campus?collection=collective-timetable',meta:{studentAllowed:true}},
+  {path:'/browser',redirect:'/campus?collection=collective-timetable',meta:{studentAllowed:true}},
   {path:'/map',name:'campus-map',component:()=>import('@/views/campus/CampusMapView.vue'),meta:{public:true,studentAllowed:true,title:'校园地图'}},
   {
     // 体验版：免登录、无历史、锁定 deepseek-chat、每 IP 每日 5 轮

@@ -1,5 +1,4 @@
 import { defineStore } from "pinia"
-import {timetableApi} from '@/api/timetable'
 import { authApi, settingsApi } from "@/api"
 import {useThemeStore} from "./theme"
 import {saveDisplayPolicy} from "@/utils/display-policy"
@@ -188,7 +187,6 @@ export const useAuthStore = defineStore("auth", {
 
     async logout() {
       identityVersion++
-      await timetableApi.closeAllBrowsers().catch(()=>{})
       const refreshToken = tokenStore.refresh
       try {
         if (refreshToken && this.user) await authApi.logout(refreshToken)

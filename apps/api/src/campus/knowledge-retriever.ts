@@ -1,3 +1,4 @@
+import {COURSE_COLLECTION,collectiveIntent,matchesCourseConstraints} from '../knowledge/collective-timetable'
 /** Deterministic local retrieval. The index is replaceable; response/provenance stay stable. */
 export const KNOWLEDGE_SKILL_COLLECTIONS: Record<string, string> = {
   'ucass-kb-survival': 'survival', 'ucass-kb-takeout': 'takeout'
@@ -100,9 +101,12 @@ export class KnowledgeRetriever {
     const subject = query.replace(/可以线上办吗|能不能|怎么弄|怎么办|线上|线下|办理|申请|请问|帮我|需要|材料|哪些|什么|在哪|哪里|电话|地址|周末|这个|那个|那|多久|多少钱|要带|吗|呢|行|能|办|去|带|的|\s|[\p{P}]/gu, '')
     if (!inherited && (!subject || /^(你好|您好|在吗|谢谢|谢谢你|好的|好|ok)$/i.test(normalize(query)))) return {query,resolvedQuery,anchors:[],hits:[]}
     const q = normalize(resolvedQuery)
+    const wantsCollective=collectiveIntent(resolvedQuery),hasCollective=this.rows.some(r=>metadata(r).collection===COURSE_COLLECTION)
     const eligible = (i:number) => {
       const m = metadata(this.rows[i])
       return (!m.agentId || m.agentId === options.agentId) && (!options.collection || m.collection === options.collection)
+        && (!wantsCollective||!hasCollective||m.collection===COURSE_COLLECTION)
+        && (m.collection!==COURSE_COLLECTION||matchesCourseConstraints(this.rows[i].extra?.courseCatalog,resolvedQuery))
         && (!options.topic || (m.sectionPath || []).some((s:string)=>normalize(s)===normalize(options.topic)))
         && (!options.managedOnly || String(m.collection).startsWith('base:'))
     }
@@ -121,6 +125,9 @@ export class KnowledgeRetriever {
       const idf = Math.log(1 + (this.rows.length - posting.size + 0.5) / (posting.size + 0.5))
       for (const [i, tf] of posting) record(i, idf * tf * 2.2 / (tf + 1.2 * (0.25 + 0.75 * this.lengths[i] / this.average)) / Math.sqrt(Math.max(qterms.length, 1)))
     }
+    // Timetable facets are structured predicates, not rare lexical matches.
+    // Common weekday words must not fall below the generic document threshold.
+    if(wantsCollective)for(let i=0;i<this.rows.length;i++)if(metadata(this.rows[i]).collection===COURSE_COLLECTION)record(i,8,'教务课程条件匹配')
     const anchored = new Set<number>()
     for (const phrase of anchors) for (const i of this.phrases.get(phrase)!) {
       if (!eligible(i)) continue

@@ -4,6 +4,8 @@ import { PrismaService } from '../prisma/prisma.service'
 import { CurrentUser, type AuthUser } from '../common/decorators/current-user.decorator'
 import { RequirePermissions } from '../common/decorators/permissions.decorator'
 import { KnowledgeAdminService } from './knowledge-admin.service'
+import {CollectiveTimetableService} from './collective-timetable.service'
+import {CollectiveTimetableDto} from './knowledge.dto'
 import { KnowledgeStoreService } from './knowledge-store.service'
 import { BaseDto, CorrectionDto, EntryDto, MountDto, ParseDto, ResolveFeedbackDto,WechatAccountsDto,AutomationPolicyDto,RemoveBaseDto } from './knowledge.dto'
 import {SettingsService} from '../settings/settings.service'
@@ -15,7 +17,12 @@ import {articleUrl} from './wechat-source'
 import {campusQuery,isSupportUrgent} from './keyword-rule'
 @ApiTags('知识库管理') @ApiBearerAuth() @Controller('knowledge')
 export class KnowledgeAdminController {
-  constructor(private admin:KnowledgeAdminService,private store:KnowledgeStoreService,private prisma:PrismaService,private guide:CampusGuideService,private automation:KnowledgeAutomationService,private settings:SettingsService) {}
+  constructor(private admin:KnowledgeAdminService,private store:KnowledgeStoreService,private prisma:PrismaService,private guide:CampusGuideService,private automation:KnowledgeAutomationService,private settings:SettingsService,private collective:CollectiveTimetableService) {}
+  @Post('collective-timetable/import') @RequirePermissions('campus:admin') async importCollective(@Body() dto:CollectiveTimetableDto,@CurrentUser() me:AuthUser){
+    const result=await this.collective.import(dto)
+    await this.prisma.auditLog.create({data:{userId:me.id,actor:me.email,action:'knowledge.collective-timetable.import',resource:'knowledge_base',resourceId:result.baseId,detail:result}})
+    return result
+  }
   @Get('automation/policy') @RequirePermissions('campus:admin') policy(){return this.automation.policy()}
   @Put('automation/policy') @RequirePermissions('setting:write') async updatePolicy(@Body() dto:AutomationPolicyDto,@CurrentUser() me:AuthUser){
     if(dto.modelId&&!await this.prisma.model.findFirst({where:{id:dto.modelId,enabled:true,provider:{enabled:true}}}))throw new BadRequestException('请选择可用模型')

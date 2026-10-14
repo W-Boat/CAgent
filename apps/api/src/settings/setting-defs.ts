@@ -249,13 +249,6 @@ export const SETTING_DEFS: SettingDef[] = [
     "defaultValue": true
 },
   {
-    "key": "student_show_timetable_entry",
-    "group": "student",
-    "label": "个人课表入口",
-    "type": "boolean",
-    "defaultValue": true
-  },
-  {
     "key": "student_show_map_entry",
     "group": "student",
     "label": "显示校园地图入口",
@@ -337,14 +330,6 @@ export const SETTING_DEFS: SettingDef[] = [
   },
 
   // 浏览器操控
-    {
-      key: "timetable_enabled",
-      group: "browser",
-      label: "个人课表服务",
-      description: "仅开放服务器端临时教务登录和课表读取；关闭后暂停新导入、个人课程问答和站内提醒，已有课表仍可查看、导出、删除",
-      type: "boolean",
-      defaultValue: true
-    },
   {
     key: "browser_enabled",
     group: "browser",

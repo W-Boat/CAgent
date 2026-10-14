@@ -16,8 +16,6 @@
 </template>
 
 <script setup lang="ts">
-import {useTimetableReminders} from '@/utils/timetable-reminders'
-useTimetableReminders()
 import { onMounted,onBeforeUnmount,ref } from "vue"
 // 中文语言包是纯数据，从具体路径导入，避免带出整个组件库
 import zhCn from "element-plus/es/locale/lang/zh-cn"

@@ -11,7 +11,6 @@ export interface StudentDisplaySettings {
  student_show_recommendations?:boolean
  student_show_agent_cards?:boolean
  student_show_map_entry?:boolean
- student_show_timetable_entry?:boolean
  student_show_knowledge_shortcuts?:boolean
  student_show_knowledge_sources?:boolean
  student_show_tool_activity?:boolean
@@ -30,7 +29,7 @@ export function studentDisplay(settings:StudentDisplaySettings|null|undefined){
   footer:settings?.student_footer_text??'回答仅供参考，请以学校最新通知为准。',
   questions:Array.isArray(settings?.student_recommended_questions)?settings.student_recommended_questions.filter(q=>typeof q==='string'&&q.trim()).slice(0,12):[],
   recommendations:enabled('student_show_recommendations'),agentCards:enabled('student_show_agent_cards'),mapEntry:enabled('student_show_map_entry'),
-  timetableEntry:enabled('student_show_timetable_entry'),knowledgeShortcuts:enabled('student_show_knowledge_shortcuts'),sources:enabled('student_show_knowledge_sources'),toolActivity:enabled('student_show_tool_activity'),
+  knowledgeShortcuts:enabled('student_show_knowledge_shortcuts'),sources:enabled('student_show_knowledge_sources'),toolActivity:enabled('student_show_tool_activity'),
   feedback:enabled('student_feedback_enabled'),weather:enabled('student_show_weather'),onboarding:enabled('student_onboarding_enabled')&&settings?.onboarding_enabled!==false
  }
 }

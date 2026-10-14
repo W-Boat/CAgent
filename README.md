@@ -12,7 +12,7 @@ CAgent 是面向校园场景的智能体基础平台。校园导览应用组合�
 - **批量对话测试**：`/admin/evaluations` 和鉴权接口 `/api/evaluations` 接收 JSON/CSV 测试集、验证集。同批次保留多轮上下文，批次独立；导出包含批次、轮次、题目、回复、状态和用量的 JSON/CSV。
 - 全站长期记忆与进入引导弹窗开关。关闭记忆同时停止读取、注入、自动提取与创建，当前会话上下文继续有效。
 
-个人课表按平台设置控制，启用时须另行配置学校网络及教务接入。代码已移除退役的社论检索和情侣空间实现，不提供重新启用入口。
+个人课表及浏览器扩展方案已移除。改为独立「集体课表」知识库，支持普通 HTTP 采集、管理员 JSON 上传、课程/院系/周次/时间查询及独立启停；不代表用户实际选课。详见 [集体课表部署和更新说明](knowledge/collective-timetable/README.md)。代码已移除退役的社论检索和情侣空间实现，不提供重新启用入口。
 
 ## 恢复当前校园应用配置
 
@@ -32,6 +32,8 @@ docker cp deploy/profiles/ucass cagent-api:/tmp/ucass-profile
 docker compose exec api node scripts/import-campus-profile.mjs /tmp/ucass-profile --apply
 ```
 
+**集体课表补充恢复**：完成初始化后，在管理端「知识库 → 上传集体课表」上传仓库的 `knowledge/collective-timetable/catalog.json`，即可获得 666 条课程安排及学期总览，并自动创建独立启停的知识库与快捷按钮。学校系统变动后按 [更新说明](knowledge/collective-timetable/README.md) 重新采集上传。
+
 站内资料链接自动使用自己的 `SITE_ORIGIN`。初始化默认要求没有知识库和聊天记录的数据库；重复执行会跳过，保留后台后续修改。已有站点先备份，确需追加时使用 `--allow-existing`，不删除原有条目。
 
 **模型 API Key、接口地址、公众号登录和外部数据库凭据不随包共享。** 导入后在后台配置自己的模型供应商和有效模型，或使用 `.env` 中对应模型密钥；自有接口地址与密钥会保留。默认模型名称/能力参数随包提供，供应商支持的实际模型需自己确认，必要时切换模型。公众号保留账号名称配置，需在自己的采集器重新订阅并登录；外部连接在补齐配置前保持关闭。账户、个人记忆、聊天记录和运行缓存不会复制。
@@ -49,7 +51,7 @@ docker compose exec api node scripts/import-campus-profile.mjs /tmp/ucass-profil
 ```text
 apps/api/       API、AgentRuntime、知识管理、批量测试
 apps/web/       学生端、管理端、匿名体验页
-apps/extension/ 可选浏览器扩展
+knowledge/collective-timetable/ 全校课表初始快照和更新说明
 presentation/   呈现协议与同步工具
 evaluation/     测试集格式协议与同步工具
 knowledge/      知识处理、索引与地图

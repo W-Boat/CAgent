@@ -1,5 +1,4 @@
 import { Module } from "@nestjs/common"
-import { TimetableModule } from '../timetable/timetable.module'
 import { ChatService } from "./chat.service"
 import {ResponseCacheService} from './response-cache.service'
 import {RuntimeCheckpointService} from './runtime/runtime-checkpoint.service'
@@ -21,7 +20,6 @@ import {EvaluationService} from '../evaluation/evaluation.service'
 @Module({
   imports: [
     LlmModule,
-    TimetableModule,
     ProvidersModule,
     ModelsModule,
     SettingsModule,

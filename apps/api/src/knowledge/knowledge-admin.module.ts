@@ -6,5 +6,6 @@ import { KnowledgeAdminController } from './knowledge-admin.controller'
 import { CampusModule } from '../campus/campus.module'
 import {SettingsModule} from '../settings/settings.module'
 import {KnowledgeAutomationService} from './knowledge-automation.service'
-@Module({imports:[ChatModule,KnowledgeStoreModule,CampusModule,SettingsModule],providers:[KnowledgeAdminService,KnowledgeAutomationService],controllers:[KnowledgeAdminController]})
+import {CollectiveTimetableService} from './collective-timetable.service'
+@Module({imports:[ChatModule,KnowledgeStoreModule,CampusModule,SettingsModule],providers:[KnowledgeAdminService,KnowledgeAutomationService,CollectiveTimetableService],controllers:[KnowledgeAdminController]})
 export class KnowledgeAdminModule {}
