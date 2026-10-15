@@ -36,6 +36,7 @@ try{for(const path of ['/chat','/student','/test']){
  })
  await page.goto(site+path,{waitUntil:'domcontentloaded'});const input=page.getByRole('textbox',{name:'输入消息'});await input.waitFor();await input.fill('如何补办校园卡');const start=Date.now();await input.press('Enter')
  await page.locator('.answer-pending').first().waitFor({timeout:8000}).catch(async e=>{console.log(JSON.stringify({path,requests:await page.evaluate(()=>window.speedRequests||0),body:(await page.locator('body').innerText()).slice(-1200)}));throw e});const placeholderMs=Date.now()-start
+ await page.waitForFunction(()=>typeof window.speedAdvance==='function')
  await page.evaluate(()=>window.speedAdvance('context'));await page.getByText('正在整理问题和资料',{exact:true}).waitFor();await page.evaluate(()=>window.speedAdvance('intro'));await page.getByText('先准备学生证。',{exact:true}).waitFor()
  await page.evaluate(()=>window.speedAdvance('partial'));await page.locator('.answer-pending').first().waitFor();assert(!await page.locator('.nx-msg-body').last().innerText().then(t=>t.includes('"children"')))
  await page.evaluate(()=>window.speedAdvance('complete'));await page.locator('[data-ui-id="speed_ui"]').waitFor();await page.evaluate(()=>{window.firstSpeedCard=document.querySelector('[data-ui-id="speed_ui"]');window.speedAdvance('finish')})
