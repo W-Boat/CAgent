@@ -12,12 +12,13 @@ try{for(const path of ['/chat','/student','/test']){
    window.speedRequests=(window.speedRequests||0)+1
    const frame=(event,data)=>'event: '+event+'\ndata: '+JSON.stringify(data)+'\n\n',encoder=new TextEncoder(),mark=String.fromCharCode(96).repeat(3),doc={type:'page',version:'0.1',id:'speed_ui',layout:'stack',children:[{type:'text',id:'summary',content:'携带学生证原件前往服务窗口。'},{type:'steps',id:'procedure',title:'办理步骤',steps:[{title:'准备材料',desc:'核对学生证和个人信息。'},{title:'前往窗口',desc:'按照现场指引办理。'}]}]},raw=JSON.stringify(doc),source={id:'speed-source',citationId:'S1',title:'窗口指引',collection:'handbook',source:'模拟资料',used:false}
    return new Response(new ReadableStream({start(c){const send=(e,d)=>c.enqueue(encoder.encode(frame(e,d)));send('runtime',{stage:'preparing',round:0,maxRounds:3});send('meta',{conversationId:'speed-fixture',assistantMessageId:'speed-a',userMessageId:'speed-u',model:{id:'fixture',key:'fixture',name:'模拟助手',provider:'fixture'}})
-    setTimeout(()=>send('runtime',{stage:'context',round:0,maxRounds:3}),250)
-    setTimeout(()=>{send('runtime',{stage:'model',round:1,maxRounds:3});send('kb',{hits:[source]});send('text',{text:'先准备学生证。\n\n'})},850)
-    setTimeout(()=>send('text',{text:mark+'card\n'+raw.slice(0,100)}),1250)
-    setTimeout(()=>send('text',{text:raw.slice(100)+'\n'+mark+'\n\n'}),2200)
-    for(let i=0;i<18;i++)setTimeout(()=>send('text',{text:'补充说明。'}),2400+i*55)
-    setTimeout(()=>{send('kb',{hits:[{...source,used:true,summary:'最终来源摘要'}]});send('done',{status:'SUCCESS',runtime:{modelTurns:1,toolCalls:0,cachedCalls:0,failedTools:0,removedTurns:0,truncatedResults:0,peakInputTokens:100,latencyMs:3500,limitReached:false}});c.close()},3550)
+    window.speedAdvance=stage=>{
+     if(stage==='context')send('runtime',{stage:'context',round:0,maxRounds:3})
+     if(stage==='intro'){send('runtime',{stage:'model',round:1,maxRounds:3});send('kb',{hits:[source]});send('text',{text:'先准备学生证。\n\n'})}
+     if(stage==='partial')send('text',{text:mark+'card\n'+raw.slice(0,100)})
+     if(stage==='complete')send('text',{text:raw.slice(100)+'\n'+mark+'\n\n'})
+     if(stage==='finish'){for(let i=0;i<18;i++)setTimeout(()=>send('text',{text:'补充说明。'}),i*45);setTimeout(()=>{send('kb',{hits:[{...source,used:true,summary:'最终来源摘要'}]});send('done',{status:'SUCCESS',runtime:{modelTurns:1,toolCalls:0,cachedCalls:0,failedTools:0,removedTurns:0,truncatedResults:0,peakInputTokens:100,latencyMs:3500,limitReached:false}});c.close()},900)}
+    }
    }}),{headers:{'Content-Type':'text/event-stream'}})
   }
  })
@@ -35,13 +36,13 @@ try{for(const path of ['/chat','/student','/test']){
  })
  await page.goto(site+path,{waitUntil:'domcontentloaded'});const input=page.getByRole('textbox',{name:'输入消息'});await input.waitFor();await input.fill('如何补办校园卡');const start=Date.now();await input.press('Enter')
  await page.locator('.answer-pending').first().waitFor({timeout:8000}).catch(async e=>{console.log(JSON.stringify({path,requests:await page.evaluate(()=>window.speedRequests||0),body:(await page.locator('body').innerText()).slice(-1200)}));throw e});const placeholderMs=Date.now()-start
- await page.getByText('正在整理问题和资料',{exact:true}).waitFor();await page.getByText('先准备学生证。',{exact:true}).waitFor()
- await page.locator('.answer-pending').first().waitFor();assert(!await page.locator('.nx-msg-body').last().innerText().then(t=>t.includes('"children"')))
- await page.locator('[data-ui-id="speed_ui"]').waitFor();await page.evaluate(()=>window.firstSpeedCard=document.querySelector('[data-ui-id="speed_ui"]'))
+ await page.evaluate(()=>window.speedAdvance('context'));await page.getByText('正在整理问题和资料',{exact:true}).waitFor();await page.evaluate(()=>window.speedAdvance('intro'));await page.getByText('先准备学生证。',{exact:true}).waitFor()
+ await page.evaluate(()=>window.speedAdvance('partial'));await page.locator('.answer-pending').first().waitFor();assert(!await page.locator('.nx-msg-body').last().innerText().then(t=>t.includes('"children"')))
+ await page.evaluate(()=>window.speedAdvance('complete'));await page.locator('[data-ui-id="speed_ui"]').waitFor();await page.evaluate(()=>{window.firstSpeedCard=document.querySelector('[data-ui-id="speed_ui"]');window.speedAdvance('finish')})
  await page.getByRole('button',{name:'发送',exact:true}).waitFor();await page.waitForTimeout(180)
  assert(await page.evaluate(()=>window.firstSpeedCard===document.querySelector('[data-ui-id="speed_ui"]')),'完整卡片被追加文本或终态替换')
  assert.equal(await page.locator('[data-ui-id="speed_ui"]').count(),1);assert.equal(await page.locator('.answer-pending').count(),0);assert.equal(await page.locator('.agent-phase-wrap').count(),0);assert.deepEqual(errors,[])
- if(path==='/test'){await page.setViewportSize({width:390,height:844});await page.evaluate(()=>document.documentElement.classList.add('dark'));await page.screenshot({path:new URL(site.startsWith('https:')?'production-mobile.png':'local-mobile.png',out).pathname.replace(/^\/([A-Za-z]:)/,'$1'),fullPage:true})}
+ if(path==='/test'){await page.setViewportSize({width:390,height:844});await page.evaluate(()=>document.documentElement.classList.add('dark'));await page.waitForTimeout(350);await page.screenshot({path:new URL(site.startsWith('https:')?'production-mobile.png':'local-mobile.png',out).pathname.replace(/^\/([A-Za-z]:)/,'$1'),fullPage:true})}
  results.push({path,placeholderMs,stableCardNode:true,noRawJson:true,noStuckLoading:true});await ctx.close()
  }
  writeFileSync(new URL(site.startsWith('https:')?'production-ui.json':'local-ui.json',out),JSON.stringify({passed:true,results,externalModelCalls:0,scope:'Real built interface; all APIs and model responses are synthetic.'},null,2));console.log(JSON.stringify({passed:true,results}))
