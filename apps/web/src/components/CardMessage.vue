@@ -1,4 +1,5 @@
 <template>
+  <AnswerPending v-if="streaming && !content?.trim()" compact :phase="progress?.stage || 'preparing'"/>
   <template v-for="(seg,i) in segments" :key="i">
     <MarkdownView v-if="seg.kind==='markdown'" :content="seg.text" :streaming="streaming"/>
     <CardRenderBoundary v-else-if="seg.kind==='card'" v-slot="{ready}" class="card-message-reveal" :identity="seg.card" :fallback="uiContentText(displayCard(seg.card))" :disabled="disabled || streaming" :report-key="(effectKey || instanceKey)+':'+i">
@@ -16,8 +17,7 @@ import AnswerPending from './presentation/AnswerPending.vue'
 import CardRenderBoundary from './presentation/CardRenderBoundary.vue'
 import CardParseFailure from './presentation/CardParseFailure.vue'
 import StudentCard from './student/StudentCard.vue'
-import {formatAnswerPresentation} from '@/utils/answer-presentation'
-import {answerSegments} from '@/utils/answer-layout'
+import {createAnswerProjector} from '@/utils/answer-projector'
 import {cardDisplayData} from '@/utils/card-display'
 import {isUiDocument,uiContentText} from '@/utils/agent-ui'
 let retryModuleUrl='',loadAttempt=0
@@ -32,16 +32,17 @@ async function loadRenderer(){
   }
 }
 const AgentUiRenderer=defineAsyncComponent({loader:loadRenderer,loadingComponent:AnswerPending,delay:0,onError:(_error,_retry,fail)=>fail()})
-const props=defineProps<{content?:string|null;streaming?:boolean;disabled?:boolean;autoPlay?:boolean;effectKey?:string;hasKnowledgeSources?:boolean;knowledgeSources?:{id:string;citationId?:string}[]}>()
-const sourceIds=computed(()=>new Set((props.knowledgeSources||[]).flatMap(s=>[s.id,...(s.citationId?[s.citationId]:[])])))
-const displayCard=(card:Record<string,unknown>)=>cardDisplayData(card,sourceIds.value)
+const props=defineProps<{content?:string|null;streaming?:boolean;disabled?:boolean;autoPlay?:boolean;effectKey?:string;hasKnowledgeSources?:boolean;knowledgeSources?:{id:string;citationId?:string}[];progress?:{stage:string}}>()
+const sourceIds=computed<Set<string>>(previous=>{const ids=new Set((props.knowledgeSources||[]).flatMap(s=>[s.id,...(s.citationId?[s.citationId]:[])]));return previous&&previous.size===ids.size&&[...ids].every(id=>previous.has(id))?previous:ids})
+const displayCache=new WeakMap<object,{sources:ReadonlySet<string>;card:Record<string,unknown>}>()
+const displayCard=(card:Record<string,unknown>)=>{const cached=displayCache.get(card);if(cached?.sources===sourceIds.value)return cached.card;const clean=cardDisplayData(card,sourceIds.value);displayCache.set(card,{sources:sourceIds.value,card:clean});return clean}
 const renderAttempt=ref(0)
+let projector=createAnswerProjector()
 const segments=computed(()=>{
  void renderAttempt.value
- const parsed=answerSegments(props.streaming?props.content||'':formatAnswerPresentation(props.content||'','adaptive',sourceIds.value),{streaming:!!props.streaming,hasKnowledgeSources:props.hasKnowledgeSources})
- // Normalize complete cards before first mount as well as after completion, preventing a raw-card flash.
- return props.streaming?parsed.flatMap(seg=>seg.kind==='card'?answerSegments(formatAnswerPresentation('```card\n'+JSON.stringify(seg.card)+'\n```','adaptive',sourceIds.value),{streaming:false,hasKnowledgeSources:props.hasKnowledgeSources}):[seg]):parsed
+ return projector.project(props.content||'',!!props.streaming,sourceIds.value,props.hasKnowledgeSources)
 })
+watch(renderAttempt,()=>{projector=createAnswerProjector()},{flush:'sync'})
 const liveEffect=ref(false),instanceKey='answer-'+getCurrentInstance()!.uid
 watch(()=>props.streaming,value=>{if(value)liveEffect.value=true},{immediate:true})
 defineEmits<{(e:'ask',text:string):void;(e:'switch-agent',id:string):void;(e:'use-skill',key:string):void}>()

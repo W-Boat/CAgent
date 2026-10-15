@@ -293,8 +293,10 @@ export class CampusGuideService implements OnApplicationBootstrap {
     tip: string
     guidance:KnowledgeGuidance
   }> {
-    const scopedIndex=options.sourceKeys?await this.retrievalIndex(options):undefined
-    const meta = scopedIndex?{verifiedAt:null,total:scopedIndex.rows.length,schema:'evaluation/v2-only'}:await this.meta()
+    // Search needs snapshot metadata, not another full database count and mount scan.
+    const [index,setting]=await Promise.all([this.retrievalIndex(options),options.sourceKeys?Promise.resolve(null):this.prisma.setting.findUnique({where:{key:'campus_guide_meta'}})])
+    const stored=(setting?.value as any)||{}
+    const meta={verifiedAt:stored.verifiedAt??null,total:index.rows.length,schema:options.sourceKeys?'evaluation/v2-only':stored.schema??'guide/v4'}
     const raw = (query || "").trim()
     if (!raw) {
       return {
@@ -307,7 +309,7 @@ export class CampusGuideService implements OnApplicationBootstrap {
       }
     }
 
-    const result = (scopedIndex||await this.index()).search(raw, {...options, limit})
+    const result = index.search(raw, {...options, limit})
     const allRows = result.hits.flatMap(h => [h.row, ...h.related])
     const fullRows = allRows.length ? await this.prisma.campusGuideItem.findMany({
       where: {id: {in:allRows.filter(r => !r.id.startsWith('managed:') && (mode==='full' || r.extra?.kb?.schema==='kb/v2')).map(r => r.id)}}, select:{id:true, detail:true, detailParts:true}

@@ -38,6 +38,9 @@ async function main(){
  await guide.catalogBlock({sourceKeys:EVALUATION_V2_SOURCES});assert.equal(rowReads,1)
  await guide.catalogBlock();assert.equal(globalReads,1);revision='r2';await guide.catalogBlock({sourceKeys:EVALUATION_V2_SOURCES});assert.equal(rowReads,2)
  removed=true;await assert.rejects(()=>guide.catalogBlock({sourceKeys:EVALUATION_V2_SOURCES}));await assert.rejects(()=>guide.catalogBlock({sourceKeys:['other']}));pass('两库索引与全站索引隔离，指定文件过滤、单次并发构建、修订失效、移除后拒绝')
+ const fastGuide=new CampusGuideService({setting:{findUnique:async()=>({value:{verifiedAt:'fixture',schema:'kb/v2'}})},campusGuideItem:{count:async()=>{throw Error('不应为每次检索全量计数')}}} as any,{} as any)
+ ;(fastGuide as any).retrievalIndex=async()=>({rows:[{id:'indexed'}],search:()=>({hits:[],anchors:[],resolvedQuery:'学校'})})
+ const fastResult=await fastGuide.search('学校');assert.equal(fastResult.meta.total,1);assert.equal(fastResult.meta.verifiedAt,'fixture');pass('普通检索复用索引快照元信息，不再调用全库计数或挂载目录扫描')
  const directory=resolve(__dirname,'../../../storage/shots/evaluation');mkdirSync(directory,{recursive:true});writeFileSync(resolve(directory,'policy-verification.json'),JSON.stringify({passed:true,checks,externalModelCalls:0},null,2))
 }
 main().catch(e=>{console.error(e);process.exitCode=1})

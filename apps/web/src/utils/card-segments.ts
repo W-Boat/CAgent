@@ -45,6 +45,22 @@ export type Segment =
   /** 围栏尚未闭合（流式中） */
   | { kind: "pending"; text?:string }
 
+/** Per-answer cache: complete immutable blocks survive subsequent text chunks. */
+export class CardBlockCache {
+  private blocks=new Map<string,unknown>();private size=0
+  parses=0;hits=0
+  parse(raw:string):unknown {
+    if(this.blocks.has(raw)){this.hits++;return this.blocks.get(raw)}
+    this.parses++;const value=parseCardJson(raw)
+    // Legacy skill migration below mutates its input; do not retain those objects.
+    if(value&&typeof value==='object'&&!Array.isArray(value)&&!['agents','skills'].includes(String((value as any).type))&&raw.length<=131072){
+      while(this.blocks.size&&(this.blocks.size>=24||this.size+raw.length>262144)){const first=this.blocks.keys().next().value!;this.size-=first.length;this.blocks.delete(first)}
+      this.blocks.set(raw,value);this.size+=raw.length
+    }
+    return value
+  }
+}
+
 /**
  * 这里刻意**不**再维护一份「已知类型」常量表。
  *
@@ -106,7 +122,7 @@ function normalizeLegacyCards(text:string):string{
  * 还可能与普通代码块混排。正则处理这些边界很容易出错，
  * 而状态机短且可推理。
  */
-export function parseCardSegments(text: string): Segment[] {
+export function parseCardSegments(text: string,cache?:CardBlockCache): Segment[] {
   const out: Segment[] = []
   if (!text) return out
 
@@ -163,7 +179,7 @@ export function parseCardSegments(text: string): Segment[] {
 
     const raw = body.join("\n").trim()
     try {
-      const parsed:any = parseCardJson(raw)
+      const parsed:any = cache?cache.parse(raw):parseCardJson(raw)
       if(language==='json'){
         if(!parsed || typeof parsed!=='object' || Array.isArray(parsed) || !isCompatibleCard(parsed)){buffer.push(...lines.slice(start,i));continue}
         flushMarkdown()

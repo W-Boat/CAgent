@@ -2,15 +2,15 @@
 import type {AgentRunProgress,AgentRunMetrics} from '@/api/chat-stream'
 import {cleanAnswerReferences} from '@/utils/answer-references'
 import {stripToolMarkup} from '@/utils/output-boundary'
-const props=defineProps<{progress?:AgentRunProgress;metrics?:AgentRunMetrics;tools?:{id:string;name:string;state:string;args?:unknown;result?:string;cached?:boolean;durationMs?:number}[];status?:string;detailed?:boolean}>()
+const props=defineProps<{progress?:AgentRunProgress;metrics?:AgentRunMetrics;tools?:{id:string;name:string;state:string;args?:unknown;result?:string;cached?:boolean;durationMs?:number}[];status?:string;detailed?:boolean;hasContent?:boolean}>()
 const phases={preparing:'正在准备',context:'正在整理上下文',model:'正在生成回答',tools:'正在查询与处理',retrying:'输出格式异常，正在自动重试',finalizing:'正在整理结果'}
-const phaseLabel=()=>props.progress?.retryAttempt&&['context','model','retrying'].includes(props.progress.stage)?'输出格式异常，正在自动重试':phases[props.progress?.stage||'preparing']
+const phaseLabel=()=>props.hasContent&&['preparing','context','model'].includes(props.progress?.stage||'preparing')?'正在补充回答':props.progress?.retryAttempt&&['context','model','retrying'].includes(props.progress.stage)?'输出格式异常，正在自动重试':phases[props.progress?.stage||'preparing']
 const toolNames:Record<string,string>={knowledge_search:'查询知识库',skill_read:'读取任务指引',calculator:'计算',weather:'查询天气',web_fetch:'读取网页',browser_control:'查看网页',datetime:'查询时间',unit_convert:'换算单位',exchange_rate:'查询汇率'}
 const states:Record<string,string>={running:'执行中',done:'已完成',failed:'失败',stopped:'已停止'}
 </script>
 <template>
- <div v-if="progress || metrics || tools?.length" class="agent-run" :class="{ 'is-active': status === 'STREAMING' }">
-  <div v-if="status === 'STREAMING' && progress" class="agent-phase-wrap"><p class="agent-phase" role="status"><span class="agent-dot" aria-hidden="true"></span>{{ phaseLabel() }}<span v-if="detailed && progress.round">· 第 {{ progress.round }} 轮</span></p><div class="agent-progress-track" role="progressbar" :aria-label="phaseLabel()" :aria-valuetext="phaseLabel()"><span/></div></div>
+ <div v-if="status === 'STREAMING' || progress || metrics || tools?.length" class="agent-run" :class="{ 'is-active': status === 'STREAMING' }">
+  <div v-if="status === 'STREAMING'" class="agent-phase-wrap"><p class="agent-phase" role="status"><span class="agent-dot" aria-hidden="true"></span>{{ phaseLabel() }}<span v-if="detailed && progress?.round">· 第 {{ progress.round }} 轮</span></p><div v-if="!hasContent" class="agent-progress-track" role="progressbar" :aria-label="phaseLabel()" :aria-valuetext="phaseLabel()"><span/></div></div>
   <p v-if="status !== 'STREAMING' && metrics?.cacheHit" class="agent-note">已复用服务器回答缓存 · 本轮未调用模型</p>
   <details v-if="tools?.length || (detailed && metrics)" class="agent-trace">
    <summary>查询与处理过程<span v-if="tools?.length">（{{ tools.length }}）</span></summary>

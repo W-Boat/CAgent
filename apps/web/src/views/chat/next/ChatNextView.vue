@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AnswerLoading from '@/components/presentation/AnswerLoading.vue'
 import {retainCardReadingPosition} from "@/utils/chat-follow"
 import AnswerVersions from '@/components/AnswerVersions.vue'
 import ImageTransferProgress from '@/components/ImageTransferProgress.vue'
@@ -59,7 +60,7 @@ import { toastError, toastOk } from "@/api/client"
 import { useAuthStore } from "@/stores/auth"
 import { useCampusNetStore } from "@/stores/campus-net"
 import MarkdownView from "@/components/MarkdownView.vue"
-const CardMessage=defineAsyncComponent(()=>import('@/components/CardMessage.vue'))
+const CardMessage=defineAsyncComponent({loader:()=>import('@/components/CardMessage.vue'),loadingComponent:AnswerLoading,delay:0})
 import FeedbackDialog from "@/components/FeedbackDialog.vue"
 import CAgentMark from "@/components/CAgentMark.vue"
 import type {
@@ -1251,11 +1252,11 @@ onBeforeUnmount(() => {
                   <div v-if="msg.reasoningOpen" class="ac-reasoning-body">{{ stripToolMarkup(msg.reasoning) }}</div>
                 </div>
 
-                <AgentRunDetails :progress="msg.runProgress" :metrics="msg.runMetrics" :tools="msg.toolEvents" :status="msg.streaming ? 'STREAMING' : msg.status" detailed/>
+                <AgentRunDetails :progress="msg.runProgress" :has-content="!!msg.content" :metrics="msg.runMetrics" :tools="msg.toolEvents" :status="msg.streaming ? 'STREAMING' : msg.status" detailed/>
 
                 <KnowledgeSources :sources="msg.kbHits"/>
                 <div class="nx-msg-body">
-                  <CardMessage :effect-key="msg.id" :content="msg.content" :streaming="!!msg.streaming" :has-knowledge-sources="!!msg.kbHits?.length" :knowledge-sources="msg.kbHits" @ask="draft=$event"/>
+                  <CardMessage :effect-key="msg.id" :content="msg.content" :streaming="!!msg.streaming" :has-knowledge-sources="!!msg.kbHits?.length" :knowledge-sources="msg.kbHits" @ask="draft=$event" :progress="msg.runProgress"/>
                   <span v-if="msg.streaming" class="nx-caret" aria-hidden="true"></span>
                 </div>
 

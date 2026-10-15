@@ -304,10 +304,13 @@ export class ChatService {
         if (!selected || (selected.visibility==='PRIVATE' && selected.ownerId!==user.id && !user.permissions.includes('*'))) throw new BadRequestException('智能体不存在或不可用')
       }
       const knowledgeAgentId = selectedAgentId || (await this.prisma.agent.findFirst({where:{key:'ucass-guide',enabled:true},select:{id:true}}))?.id || null
-      const previousMapQuery=conversation?await this.prisma.message.findFirst({where:{conversationId:conversation.id,role:'user'},orderBy:{seq:'desc'},select:{content:true}}):null
-      const mapAnswer=controlled||isSupportUrgent(dto.content)||!await this.knowledgeStore.embeddedEnabled('maps',knowledgeAgentId)?null:resolveCampusMap(dto.content,previousMapQuery?.content || '')
+      const [previousMapQuery,mapsEnabled,rules]=await Promise.all([
+        conversation?this.prisma.message.findFirst({where:{conversationId:conversation.id,role:'user'},orderBy:{seq:'desc'},select:{content:true}}):Promise.resolve(null),
+        controlled||isSupportUrgent(dto.content)?Promise.resolve(false):this.knowledgeStore.embeddedEnabled('maps',knowledgeAgentId),
+        controlled?Promise.resolve([]):this.knowledgeStore.keywordRules(dto.content,knowledgeAgentId)
+      ])
+      const mapAnswer=mapsEnabled?resolveCampusMap(dto.content,previousMapQuery?.content || ''):null
       const mapOnly=mapAnswer && !/开馆|开放|营业|时间|办理|借书|借阅|申请|报名|费用|收费|历史|介绍|概况|用途|功能|怎么用/.test(dto.content)
-      const rules=controlled?[]:await this.knowledgeStore.keywordRules(dto.content,knowledgeAgentId)
       const ruleExtras=rules.map(({entry,rule})=>keywordCardMarkup(rule,entry.id)).join('')
       const instructionRules=rules.filter(r=>r.rule.behavior==='INSTRUCT')
       const replaced=rules.filter(r=>r.rule.behavior==='REPLACE')

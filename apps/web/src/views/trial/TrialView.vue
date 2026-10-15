@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AnswerLoading from '@/components/presentation/AnswerLoading.vue'
 import {retainCardReadingPosition} from "@/utils/chat-follow"
 import OutputPreferenceSelect from "@/components/OutputPreferenceSelect.vue"
 import AnswerVersionControls from '@/components/AnswerVersionControls.vue'
@@ -21,7 +22,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
 import MarkdownView from '@/components/MarkdownView.vue'
 import { IconCopy, IconDown, IconLogout, IconMenu, IconMoon, IconPlus, IconRefresh, IconSearch, IconSend, IconStop, IconSun, IconThumbDown, IconThumbUp, IconTrash } from '@/components/student/icons'
-const CardMessage=defineAsyncComponent(()=>import('@/components/CardMessage.vue'))
+const CardMessage=defineAsyncComponent({loader:()=>import('@/components/CardMessage.vue'),loadingComponent:AnswerLoading,delay:0})
 import { createStreamTyper } from '@/utils/stream-typewriter'
 import { copyText, fromNow } from '@/utils/format'
 
@@ -209,8 +210,8 @@ onBeforeUnmount(() => { disposed = true; abortStream?.(); typer.flushAll(); type
           <div v-if="msg.role === 'user'" class="nx-msg-bubble">{{ msg.content }}</div>
           <template v-else>
             <div class="nx-msg-head"><span class="st-msg-badge" aria-hidden="true">{{ sealChar }}</span><span class="nx-msg-name">校园助手</span><span v-if="msg.status === 'FAILED'" class="nx-msg-status">· 失败</span><span v-else-if="msg.status === 'ABORTED'" class="nx-msg-status">· 已停止</span></div>
-            <AgentRunDetails v-if="display.toolActivity" :progress="msg.runProgress" :metrics="msg.runMetrics" :tools="msg.toolEvents" :status="msg.status"/><KnowledgeSources v-if="display.sources" :sources="msg.kbHits"/>
-            <div class="nx-msg-body"><CardMessage :content="msg.content" :streaming="msg.status === 'STREAMING'" :disabled="streaming" :auto-play="!!msg.liveEffect" :effect-key="'trial-'+msg.id" :has-knowledge-sources="!!msg.kbHits?.length" :knowledge-sources="msg.kbHits" @ask="askFromCard" @switch-agent="explainLoginFeature" @use-skill="explainLoginFeature"/><span v-if="msg.status === 'STREAMING'" class="nx-caret" aria-hidden="true"></span></div>
+            <AgentRunDetails v-if="display.toolActivity" :progress="msg.runProgress" :has-content="!!msg.content" :metrics="msg.runMetrics" :tools="msg.toolEvents" :status="msg.status"/><KnowledgeSources v-if="display.sources" :sources="msg.kbHits"/>
+            <div class="nx-msg-body"><CardMessage :content="msg.content" :progress="msg.runProgress" :streaming="msg.status === 'STREAMING'" :disabled="streaming" :auto-play="!!msg.liveEffect" :effect-key="'trial-'+msg.id" :has-knowledge-sources="!!msg.kbHits?.length" :knowledge-sources="msg.kbHits" @ask="askFromCard" @switch-agent="explainLoginFeature" @use-skill="explainLoginFeature"/><span v-if="msg.status === 'STREAMING'" class="nx-caret" aria-hidden="true"></span></div>
             <div v-if="msg.error" class="nx-msg-error" role="alert">{{ msg.error }}</div>
             <div v-if="msg.status !== 'STREAMING' && msg.content" class="st-msg-actions"><button class="nx-icon-btn" aria-label="复制回答" title="复制" @click="copyMessage(msg.content)"><IconCopy/></button><AnswerVersionControls :count="msg.versions?.length || 1" :selected="msg.selectedVersion || 0" :disabled="streaming" :generate-disabled="quota.left <= 0" generate-title="生成新版本会使用体验额度；切换已有版本免费" @select="selectVersion(msg,$event)" @generate="regenerate(msg)"/><button v-if="display.feedback && msg.status === 'SUCCESS' && msg.roundId" class="nx-icon-btn" :class="{ 'is-on': (msg.feedback || 0) >= 4 }" aria-label="回答有帮助" title="有帮助" :disabled="!!msg.feedback" @click="openSurvey(msg, 5)"><IconThumbUp/></button><button v-if="display.feedback && msg.status === 'SUCCESS' && msg.roundId" class="nx-icon-btn" :class="{ 'is-on': !!msg.feedback && msg.feedback <= 2 }" aria-label="回答没帮助" title="没帮助" :disabled="!!msg.feedback" @click="openSurvey(msg, 2)"><IconThumbDown/></button></div>
           </template>

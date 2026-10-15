@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AnswerLoading from '@/components/presentation/AnswerLoading.vue'
 import {retainCardReadingPosition} from "@/utils/chat-follow"
 import AnswerVersions from '@/components/AnswerVersions.vue'
 import ImageTransferProgress from '@/components/ImageTransferProgress.vue'
@@ -56,7 +57,7 @@ import MarkdownView from "@/components/MarkdownView.vue"
  * 见 utils/card-segments.ts 与 components/student/StudentCard.vue。
  */
 const FeedbackDialog=defineAsyncComponent(()=>import('@/components/FeedbackDialog.vue'))
-const CardMessage=defineAsyncComponent(()=>import('@/components/CardMessage.vue'))
+const CardMessage=defineAsyncComponent({loader:()=>import('@/components/CardMessage.vue'),loadingComponent:AnswerLoading,delay:0})
 import { buildCardProtocol, KNOWLEDGE_CARD_PROTOCOL } from "@/utils/card-protocol"
 import { dedupeSkills } from "@/utils/skills"
 import {
@@ -1672,7 +1673,7 @@ onBeforeUnmount(() => {
                   <span v-else-if="msg.status === 'ABORTED'" class="nx-msg-status">· 已中断</span>
                 </div>
 
-                <AgentRunDetails v-if="display.toolActivity" :progress="msg.runProgress" :metrics="msg.runMetrics" :tools="msg.toolEvents" :status="msg.streaming ? 'STREAMING' : msg.status"/>
+                <AgentRunDetails v-if="display.toolActivity" :progress="msg.runProgress" :has-content="!!msg.content" :metrics="msg.runMetrics" :tools="msg.toolEvents" :status="msg.streaming ? 'STREAMING' : msg.status"/>
 
                 <KnowledgeSources v-if="display.sources" :sources="msg.kbHits"/>
 
@@ -1681,7 +1682,7 @@ onBeforeUnmount(() => {
                     助手正文按「Markdown / 卡片」交替分段渲染。
                     卡片是组件，不能走 MarkdownView 的 v-html，必须先切开。
                   -->
-                  <CardMessage :content="msg.content" :streaming="!!msg.streaming" :disabled="streaming" :auto-play="!!msg.liveEffect" :effect-key="msg.id" :has-knowledge-sources="!!msg.kbHits?.length" :knowledge-sources="msg.kbHits" @ask="askFromCard" @switch-agent="switchAgentFromCard" @use-skill="useSkillFromCard"/>
+                  <CardMessage :content="msg.content" :streaming="!!msg.streaming" :disabled="streaming" :auto-play="!!msg.liveEffect" :effect-key="msg.id" :has-knowledge-sources="!!msg.kbHits?.length" :knowledge-sources="msg.kbHits" @ask="askFromCard" @switch-agent="switchAgentFromCard" @use-skill="useSkillFromCard" :progress="msg.runProgress"/>
                   <span v-if="msg.streaming" class="nx-caret" aria-hidden="true"></span>
                 </div>
 

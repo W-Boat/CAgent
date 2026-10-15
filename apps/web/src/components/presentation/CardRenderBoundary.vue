@@ -17,7 +17,7 @@ onErrorCaptured(error=>{errorType=/import|load|fetch/i.test(String(error))?'modu
 function retry(automatic:boolean){if(!active)return;retryMode=automatic?'automatic':'manual';attempt.value++;failed.value=false}
 function ready(){if(!attempt.value||failed.value||!active)return;recovering.value=false;reportRender({component:'card-renderer',errorType,retryMode,attempt:attempt.value,messageId:props.reportKey,recovered:true})}
 watch(()=>props.disabled,disabled=>{if(!disabled&&failed.value)automatic()})
-watch(()=>JSON.stringify(props.identity),()=>{failed.value=false;attempt.value=0;autoUsed=false;retryMode='initial'})
+watch(()=>props.identity,()=>{failed.value=false;attempt.value=0;autoUsed=false;retryMode='initial'})
 </script>
 <style>
 .card-render-failure{padding:18px;margin:12px 0;border:1px solid var(--nx-border,var(--el-border-color));border-radius:16px;background:var(--nx-surface,var(--el-bg-color));color:var(--nx-text,var(--el-text-color-primary));line-height:1.7}.card-render-failure p{margin:7px 0;color:var(--nx-text-2,var(--el-text-color-secondary))}.card-render-failure button{border:1px solid var(--nx-border,var(--el-border-color));background:var(--nx-accent-soft,var(--el-fill-color-light));color:var(--nx-accent,var(--el-color-primary));padding:7px 13px;border-radius:9px;cursor:pointer;font:inherit}.card-render-failure button:disabled{opacity:.5;cursor:default}.card-render-failure small{display:block;margin-top:7px;color:var(--nx-text-2,var(--el-text-color-secondary))}
