@@ -32,6 +32,9 @@ export interface LlmUsage {
   promptTokens: number
   completionTokens: number
   totalTokens: number
+  /** Provider-reported input cache telemetry; absent means not reported. */
+  promptCacheHitTokens?:number
+  promptCacheMissTokens?:number
 }
 
 export type LlmStreamEvent =

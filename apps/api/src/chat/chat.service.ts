@@ -1,4 +1,5 @@
 import {KnowledgeRetrievalBudget} from './knowledge-retrieval-policy'
+import {mergeProviderCache} from './llm/provider-cache'
 import {type EvaluationPolicy,EVALUATION_POLICY_VERSION,EVALUATION_V2_SOURCES,STRICT_PROMPT,STRICT_FALLBACK,strictPlainText,reviewStrictReply} from '../evaluation/evaluation-policy'
 import {appOrigin} from '../common/app-origin'
 import {CampusActivityService} from "../campus/campus-activity.service"
@@ -409,7 +410,9 @@ export class ChatService {
        * 时区固定 Asia/Shanghai，所有日期相关的回答共用同一口径，
        * 否则会出现「助手说今天 26 号、别的计算按 25 号」这种自相矛盾。
        */
-      systemPrompts.push(buildDateContext())
+      // Keep minute-specific context out of the shared provider-cache prefix.
+      // It is still supplied in full, after the stable instructions below.
+      const datePrompt=buildDateContext()
       if(dto.content.includes('🐍'))systemPrompts.push('校园简称约定：本轮用户输入中的 🐍 表示中国社会科学院大学（社科大），按校园问题理解。')
       for(const {rule} of instructionRules)if(rule.instruction)systemPrompts.push(rule.instruction)
 
@@ -497,7 +500,7 @@ export class ChatService {
       presentationContext.outputPreference=dto.outputPreference||'adaptive'
       const cacheTicket=this.responseCache&&cacheEligible(dto.content,dto.images,dto.bypassCache)&&!rules.length&&!mapAnswer?await this.responseCache.prepare({
         user:user.id,permissions:[...user.permissions].sort(),trialScope:dto.origin==='trial-chat'?conversation.id:undefined,question:normalizedCacheQuestion(dto.content),
-        target,agentId:knowledgeAgentId,agentMeta,boundPromptIds,temperature:dto.temperature,preference:presentationContext.outputPreference,prompts:systemPrompts.slice(1),history:cacheHistory(history,dto.content),skills:dto.skills||[],enableTools:dto.enableTools,memoryEnabled:dto.memoryEnabled,evaluationPolicy:policy?{...policy,version:EVALUATION_POLICY_VERSION,previousQuestions:strict?history.filter(m=>m.role==='user').slice(-4).map(m=>m.content):undefined}:undefined
+        target,agentId:knowledgeAgentId,agentMeta,boundPromptIds,temperature:dto.temperature,preference:presentationContext.outputPreference,prompts:systemPrompts,history:cacheHistory(history,dto.content),skills:dto.skills||[],enableTools:dto.enableTools,memoryEnabled:dto.memoryEnabled,evaluationPolicy:policy?{...policy,version:EVALUATION_POLICY_VERSION,previousQuestions:strict?history.filter(m=>m.role==='user').slice(-4).map(m=>m.content):undefined}:undefined
       }):null
       const cached=await this.responseCache?.get(cacheTicket)
       if(cached){
@@ -623,6 +626,7 @@ export class ChatService {
       systemPrompts.push(`【管理员检索策略】本轮知识库查询最多 ${retrievalBudget.limit} 次（已自动查询 ${retrievalBudget.count} 次）。达到上限后依据现有证据完成回答，缺项说明未收录，不编造。`)
       if(v2Only)systemPrompts.push('【本轮资料范围】只可查询校园事务 2.0 的 SQLite 与 Markdown 两库。不得使用其他知识库、技能资料、外网或通用知识补齐缺失事实。2.0 包含赛事模拟资料，必须保留模拟性质，不当作实时校方通知。')
       if(strict)systemPrompts.push(STRICT_PROMPT)
+      systemPrompts.push(datePrompt)
       // One model boundary accounts for history, image costs and tool schemas together.
       const messages=this.contextBuilder.build({systemPrompts,history,budgetTokens:target.contextWindow,maxOutputTokens:target.maxOutputTokens,currentQuery:dto.content,tools:toolDefs})
       checkAbort(scope.signal)
@@ -684,6 +688,7 @@ export class ChatService {
         const review=!failure&&!aborted&&candidate!==STRICT_FALLBACK&&strictEvidence.length?await reviewStrictReply(this.llmFactory.resolve(target.providerType),{model:target.modelKey,apiKey,baseUrl},
           {question:dto.content,previousQuestions:history.filter(m=>m.role==='user').slice(-4).map(m=>m.content),reply:candidate,evidence:strictEvidence.join('\n').slice(0,24000)},scope.signal):{allowed:false,promptTokens:0,completionTokens:0}
         promptTokens+=review.promptTokens;completionTokens+=review.completionTokens
+        run.metrics.providerCache=mergeProviderCache(run.metrics.providerCache,'providerCache' in review?review.providerCache:undefined)
         strictReview={policyVersion:EVALUATION_POLICY_VERSION,allowed:review.allowed,promptTokens:review.promptTokens,completionTokens:review.completionTokens}
         fullText=review.allowed?candidate:STRICT_FALLBACK
         aborted=aborted||scope.signal.aborted
@@ -782,6 +787,7 @@ export class ChatService {
         promptTokens,
         completionTokens,
         totalTokens: promptTokens + completionTokens,
+        providerCache:run.metrics.providerCache,
         costUsd: Number(costUsd.toFixed(6)),
         latencyMs
       })

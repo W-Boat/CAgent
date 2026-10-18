@@ -1,4 +1,5 @@
 import type {RuntimeCheckpointOptions} from './runtime-state'
+import type {ProviderCacheSummary} from '../llm/provider-cache'
 import type {ChatMessage,LlmChatOptions,LlmProvider,LlmToolCall,LlmToolDef} from '../llm/types'
 
 export type RunStage='preparing'|'context'|'model'|'tools'|'retrying'|'finalizing'
@@ -12,7 +13,7 @@ export interface RuntimeTool extends LlmToolDef {
   execute:(args:Record<string,unknown>,signal:AbortSignal)=>Promise<string|ToolOutcome>
 }
 export interface ToolRecord {id:string;name:string;arguments:string;result:string;status:'SUCCESS'|'FAILED'|'ABORTED';durationMs:number;cached:boolean;round:number}
-export interface RunMetrics {modelTurns:number;toolCalls:number;cachedCalls:number;failedTools:number;removedTurns:number;truncatedResults:number;peakInputTokens:number;latencyMs:number;limitReached:boolean;checkpointWrites?:number;nodeTransitions?:number;resumedFromCheckpoint?:boolean;checkpointAvailable?:boolean;automaticRetries?:number}
+export interface RunMetrics {modelTurns:number;toolCalls:number;cachedCalls:number;failedTools:number;removedTurns:number;truncatedResults:number;peakInputTokens:number;latencyMs:number;limitReached:boolean;checkpointWrites?:number;nodeTransitions?:number;resumedFromCheckpoint?:boolean;checkpointAvailable?:boolean;automaticRetries?:number;providerCache?:ProviderCacheSummary}
 export interface RuntimeHooks {
   /** Trusted application hooks. Untrusted knowledge never registers executable hooks. */
   beforeModel?:(context:{messages:ChatMessage[];round:number},signal:AbortSignal)=>Promise<ChatMessage[]|void>

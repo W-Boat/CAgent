@@ -1,6 +1,7 @@
 import {randomUUID} from 'node:crypto'
 import {abortable,abortScope,checkAbort} from '../../common/abort'
-import type {ChatMessage,LlmToolCall} from '../llm/types'
+import type {ChatMessage,LlmToolCall,LlmUsage} from '../llm/types'
+import {addProviderCache} from '../llm/provider-cache'
 import {estimateTokens} from '../llm/types'
 import {fitContext} from './context-budget'
 import {canonicalArguments,parseToolArguments} from './tool-validation'
@@ -91,7 +92,7 @@ export class AgentRuntime {
         progress('model',round+1,state.budget)
         state.modelStart={text:result.text.length,reasoning:result.reasoning.length}
         await persist()
-        const calls:LlmToolCall[]=[],seen=new Set<string>();let text='',reasoning='',rawText='',rawReasoning='',prompt=0,completion=0,gotUsage=false,gotDone=false,streamFailed=false,visibleTextEmitted=false,retryProtocol=false
+        const calls:LlmToolCall[]=[],seen=new Set<string>();let text='',reasoning='',rawText='',rawReasoning='',prompt=0,completion=0,gotUsage=false,gotDone=false,streamFailed=false,visibleTextEmitted=false,retryProtocol=false,lastUsage:LlmUsage|undefined
         const textBoundary=new ToolMarkupStream(),reasonBoundary=new ToolMarkupStream()
         const iterator=options.provider.stream({...options.request,messages:working,tools:activeDefs.length?activeDefs:undefined,signal:options.signal})
         try{
@@ -104,7 +105,7 @@ export class AgentRuntime {
               if(!event.call.id||seen.has(event.call.id)||ids.has(event.call.id))throw new Error('模型返回重复或无效的工具调用标识，请重试。')
               if(calls.length>=12)throw new Error('模型单轮请求的工具过多，请缩小问题范围。')
               seen.add(event.call.id);ids.add(event.call.id);calls.push(event.call);options.emit('tool_call',event.call)
-            }else if(event.type==='usage'){gotUsage=true;prompt=event.usage.promptTokens;completion=event.usage.completionTokens}
+            }else if(event.type==='usage'){gotUsage=true;prompt=event.usage.promptTokens;completion=event.usage.completionTokens;lastUsage=event.usage}
             else if(event.type==='done'){gotDone=true;result.finishReason=event.finishReason;if(event.finishReason==='aborted'){result.aborted=true;break}}
             else if(event.type==='error'){result.providerError=true;throw new Error(event.message)}
           }
@@ -125,6 +126,7 @@ export class AgentRuntime {
           result.metrics.modelTurns++
           result.promptTokens+=gotUsage?prompt:state.budget?.inputTokens||result.metrics.peakInputTokens
           result.completionTokens+=gotUsage?completion:estimateTokens(rawText+rawReasoning+JSON.stringify(calls))
+          result.metrics.providerCache=addProviderCache(result.metrics.providerCache,lastUsage)
           // Closing an SDK iterator may be asynchronous; cancellation must not wait for it.
           void iterator.return?.(undefined).catch(()=>undefined)
         }

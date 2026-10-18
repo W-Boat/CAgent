@@ -1,4 +1,5 @@
 import OpenAI from "openai"
+import {providerCacheUsage} from './provider-cache'
 import {
   estimateTokens,
   type LlmChatOptions,
@@ -80,6 +81,7 @@ export class OpenAiCompatibleProvider implements LlmProvider {
 
     let promptTokens = 0
     let completionTokens = 0
+    let cacheUsage:ReturnType<typeof providerCacheUsage> = {}
     let finishReason: string | undefined
     let textLength = 0
     const toolBuffers = new Map<number, LlmToolCall>()
@@ -96,6 +98,8 @@ export class OpenAiCompatibleProvider implements LlmProvider {
         if (chunk.usage) {
           promptTokens = chunk.usage.prompt_tokens ?? promptTokens
           completionTokens = chunk.usage.completion_tokens ?? completionTokens
+          const reported=providerCacheUsage(chunk.usage)
+          if(reported.promptCacheHitTokens!==undefined)cacheUsage=reported
         }
 
         if (!choice) continue
@@ -143,6 +147,7 @@ export class OpenAiCompatibleProvider implements LlmProvider {
       }
 
       const usage = {
+        ...cacheUsage,
         promptTokens: promptTokens || estimateTokens(
           options.messages.map((m) => m.content).join("\n")
         ),

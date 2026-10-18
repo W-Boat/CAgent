@@ -72,6 +72,7 @@ docs/*
 !docs/evaluation-api.md
 !docs/agent-ui.md
 !docs/answer-cards.md
+!docs/provider-cache.md
 deploy/agent.*.conf
 deploy/gen-env.js
 deploy/probe-prod.sh
