@@ -2,6 +2,9 @@ import {get} from 'node:https'
 import {lookup} from 'node:dns/promises'
 import {load} from 'cheerio'
 import {type CollectorConfig,plain,dateOnly,lectureUrl,normalizeLecture} from './lecture-data'
+import {isVerificationPage} from '../knowledge/wechat-content'
+
+export class LectureContentBlocked extends Error {}
 
 export function publicAddress(address:string){
  if(address.includes(':'))return /^[23][0-9a-f]{0,3}:/i.test(address)&&!address.toLowerCase().startsWith('2001:db8:')
@@ -35,6 +38,7 @@ export async function readLecturePage(input:string,signal:AbortSignal,redirects=
 }
 const lectureWords=/讲座|沙龙|论坛|研讨|报告会|工作坊|学术活动|学术交流|圆桌|名家讲坛/
 export function parseLectureListing(html:string,url:string,mode:string){
+ if(isVerificationPage(html))throw new LectureContentBlocked('栏目要求访问验证，未读取真实列表')
  const $=load(html),items=new Map<string,{url:string;title:string;published:string}>(),pages=new Set<string>()
  $('a[href]').each((_,el)=>{
   const a=$(el),href=a.attr('href')||'';let target:URL;try{target=new URL(href,url)}catch{return}
@@ -50,15 +54,23 @@ export function parseLectureListing(html:string,url:string,mode:string){
  return {items:[...items.values()],pages:[...pages]}
 }
 export function parseLectureDetail(html:string,item:{url:string;title:string;published:string},source:{id:string;name:string}){
- const $=load(html),heading=plain($('meta[name="ArticleTitle"]').attr('content')||$('#activity-name').text()||$('h1').first().text(),500)
- // Generic h2 nodes often belong to previous/next article navigation, not this article.
- const title=heading&&!/^(?:上一篇|下一篇)(?:[：:\s]|$)|^(?:网站首页|首页)$/.test(heading)?heading:plain(item.title,500)
+ if(isVerificationPage(html))throw new LectureContentBlocked('正文要求访问验证，未导入验证页')
+ const $=load(html),meta=plain($('meta[name="ArticleTitle"]').attr('content')||$('#activity-name').text(),500)
+ const documentTitle=plain($('title').text(),600).replace(/[-–—_][^-–—_]{0,60}(?:学院|大学|科研处)\s*$/,'').trim()
+ const heading=meta||documentTitle||plain($('h1').first().text(),500)||plain(item.title,500)
+ const title=heading&&!/^(?:上一篇|下一篇)(?:[：:\s]|$)|^(?:网站首页|首页|内容简介|主讲人介绍|报告人简介)$/.test(heading)?heading:plain(item.title,500)
  const root=$('.v_news_content,#vsb_content,#js_content,article').first(),content=root.length?root:$('body')
+ if(new URL(item.url).hostname==='mp.weixin.qq.com'&&!$('#js_content,.rich_media_content').length)throw new LectureContentBlocked('公众号正文不可读，不能用目录或验证页代替')
  content.find('script,style,iframe,nav,footer,header,form,input,[hidden]').remove();content.find('br').replaceWith('\n');content.find('p,div,li').append('\n')
  const body=plain(content.text(),12000),published=item.published||dateOnly(($('meta[name="PubDate"]').attr('content')||'').slice(0,10))
  const timeLine=body.match(/(?:^|[\n\r\s，；。、])(?:活动时间|讲座时间|报告时间|举办时间|时间|日期|定于)[：:\s]*([^\n]{0,100})/)?.[1]||''
  const date=timeLine.match(/(20\d{2})[年/.-]\s*(\d{1,2})[月/.-]\s*(\d{1,2})日?/)
  let eventDate=date?dateOnly(`${date[1]}-${date[2].padStart(2,'0')}-${date[3].padStart(2,'0')}`):'',confidence='explicit'
+ if(!eventDate){
+  // A dated event sentence is valid evidence; timestamps, navigation and biographies are not.
+  const eventSentence=body.slice(0,2000).match(/(?:^|[。\n；])[^。\n]{0,30}?(20\d{2})年\s*(\d{1,2})月\s*(\d{1,2})日?[^。\n]{0,100}?(?:举办|举行|召开|开讲)/)
+  if(eventSentence)eventDate=dateOnly(`${eventSentence[1]}-${eventSentence[2].padStart(2,'0')}-${eventSentence[3].padStart(2,'0')}`)
+ }
  if(!eventDate){const short=timeLine.match(/(\d{1,2})月\s*(\d{1,2})日/);if(short&&published){eventDate=dateOnly(`${published.slice(0,4)}-${short[1].padStart(2,'0')}-${short[2].padStart(2,'0')}`);confidence='inferred'}}
  const time=timeLine.match(/(?:上午|下午|晚上|晚间)?\s*\d{1,2}[:：]\d{2}(?:\s*[-—~至]\s*\d{1,2}[:：]\d{2})?/)?.[0]?.trim()||''
  const location=body.match(/(?:活动地点|讲座地点|地点)[：:\s]*([^\n]{2,120})/)?.[1]?.trim()||''
@@ -68,7 +80,7 @@ export function parseLectureDetail(html:string,item:{url:string;title:string;pub
   excerpt:body,content_kind:/回顾|纪要|圆满|成功举办/.test(title)?'review':/预告|通知|邀请|报名/.test(title)?'preview':'info',date_confidence:confidence,type:/沙龙/.test(title)?'学术沙龙':/论坛/.test(title)?'论坛':/研讨/.test(title)?'研讨会':'讲座'})
 }
 export async function crawlLectures(config:CollectorConfig,test=false,onProgress?:(progress:any)=>void,startOffset=0){
- const signal=AbortSignal.timeout(test?25000:150000),records:any[]=[],warnings:string[]=[],seen=new Set<string>();let scanned=0,requests=0
+ const signal=AbortSignal.timeout(test?25000:150000),records:any[]=[],warnings:string[]=[],seen=new Set<string>();let scanned=0,requests=0,blocked=0
  const limit=test?3:config.maxArticles,enabled=config.sources.filter(s=>s.enabled).slice(0,test?1:50),offset=enabled.length?startOffset%enabled.length:0,sources=[...enabled.slice(offset),...enabled.slice(0,offset)]
  const perSource=Math.max(1,Math.ceil(limit/Math.max(1,sources.length)));let attempted=0
  for(const source of sources){
@@ -87,12 +99,12 @@ export async function crawlLectures(config:CollectorConfig,test=false,onProgress
     if(!test&&(sourceCollected>=perSource||sourceScanned>=perSource*3))break
     if(seen.has(entry.url))continue;seen.add(entry.url);scanned++
     sourceScanned++
-    try{requests++;records.push(parseLectureDetail(await readLecturePage(entry.url,signal,0,config.campusNetwork),entry,source));sourceCollected++}catch{warnings.push(source.name+'：一篇详情读取失败，保留已有资料')}
+    try{requests++;records.push(parseLectureDetail(await readLecturePage(entry.url,signal,0,config.campusNetwork),entry,source));sourceCollected++}catch(e){if(e instanceof LectureContentBlocked){blocked++;warnings.push(source.name+'：正文需要验证或缺失，未导入；保留已有资料')}else warnings.push(source.name+'：一篇详情读取失败，保留已有资料')}
     onProgress?.({scanned,collected:records.length,source:source.name});await new Promise(r=>setTimeout(r,250))
    }
    if(!listing.items.length)warnings.push(source.name+'：未找到匹配文章，请核对栏目或筛选模式')
-  }catch(e){const campus=/解析到内网地址/.test((e as Error).message);warnings.push(source.name+'：'+(campus?'域名解析为校园网地址，请按需开启校园网直连。':'栏目连接失败或无法解析'))}
+  }catch(e){const campus=/解析到内网地址/.test((e as Error).message);if(e instanceof LectureContentBlocked){blocked++;warnings.push(source.name+'：栏目要求访问验证，未读取真实文章列表')}else warnings.push(source.name+'：'+(campus?'域名解析为校园网地址，请按需开启校园网直连。':'栏目连接失败或无法解析'))}
  }
  if(signal.aborted)warnings.push('已达到本次采集时间上限；部分结果可保留，历史资料未删除')
- return {records,warnings:[...new Set(warnings)].slice(0,50),scanned,requests,limited:records.length>=limit||requests>=100||signal.aborted,nextSource:enabled.length?(offset+attempted)%enabled.length:0}
+ return {records,warnings:[...new Set(warnings)].slice(0,50),scanned,requests,blocked,limited:records.length>=limit||requests>=100||signal.aborted,nextSource:enabled.length?(offset+attempted)%enabled.length:0}
 }

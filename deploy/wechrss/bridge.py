@@ -205,6 +205,14 @@ class Bridge:
                 self.set_job(book_id, {'id': book_id, 'status': 'FAILED', 'collected': 0,
                                       'finishedAt': time.time(), 'retryAfter': time.time() + 3600})
 
+    body_cooldown_key = 'body_cooldown_until'
+
+    def body_attempt_key(self, article):
+        return article.review_id
+
+    def fetch_body(self, article):
+        return public_body(article.url or self.service.resolve_article_url(article.review_id))
+
     def collect(self, book_id):
         source = self.source(book_id)
         now = time.time()
@@ -236,20 +244,19 @@ class Bridge:
                 if article.content_html:
                     count += 1
                     continue
-                if float(self.db.get_setting('body_cooldown_until', '0')) > time.time():
+                if float(self.db.get_setting(self.body_cooldown_key, '0')) > time.time():
                     blocked += 1
                     continue
                 with self.db.connect() as conn:
-                    attempt = conn.execute('SELECT retry_at FROM body_attempts WHERE review_id=?', (article.review_id,)).fetchone()
+                    attempt = conn.execute('SELECT retry_at FROM body_attempts WHERE review_id=?', (self.body_attempt_key(article),)).fetchone()
                 if attempt and attempt[0] > time.time():
                     blocked += 1
                     continue
                 try:
-                    url = article.url or self.service.resolve_article_url(article.review_id)
-                    body = public_body(url)
+                    body = self.fetch_body(article)
                     with self.db.connect() as conn:
                         conn.execute('UPDATE articles SET content_html=? WHERE review_id=?', (body, article.review_id))
-                        conn.execute('DELETE FROM body_attempts WHERE review_id=?', (article.review_id,))
+                        conn.execute('DELETE FROM body_attempts WHERE review_id=?', (self.body_attempt_key(article),))
                         conn.commit()
                     count += 1
                 except AuthExpiredError:
@@ -261,13 +268,13 @@ class Bridge:
                     status = 'RATE_LIMITED'
                     break
                 except BodyVerification:
-                    self.db.set_setting('body_cooldown_until', str(time.time() + 21600))
+                    self.db.set_setting(self.body_cooldown_key, str(time.time() + 21600))
                     blocked += 1
                 except Exception:
                     blocked += 1
                     with self.db.connect() as conn:
                         conn.execute('INSERT INTO body_attempts VALUES(?,?) ON CONFLICT(review_id) DO UPDATE SET retry_at=excluded.retry_at',
-                                     (article.review_id, int(time.time()) + 21600))
+                                     (self.body_attempt_key(article), int(time.time()) + 21600))
                         conn.commit()
                 time.sleep(3)
             if status == 'SUCCEEDED':

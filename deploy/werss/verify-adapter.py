@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 sys.path[:0] = [str(Path(__file__).parent), str(Path(__file__).parent.parent/'wechrss'), str(Path(__file__).parent.parent/'wechrss/upstream')]
-from adapter import WeRSSBridge, clean_body
+from adapter import WeRSSBridge, clean_body, NativeFailure
 from wechat_mp_fetcher import Article, save_article
 from bridge import BodyVerification
 
@@ -20,6 +20,8 @@ class Native:
         self.code = 0
         self.body = '<p>这是学校公众号的真实正文内容，仅作为隔离验证的测试数据。</p>'
         self.configured = True
+        self.body_error = None
+        self.confirmed = False
 
     def request(self, path, **kwargs):
         self.calls.append((path, kwargs))
@@ -30,11 +32,15 @@ class Native:
         if path == '/weread':
             return {'configured': self.configured, 'cookie': 'PRIVATE_TEST_COOKIE', 'ticket': 'PRIVATE_TEST_TICKET'}
         if path == '/weread/qr/status':
-            return {'code_url': '/static/weread_qrcode.png', 'data': {'cookie': 'PRIVATE_TEST_COOKIE'}, 'msg': '登录成功'}
+            return {'login_status': self.confirmed, 'code_url': '/static/weread_qrcode.png', 'data': {'cookie': 'PRIVATE_TEST_COOKIE'}, 'msg': '等待扫码' if not self.confirmed else '登录成功'}
+        if path == '/weread/article-content':
+            if self.body_error:
+                raise NativeFailure(self.body_error)
+            return {'mpId':kwargs['data']['mp_id'], 'articleId':kwargs['data']['article_id'], 'content':self.body}
         if path.startswith('/articles?'):
             return {'list': [{'id': 'one', 'mp_id': 'MP_WXS_1', 'title': '学校通知', 'url': 'https://mp.weixin.qq.com/s/test', 'publish_time': 10}]}
         if path == '/articles/one':
-            return {'mp_id': 'MP_WXS_1', 'content': self.body, 'description': '摘要不等于正文'}
+            return {'mp_id': 'MP_WXS_1', 'content': getattr(self, 'metadata_body', self.body), 'description': '摘要不等于正文'}
         return {}
 
     def image(self):
@@ -49,6 +55,12 @@ class Tests(unittest.TestCase):
         self.source = self.app.db.add_source(source_value='MP_WXS_1', name='测试公众号')
 
     def tearDown(self):
+        for _ in range(200):
+            with self.app.lock:
+                finished = not self.app.active and not self.app.db.get_setting('active_batch', '')
+            if finished:
+                break
+            time.sleep(.01)
         self.tmp.cleanup()
 
     def call(self, path, method='GET', data=None, authorized=True):
@@ -82,7 +94,35 @@ class Tests(unittest.TestCase):
         self.assertEqual(result['collected'], 0)
         self.assertEqual(result['metadataCount'], 1)
         self.assertFalse(self.app.db.get_articles('MP_WXS_1')[0].content_html)
-        self.assertGreater(float(self.app.db.get_setting('body_cooldown_until')), time.time())
+        self.assertGreater(float(self.app.db.get_setting(self.app.body_cooldown_key)), time.time())
+
+    def test_backfill_metadata_uses_authenticated_body_not_public_url(self):
+        self.native.body = ''
+        self.app.service.sync_source(self.source.id)
+        self.native.metadata_body = ''
+        self.native.body = '<p>认证后的微信读书正文回补，既有文章目录也能获取真实完整内容。</p>'
+        self.app.db.set_setting('body_cooldown_until', str(time.time()+21600))
+        with patch('bridge.public_body', side_effect=AssertionError('must use authenticated transport')):
+            result = self.app.collect('MP_WXS_1')
+        self.assertEqual(result['status'], 'SUCCEEDED')
+        self.assertTrue(any(path == '/weread/article-content' for path,_ in self.native.calls))
+        self.assertIn('认证后的', self.app.db.get_articles('MP_WXS_1')[0].content_html)
+
+    def test_expired_body_auth_stops_and_is_not_reported_authorized(self):
+        self.native.body = ''
+        self.native.body_error = 'AUTH_REQUIRED'
+        result = self.app.collect('MP_WXS_1')
+        self.assertEqual(result['status'], 'AUTH_REQUIRED')
+        self.assertFalse(self.call('/auth/qr/status')[1]['data']['login_status'])
+        self.assertEqual(sum(path == '/weread/article-content' for path,_ in self.native.calls), 1)
+
+    def test_pending_qr_visible_even_with_old_cookie(self):
+        self.app.login.start()
+        result = self.call('/auth/qr/status')[1]['data']
+        self.assertFalse(result['login_status'])
+        self.assertTrue(result['qr_code'])
+        self.native.confirmed = True
+        self.assertTrue(self.call('/auth/qr/status')[1]['data']['login_status'])
 
     def test_risk_backoff_no_second_harvest(self):
         self.native.code = 400

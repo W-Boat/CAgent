@@ -27,4 +27,4 @@ finally:
 
 print('PRIVATE_NATIVE_USER_READY')
 if '--init-only' not in sys.argv:
-    os.execv(sys.executable, [sys.executable, '-m', 'uvicorn', 'web:app', '--host', '0.0.0.0', '--port', '8001', '--workers', '1'])
+    os.execv(sys.executable, [sys.executable, '-m', 'uvicorn', 'cagent_web:app', '--host', '0.0.0.0', '--port', '8001', '--workers', '1'])

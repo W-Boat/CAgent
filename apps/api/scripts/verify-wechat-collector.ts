@@ -4,12 +4,15 @@ import {createServer} from 'node:http'
 import {collectorStatus,collectorRequest,collectorQrImage,collectorCollection,collectionResult} from '../src/knowledge/wechat-collector'
 import {KnowledgeAdminService} from '../src/knowledge/knowledge-admin.service'
 const requests:string[]=[],image=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j3XcAAAAASUVORK5CYII=','base64')
+let expiredRead=true,writeAttempts=0
 const server=createServer(async(req,res)=>{
  const u=new URL(req.url!,'http://localhost');requests.push(u.pathname)
  if(u.pathname==='/static/wx_qrcode.png'){res.setHeader('content-type','image/png');res.end(image);return}
  res.setHeader('content-type','application/json')
  if(u.pathname.endsWith('/auth/login')){let raw='';for await(const chunk of req)raw+=chunk;const form=new URLSearchParams(raw);assert.equal(form.get('password'),'isolated-password');res.end(JSON.stringify({code:0,data:{access_token:'isolated-token',expires_in:3600}}));return}
  assert.equal(req.headers.authorization,'Bearer isolated-token')
+ if(u.pathname.endsWith('/retry-read')&&expiredRead){expiredRead=false;res.statusCode=401;res.end('{"code":1}');return}
+ if(u.pathname.endsWith('/never-replay')){writeAttempts++;res.statusCode=401;res.end('{"code":1}');return}
  const data=u.pathname.includes('/mps/update/')||u.pathname.includes('/mps/collection/')?{status:'RATE_LIMITED',collected:0,retryAfter:2000000000,token:'must-never-be-returned',cookie:'private'}:u.pathname.endsWith('/qr/status')?{login_status:true,qr_code:true,token:'must-never-be-returned'}:u.pathname.endsWith('/mps')?{list:[{id:'MP_WXS_1',mp_name:'校园通知'}],total:1}:{started:true}
  res.end(JSON.stringify({code:0,data}))
 })
@@ -18,6 +21,8 @@ async function main(){
  process.env.WECHAT_COLLECTOR_URL='http://127.0.0.1:'+address.port;process.env.WECHAT_COLLECTOR_USER='isolated';process.env.WECHAT_COLLECTOR_PASSWORD='isolated-password'
  assert.deepEqual(await collectorStatus(),{available:true,loggedIn:true,qrReady:true,engine:'WEMP',loginState:'',message:''})
  await collectorRequest('/auth/qr/code');assert.equal(requests.filter(p=>p.endsWith('/auth/login')).length,1)
+ await collectorRequest('/retry-read');assert.equal(requests.filter(p=>p.endsWith('/retry-read')).length,2);assert.equal(requests.filter(p=>p.endsWith('/auth/login')).length,2)
+ await assert.rejects(()=>collectorRequest('/never-replay','POST',{}));assert.equal(writeAttempts,1)
  assert((await collectorQrImage()).image.startsWith('data:image/png;base64,'))
  const service=new KnowledgeAdminService({} as any,{} as any,{} as any,{} as any,{} as any)
  // An administrator-supplied URL cannot receive the server's collector credential.

@@ -2,6 +2,7 @@ import {BadRequestException} from '@nestjs/common'
 import {createHash} from 'node:crypto'
 import {load} from 'cheerio'
 import {z} from 'zod'
+import {isVerificationPage} from './wechat-content'
 
 const endpoint=z.string().max(1000).refine(value=>{
   try{const u=new URL(value);return ['http:','https:'].includes(u.protocol)&&!u.username&&!u.password&&!u.hash&&![...u.searchParams.keys()].some(k=>/token|password|secret|^ak$|^key$/i.test(k))}catch{return false}
@@ -67,7 +68,9 @@ function date(value:unknown):string{
 }
 function normalizeArticle(input:any,account:string):WechatArticle|null{
   const url=articleUrl(String(input.url||input.link||'')),title=articleText(String(input.title||'')).slice(0,500)
-  const body=articleText(String(input.content||input.content_html||''))
+  const raw=String(input.content||input.content_html||'')
+  if(isVerificationPage(raw))return null
+  const body=articleText(raw)
   if(!url||!title||body.length<20)return null
   return {id:createHash('sha256').update(url.identity).digest('hex'),title,body,url:url.url,account:account.slice(0,120),published:date(input.publish_time||input.pubDate||input.published||input.updated)}
 }

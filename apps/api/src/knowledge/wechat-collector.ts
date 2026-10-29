@@ -26,13 +26,17 @@ export async function collectorToken(): Promise<string> {
   pending = request
   try { return await request } finally { if (pending === request) pending = undefined }
 }
-export async function collectorRequest(path: string, method = 'GET', body?: unknown) {
+export async function collectorRequest(path: string, method = 'GET', body?: unknown, retry = true): Promise<any> {
   const token = await collectorToken()
   const response = await fetch(collectorAddress() + '/api/v1/wx' + path, {
     method, headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body), redirect: 'error', signal: AbortSignal.timeout(25000)
   }).catch(() => { throw new BadRequestException('采集器暂时无法响应，请稍后重试') })
-  if (response.status === 401) cached = undefined
+  if (response.status === 401) {
+    if (cached?.token === token) cached = undefined
+    // Reads are safe to replay after refreshing the adapter token; never replay writes.
+    if (method === 'GET' && retry) return collectorRequest(path, method, body, false)
+  }
   const result = await response.json().catch(() => null)
   if (!response.ok || result?.code !== 0) throw new BadRequestException('采集器操作失败，请检查微信授权状态')
   return result.data

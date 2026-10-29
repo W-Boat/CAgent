@@ -6,6 +6,7 @@ COPY upstream/core/ ./core/
 COPY upstream/apis/ ./apis/
 COPY upstream/driver/ ./driver/
 COPY bootstrap-native.py ./cagent-bootstrap.py
+COPY cagent_content.py cagent_web.py verify-content.py ./
 ENV ENABLE_JOB=False GATHER.CONTENT_AUTO_CHECK=False AUTO_RELOAD=False \
     WEREAD_MP_MAX_PAGES=1 WEREAD_AUTO_ADD_TO_SHELF=False GATHER.CONTENT=False
 # Upstream main.py prints environment variables; start FastAPI directly.

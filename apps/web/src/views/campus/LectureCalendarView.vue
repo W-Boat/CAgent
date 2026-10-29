@@ -51,7 +51,7 @@ const data=ref<any>({counts:{all:0,upcoming:0,undated:0},items:[],sources:[],cam
 const q=ref(''),campus=ref(''),source=ref(''),kind=ref(''),scope=ref('all'),view=ref('calendar'),month=ref(today.slice(0,7)),selectedDate=ref(''),page=ref(1),busy=ref(false),error=ref('')
 const detailVisible=ref(false),detail=ref<any>(null),detailBusy=ref(false),detailError=ref('')
 const collectorVisible=ref(false),config=ref<any>(null),status=ref<any>({}),collectorError=ref(''),testSource=ref(''),testResult=ref<any>(null),saving=ref(false),testing=ref(false),queueing=ref(false),importing=ref(false),importProgress=ref(0),fileInput=ref<HTMLInputElement>()
-const kindLabels:Record<string,string>={preview:'活动预告',review:'活动回顾',info:'活动资料'},statusLabels:Record<string,string>={IDLE:'待启动',SYNCING:'后台采集中',SUCCESS:'采集完成',PARTIAL:'部分完成',FAILED:'未完成'}
+const kindLabels:Record<string,string>={preview:'活动预告',review:'活动回顾',info:'活动资料'},statusLabels:Record<string,string>={IDLE:'待启动',SYNCING:'后台采集中',SUCCESS:'采集完成',PARTIAL:'部分完成',BLOCKED:'信息源要求验证',FAILED:'未完成'}
 let serial=0,detailSerial=0,timer:ReturnType<typeof setTimeout>|undefined,poll:ReturnType<typeof setInterval>|undefined
 const formatStamp=(value:string)=>new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',dateStyle:'medium',timeStyle:'short'}).format(new Date(value))
 const cells=computed(()=>{

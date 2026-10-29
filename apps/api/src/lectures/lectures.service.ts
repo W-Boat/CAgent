@@ -96,9 +96,9 @@ export class LecturesService {
  private async collect(config:Awaited<ReturnType<LecturesService['config']>>){
   try{
    const base=await this.db.knowledgeBase.findUnique({where:{id:LECTURE_BASE}})
-   const result=await crawlLectures(config,false,undefined,Number((base?.lastSyncSummary as any)?.nextSource)||0),summary={scanned:result.scanned,collected:result.records.length,warnings:result.warnings,limited:result.limited,nextSource:result.nextSource,finishedAt:new Date().toISOString(),created:0,changed:0,skipped:0}
+   const result=await crawlLectures(config,false,undefined,Number((base?.lastSyncSummary as any)?.nextSource)||0),summary={scanned:result.scanned,collected:result.records.length,blocked:result.blocked,warnings:result.warnings,limited:result.limited,nextSource:result.nextSource,finishedAt:new Date().toISOString(),created:0,changed:0,skipped:0}
    if(result.records.length){const imported=await this.importRecords(result.records);Object.assign(summary,{created:imported.created,changed:imported.changed,skipped:imported.skipped})}
-   await this.db.knowledgeBase.updateMany({where:{id:LECTURE_BASE,kind:{not:'REMOVED'}},data:{syncStatus:!result.records.length?'FAILED':result.warnings.length?'PARTIAL':'SUCCESS',syncError:result.records.length?null:'未采集到有效文章，请先测试信息源；原有资料已保留',lastSyncSummary:summary,lastSyncAt:new Date()}})
+   await this.db.knowledgeBase.updateMany({where:{id:LECTURE_BASE,kind:{not:'REMOVED'}},data:{syncStatus:!result.records.length?(result.blocked?'BLOCKED':'FAILED'):result.warnings.length?'PARTIAL':'SUCCESS',syncError:result.records.length?null:result.blocked?'信息源要求访问验证，未导入验证页；原有资料已保留':'未采集到有效文章，请先测试信息源；原有资料已保留',lastSyncSummary:summary,lastSyncAt:new Date()}})
   }catch{
    await this.db.knowledgeBase.updateMany({where:{id:LECTURE_BASE,kind:{not:'REMOVED'}},data:{syncStatus:'FAILED',syncError:'采集或导入失败，已有资料保留，请检查信息源后重试',lastSyncSummary:{finishedAt:new Date().toISOString()}}});throw new Error('采集失败')
   }

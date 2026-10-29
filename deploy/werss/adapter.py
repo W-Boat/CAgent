@@ -13,9 +13,9 @@ from urllib.parse import quote, urlparse
 
 import requests
 from bs4 import BeautifulSoup
-from bridge import Bridge, Server, Quiet, article_address
+from bridge import Bridge, Server, Quiet, article_address, BodyVerification
 from service import SyncResult
-from wechat_mp_fetcher import Article, save_article, article_exists
+from wechat_mp_fetcher import Article, save_article, article_exists, AuthExpiredError, RiskControlError
 from wsgiref.simple_server import make_server
 
 
@@ -38,6 +38,12 @@ def clean_body(value):
     return str(soup) if len(soup.get_text(strip=True)) >= 20 else ''
 
 
+class NativeFailure(ValueError):
+    def __init__(self, code):
+        self.code = code
+        super().__init__('Native operation unavailable')
+
+
 class NativeClient:
     def __init__(self, origin=None):
         self.origin = origin or os.environ['WERSS_NATIVE_URL']
@@ -47,7 +53,7 @@ class NativeClient:
         self.token, self.expires = '', 0
         self.lock = threading.RLock()
 
-    def request(self, path, method='GET', data=None, timeout=20):
+    def request(self, path, method='GET', data=None, timeout=20, _retry=True):
         # One native administrative login; never retry a harvest automatically.
         with self.lock:
             if self.expires <= time.monotonic():
@@ -64,15 +70,24 @@ class NativeClient:
         r = requests.request(method, self.origin + '/api/v1/wx' + path,
                              headers={'Authorization': 'Bearer ' + token}, json=data,
                              timeout=timeout, allow_redirects=False)
-        if r.status_code == 401:
+        try:
+            result = r.json()
+        except ValueError:
+            raise ValueError('native response is not JSON') from None
+        auth_required = isinstance(result, dict) and isinstance(result.get('data'), dict) and result['data'].get('code') == 'AUTH_REQUIRED'
+        if r.status_code == 401 and not auth_required:
             self.expires = 0
+            if _retry and (method == 'GET' or path == '/weread/article-content'):
+                return self.request(path, method=method, data=data, timeout=timeout, _retry=False)
+        if isinstance(result, dict) and result.get('code') not in (None, 0):
+            return result
         r.raise_for_status()
-        return r.json()
+        return result
 
     def data(self, path, **kwargs):
         body = self.request(path, **kwargs)
         if body.get('code') != 0:
-            raise ValueError('native operation failed')
+            raise NativeFailure((body.get('data') or {}).get('code', body.get('code')))
         return body.get('data') or {}
 
     def image(self):
@@ -113,7 +128,9 @@ class WebLogin:
                 self.db.set_setting('auth_required', '0')
                 self.db.set_setting('web_login_pending', '0')
         message = str(native.get('msg', ''))
-        status = 'authorized' if self.credentials.status()['configured'] else 'expired' if '过期' in message else 'error' if native.get('data', {}).get('logicCode') == 'COOKIE_INVALID' else 'waiting'
+        pending = self.db.get_setting('web_login_pending') == '1'
+        failed = self.db.get_setting('auth_required') == '1'
+        status = 'expired' if '过期' in message else 'error' if native.get('data', {}).get('logicCode') == 'COOKIE_INVALID' else 'waiting' if pending else 'expired' if failed else 'authorized' if self.credentials.status()['configured'] else 'waiting'
         qr = ''
         if status == 'waiting' and native.get('code_url'):
             try:
@@ -176,6 +193,7 @@ class WebService:
 
 
 class WeRSSBridge(Bridge):
+    body_cooldown_key = 'weread_web_body_cooldown_until'
     def __init__(self, directory, client=None):
         super().__init__(directory)
         token_file = Path(directory) / 'api-token.txt'
@@ -191,11 +209,38 @@ class WeRSSBridge(Bridge):
         self.credentials = WebCredentials(self.native)
         self.login = WebLogin(self.native, self.credentials, self.db)
         self.service = WebService(self.db, self.native)
+        if self.db.get_setting('body_transport_version') != 'weread-web-v1':
+            for source in self.db.list_sources():
+                job = self.job(source.book_id)
+                if job.get('status') == 'CONTENT_BLOCKED':
+                    self.set_job(source.book_id, {**job, 'status':'INTERRUPTED', 'retryAfter':0})
+            self.db.set_setting('body_transport_version', 'weread-web-v1')
+
+    def body_attempt_key(self, article):
+        return 'weread-web:' + article.review_id
+
+    def fetch_body(self, article):
+        stored_id = article.review_id.removeprefix('WERSS:')
+        try:
+            result = self.native.data('/weread/article-content', method='POST',
+                data={'mp_id':article.book_id, 'article_id':stored_id}, timeout=45)
+            if result.get('mpId') != article.book_id or result.get('articleId') != stored_id:
+                raise ValueError('article identity mismatch')
+            body = clean_body(result.get('content', ''))
+            if not body:
+                raise BodyVerification('verified article body unavailable')
+            return body
+        except NativeFailure as exc:
+            if exc.code in ('AUTH_REQUIRED', -2012, 'missing_cookie'):
+                raise AuthExpiredError('WeRead login expired') from None
+            if exc.code in ('RATE_LIMITED', -2041, -2010, -2014, 429, 499):
+                raise RiskControlError('WeRead request limited') from None
+            raise BodyVerification('WeRead body unavailable') from None
 
     def collect(self, book_id):
         result = super().collect(book_id)
         if result['status'] == 'CONTENT_BLOCKED' and result.get('metadataCount', 0):
-            self.db.set_setting('body_cooldown_until', str(time.time()+21600))
+            self.db.set_setting(self.body_cooldown_key, str(time.time()+21600))
         return result
 
     def route(self, env):
@@ -204,6 +249,8 @@ class WeRSSBridge(Bridge):
             result['engine'] = 'WEMP'
         if env.get('PATH_INFO') == '/api/v1/wx/auth/qr/status' and status == 200:
             result['data']['engine'] = 'WEMP'
+            if result['data'].get('login_state') in ('waiting','expired','error'):
+                result['data']['login_status'] = False
         return status, result
 
     def __call__(self, env, respond):

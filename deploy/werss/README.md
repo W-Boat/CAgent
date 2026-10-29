@@ -10,7 +10,7 @@
 - `cagent-wechat`：CAgent 兼容 API，后台引擎标识 `WEMP`；管理员接口返回经过裁剪的状态，不返回原生 Cookie、ticket 或登录结果。
 - 两个服务只接入应用内部 Docker 网络，均不映射公网端口。持久卷分别保存原生授权和适配器订阅/缓存。
 
-首次拉取原生镜像需预留至少 8 GB 空间；现有固定镜像可以直接复用。不要将旧版本补丁挂载到未知新版镜像上。CAgent 扩展代码是 `adapter.py` 和 `bootstrap-native.py`，未修改四份上游模块。初始化只创建专用账号，已有账号密码不匹配时拒绝覆盖；不创建默认弱密码账号，也不打印环境变量。
+首次拉取原生镜像需预留至少 8 GB 空间；现有固定镜像可以直接复用。不要将旧版本补丁挂载到未知新版镜像上。CAgent 扩展代码包括 `adapter.py`、`bootstrap-native.py`、`cagent_web.py` 和 `cagent_content.py`，未修改四份上游模块。初始化只创建专用账号，已有账号密码不匹配时拒绝覆盖；不创建默认弱密码账号，也不打印环境变量。
 
 ## 全新部署
 
@@ -52,6 +52,10 @@ docker exec -w /app cagent-wechat python /tmp/migrate-sources.py /tmp/legacy.db 
 
 **登录成功、文章标题可读、正文可读是三个不同状态。** 原生接口有可能返回「采集成功」但正文为空；适配器检查正文，摘要不会代替正文导入。
 
+正文使用已授权的微信读书 Web 接口，按原生文章 ID 重建 reviewId，并同时校验公众号与文章所属关系。已有目录但正文为空的文章也能补采；成功后写入原生 RSS 和适配器两层缓存。旧公开页面通道的失败冷却不阻止新通道首次尝试，后续仍遵守上游授权、限流和验证状态。
+
+保存过 Cookie 不代表授权仍然有效。实际读取返回授权失效时，任务标记 `AUTH_REQUIRED`、暂停自动重试；重新生成二维码时，即使仍有旧 Cookie，也显示等待扫码。扫码确认后才能恢复采集。普通内部 API 令牌过期可自动刷新一次，采集写操作不自动重放。
+
 | 状态 | 含义 |
 | --- | --- |
 | `SUCCEEDED` | 有可用正文，可以同步 |
@@ -69,4 +73,4 @@ docker exec -w /app cagent-wechat python /tmp/migrate-sources.py /tmp/legacy.db 
 docker compose --env-file .env -f deploy/werss/compose.yml run --rm --no-deps --entrypoint python werss-adapter /app/verify-adapter.py
 ```
 
-上述 8 项为隔离协议/存储测试，不是微信采集成功率测试。真实采集应分别核对目录数量、正文数量和知识库草稿数量。
+`verify-adapter.py` 包含 11 项隔离协议/存储测试；原生镜像内可运行 `python verify-content.py` 的 6 项正文范围、缓存、验证页和授权测试。这些不是微信采集成功率测试。真实采集应分别核对目录数量、正文数量和知识库草稿数量。授权有效也可能受到微信验证或访问限制，不能保证历史文章完整采集。

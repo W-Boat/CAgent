@@ -29,7 +29,7 @@ try{
     if(u.searchParams.get('date'))rows=rows.filter(l=>l.event_date===u.searchParams.get('date'))
     data={enabled:true,today:'2026-10-29',updatedAt:'2026-10-29T08:00:00Z',items:rows.map(({excerpt,...l})=>l),total:rows.length,page:1,pageSize:20,days,counts:{all:3,upcoming:1,undated:1},sources:[{id:'sg',name:'政府管理学院'},{id:'law',name:'法学院'}],campuses:['良乡校区','望京校区','未注明'],types:['讲座','学术沙龙']}
    }else if(p==='/api/lectures/collector/config'){if(request.method()==='PUT')config=request.postDataJSON();data=config}
-   else if(p==='/api/lectures/collector/status')data={enabled:true,status:'SUCCESS',summary:{collected:3,created:3,warnings:[]}}
+   else if(p==='/api/lectures/collector/status')data={enabled:true,status:'BLOCKED',error:'信息源要求访问验证，原有资料已保留',summary:{collected:0,blocked:1,created:0,warnings:[]}}
    else if(p==='/api/lectures/collector/test')data={records:[fixtures[0]],warnings:[],scanned:1}
    else if(p==='/api/lectures/collector/run')data={queued:true}
    else if(p==='/api/lectures/import')data={created:request.postDataJSON().records.length,changed:0,skipped:0}
@@ -54,6 +54,7 @@ try{
   await page.screenshot({path:resolve(out,admin?'admin-mobile-dark.png':'student-mobile-dark.png'),fullPage:true})
   if(admin){
    await page.setViewportSize({width:1280,height:1000});await page.getByRole('button',{name:'采集与导入',exact:true}).click();await page.getByText('公开网页讲座采集',{exact:true}).waitFor()
+   await page.getByText('任务状态：信息源要求验证',{exact:true}).waitFor();assert(await page.getByText('信息源要求访问验证，原有资料已保留',{exact:true}).isVisible())
    await page.getByRole('button',{name:'保存配置',exact:true}).click();await page.waitForTimeout(150);assert(calls.some(c=>c.method==='PUT'&&c.path.endsWith('/collector/config')))
    await page.getByRole('button',{name:'测试采集',exact:true}).click();await page.getByText('测试结果：1 篇有效文章',{exact:true}).waitFor()
    await page.locator('input[type=file]').setInputFiles({name:'fixture.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify({lectures:fixtures}))});await page.waitForTimeout(400)
