@@ -79,7 +79,7 @@ def article_content(req: ContentRequest, user=Depends(get_current_user_or_ak)):
         if not content:
             return error_response(422, '正文需要验证或不可读取', {'code':'CONTENT_BLOCKED'})
     except WereadMPAPIError as exc:
-        code = 'AUTH_REQUIRED' if exc.code in (-2012,'missing_cookie') else 'RATE_LIMITED' if exc.code in (-2041,-2010,-2014,429,499) else 'CONTENT_BLOCKED'
+        code = 'AUTH_REQUIRED' if exc.code in (-2012,'missing_cookie') else 'RATE_LIMITED' if exc.code in (-2041,-2010,-2014,429,499) else 'ARTICLE_UNAVAILABLE' if exc.code == 'invalid_content' else 'CONTENT_BLOCKED'
         return error_response(400, '微信读书正文暂不可读取', {'code':code})
     except Exception:
         return error_response(503, '微信读书正文请求未完成', {'code':'TEMPORARY_ERROR'})
