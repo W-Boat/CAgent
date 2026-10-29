@@ -136,7 +136,6 @@ export const menuGroups: MenuGroup[] = [
       { title:"批量对话测试",path:"/admin/evaluations",icon:"Document",permission:"conversation:read" },
       { title: "会话审计", path: "/admin/conversations", icon: "ChatLineSquare", permission: "conversation:read" },
       { title: "消息审计", path: "/admin/messages", icon: "Document", permission: "message:read" },
-      { title: "体验版反馈", path: "/admin/trial", icon: "TrialFeedback", permission: "dashboard:read" }
     ]
   },
   {
@@ -159,13 +158,7 @@ export const routes: RouteRecordRaw[] = [
   {path:'/timetable',redirect:'/campus?collection=collective-timetable',meta:{studentAllowed:true}},
   {path:'/browser',redirect:'/campus?collection=collective-timetable',meta:{studentAllowed:true}},
   {path:'/map',name:'campus-map',component:()=>import('@/views/campus/CampusMapView.vue'),meta:{public:true,studentAllowed:true,title:'校园地图'}},
-  {
-    // 体验版：免登录、无历史、锁定 deepseek-chat、每 IP 每日 5 轮
-    path: "/test",
-    name: "trial",
-    component: () => import("@/views/trial/TrialView.vue"),
-    meta: { public: true, title: "体验版" }
-  },
+  {path:'/test',redirect:'/chat'},
   {
     path: "/login",
     name: "login",
@@ -346,12 +339,7 @@ export const routes: RouteRecordRaw[] = [
         meta: { title: "系统设置", permission: "setting:read", keepAlive: true }
       },
       {path:"admin/evaluations",name:"admin-evaluations",component:()=>import("@/views/admin/EvaluationsView.vue"),meta:{title:"批量对话测试",permission:"conversation:read"}},
-      {
-        path: "admin/trial",
-        name: "admin-trial",
-        component: () => import("@/views/admin/TrialAdminView.vue"),
-        meta: { title: "体验版反馈", permission: "dashboard:read" }
-      },
+      {path:'admin/trial',redirect:'/dashboard'},
       {
         path: "admin/campus-runs",
         name: "admin-campus-runs",

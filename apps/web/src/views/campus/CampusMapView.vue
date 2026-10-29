@@ -16,7 +16,7 @@ import {useRoute,useRouter} from 'vue-router'
 import CampusMapCanvas from '@/components/maps/CampusMapCanvas.vue'
 import {campuses,kinds,campusById} from '@/components/maps/map-data'
 const route=useRoute(),router=useRouter(),search=ref(''),kind=ref(''),copied=ref(false)
-const auth=useAuthStore(),chatPath=computed(()=>auth.user?(auth.isStudent?'/student':'/chat'):'/test')
+const auth=useAuthStore(),chatPath=computed(()=>auth.user?(auth.isStudent?'/student':'/chat'):'/login')
 const campus=computed(()=>campusById(route.query.campus)||campuses[0])
 const selectedId=computed(()=>campus.value.places.some(p=>p.id===route.query.place)?String(route.query.place):'')
 const selectedPlace=computed(()=>campus.value.places.find(p=>p.id===selectedId.value))

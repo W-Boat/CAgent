@@ -204,7 +204,6 @@ function onEdit(key: "email" | "password") {
           {{ auth.loading ? "正在登录…" : "登录" }}
         </button>
       </form>
-      <router-link class="trial-entry nx-btn nx-btn-secondary nx-btn-block" to="/test">先体验校园助手 <span aria-hidden="true">↗</span></router-link>
 
       <p v-if="auth.settings?.allow_registration" class="foot nx-muted">
         还没有账号？
@@ -440,5 +439,5 @@ function onEdit(key: "email" | "password") {
 </style>
 
 <style scoped>
-.auth-shell{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:72px;width:100%;max-width:1060px;margin:auto;align-items:center}.auth-intro{container-type:inline-size;padding:24px 0;color:var(--nx-text)}.auth-intro h2{font-size:clamp(38px,calc(10vw - 47px),72px);font-size:clamp(38px,12cqw,72px);line-height:1.35;font-weight:600;letter-spacing:0;margin:0}.trial-entry{margin-top:12px;text-decoration:none;gap:12px}.auth-card{background:transparent;border:0;border-radius:0;padding:34px 30px;box-shadow:none}.auth-page{padding:48px 32px}.brand-sub{line-height:1.7}.form-title{font-size:22px}.form-sub{line-height:1.7;font-size:13px}.form .nx-input{min-height:46px}.submit,.trial-entry{min-height:46px}.pwd-toggle{min-width:40px;min-height:40px}@media(max-width:850px){.auth-shell{grid-template-columns:1fr;max-width:420px;gap:0}.auth-intro{display:none}.auth-page{padding:24px 16px}.auth-card{padding:28px 24px}}@media(max-width:380px){.auth-card{padding:24px 18px}}
+.auth-shell{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:72px;width:100%;max-width:1060px;margin:auto;align-items:center}.auth-intro{container-type:inline-size;padding:24px 0;color:var(--nx-text)}.auth-intro h2{font-size:clamp(38px,calc(10vw - 47px),72px);font-size:clamp(38px,12cqw,72px);line-height:1.35;font-weight:600;letter-spacing:0;margin:0}.auth-card{background:transparent;border:0;border-radius:0;padding:34px 30px;box-shadow:none}.auth-page{padding:48px 32px}.brand-sub{line-height:1.7}.form-title{font-size:22px}.form-sub{line-height:1.7;font-size:13px}.form .nx-input{min-height:46px}.submit{min-height:46px}.pwd-toggle{min-width:40px;min-height:40px}@media(max-width:850px){.auth-shell{grid-template-columns:1fr;max-width:420px;gap:0}.auth-intro{display:none}.auth-page{padding:24px 16px}.auth-card{padding:28px 24px}}@media(max-width:380px){.auth-card{padding:24px 18px}}
 </style>
