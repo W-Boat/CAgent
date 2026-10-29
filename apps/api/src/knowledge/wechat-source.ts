@@ -132,7 +132,7 @@ export async function readWechatSource(config:WechatConnection,secret:string,out
   }finally{clearTimeout(timer);outerSignal?.removeEventListener('abort',abort)}
 }
 
-/** Read-only probe: one latest article per configured account, never imports. */
+/** Read-only probe: at most three recent articles per account, never imports. */
 export async function testWechatSource(config:WechatConnection,secret:string){
   const started=Date.now(),signal=AbortSignal.timeout(40000),accounts: {id:string;name:string;status:string;scanned:number;skipped:number;message:string;sample?:{title:string;url:string;published:string;excerpt:string}}[]=[]
   let totalAccounts=0
@@ -141,14 +141,14 @@ export async function testWechatSource(config:WechatConnection,secret:string){
     let cursor=0;const selected=[...new Set(config.accountIds)]
     await Promise.all(Array.from({length:Math.min(3,selected.length)},async()=>{
       while(cursor<selected.length){const id=selected[cursor++],name=config.accountNames[id]||available.items.find(a=>a.id===id)?.name||id
-        try{const result=await readWechatSource({...config,accountIds:[id],maxArticles:1},secret,signal),article=result.articles[0]
-          accounts.push({id,name,status:article?'READY':result.skipped?'NO_BODY':'EMPTY',scanned:result.scanned,skipped:result.skipped,message:article?'原文链接和正文可读取':result.skipped?'最新文章缺少有效链接或完整正文':'采集器尚无文章。请先采集最新文章，完成后再测试正文',...(article?{sample:{title:article.title,url:article.url,published:article.published,excerpt:article.body.slice(0,600)}}:{})})
+        try{const result=await readWechatSource({...config,accountIds:[id],maxArticles:Math.min(3,config.maxArticles)},secret,signal),article=result.articles[0]
+          accounts.push({id,name,status:article?'READY':result.skipped?'NO_BODY':'EMPTY',scanned:result.scanned,skipped:result.skipped,message:article?(result.skipped?'部分样例正文可读取，已跳过不可读文章':'原文链接和正文可读取'):result.skipped?'最近样例缺少有效链接或完整正文':'采集器尚无文章。请先采集最新文章，完成后再测试正文',...(article?{sample:{title:article.title,url:article.url,published:article.published,excerpt:article.body.slice(0,600)}}:{})})
         }catch(error){accounts.push({id,name,status:'FAILED',scanned:0,skipped:0,message:error instanceof BadRequestException?error.message:'正文测试失败，请检查采集器状态'})}
       }
     }))
     accounts.sort((a,b)=>selected.indexOf(a.id)-selected.indexOf(b.id))
   }else{
-    const result=await readWechatSource({...config,maxArticles:1},secret,signal),article=result.articles[0]
+    const result=await readWechatSource({...config,maxArticles:Math.min(3,config.maxArticles)},secret,signal),article=result.articles[0]
     accounts.push({id:'rss',name:config.accountName||article?.account||'RSS / Atom',status:article?'READY':result.skipped?'NO_BODY':'EMPTY',scanned:result.scanned,skipped:result.skipped,message:article?'订阅正文和原文链接可读取':result.skipped?'订阅仅含摘要或缺少原文，不能导入':'订阅没有可读取的文章',...(article?{sample:{title:article.title,url:article.url,published:article.published,excerpt:article.body.slice(0,600)}}:{})})
   }
   return {connected:true,mode:config.mode,totalAccounts,testedAccounts:accounts.length,ready:accounts.filter(a=>a.status==='READY').length,elapsedMs:Date.now()-started,checkedAt:new Date().toISOString(),accounts,tip:accounts.length?'测试只读取最新样例，不保存、同步或发布知识条目':'连接与列表读取成功，请选择公众号后测试正文'}

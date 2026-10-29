@@ -37,7 +37,11 @@ class Tests(unittest.TestCase):
         self.req = c.ContentRequest(mp_id='MP_WXS_123', article_id=self.article.id)
 
     def invoke(self, body=BODY, cookie=True):
-        wx = SimpleNamespace(_load_weread_auth=lambda:None, _weread_cookies={'fixture':'private'} if cookie else {}, _get_mp_content=lambda _:body)
+        def fetch(_):
+            if isinstance(body, Exception):
+                raise body
+            return body
+        wx = SimpleNamespace(_load_weread_auth=lambda:None, _weread_cookies={'fixture':'private'} if cookie else {}, _get_mp_content=fetch)
         with patch.object(c.DB, 'get_session', return_value=self.session), patch.object(c, 'MpsWereadMP', return_value=wx):
             return c.article_content(self.req, user=object())
 
@@ -69,6 +73,10 @@ class Tests(unittest.TestCase):
         self.assertEqual(self.invoke(cookie=False)['data']['code'],'AUTH_REQUIRED')
         self.session.subscribed=False
         self.assertEqual(self.invoke()['data']['code'],'NOT_SUBSCRIBED')
+
+    def test_unsupported_format_is_not_global_verification(self):
+        self.assertEqual(self.invoke(c.WereadMPAPIError('invalid_content','fixture'))['data']['code'],'ARTICLE_UNAVAILABLE')
+        self.assertFalse(self.session.committed)
 
     def test_sanitization(self):
         result=c.valid_body(BODY+'<script>private</script><img src="https://invalid"><a onclick="x()" href="javascript:x()">链接</a>')

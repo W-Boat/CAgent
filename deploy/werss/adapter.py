@@ -193,7 +193,7 @@ class WebService:
 
 
 class WeRSSBridge(Bridge):
-    body_cooldown_key = 'weread_web_body_cooldown_until'
+    body_cooldown_key = 'weread_web_body_cooldown_until_v2'
     def __init__(self, directory, client=None):
         super().__init__(directory)
         token_file = Path(directory) / 'api-token.txt'
@@ -209,12 +209,12 @@ class WeRSSBridge(Bridge):
         self.credentials = WebCredentials(self.native)
         self.login = WebLogin(self.native, self.credentials, self.db)
         self.service = WebService(self.db, self.native)
-        if self.db.get_setting('body_transport_version') != 'weread-web-v1':
+        if self.db.get_setting('body_transport_version') != 'weread-web-v2':
             for source in self.db.list_sources():
                 job = self.job(source.book_id)
                 if job.get('status') == 'CONTENT_BLOCKED':
                     self.set_job(source.book_id, {**job, 'status':'INTERRUPTED', 'retryAfter':0})
-            self.db.set_setting('body_transport_version', 'weread-web-v1')
+            self.db.set_setting('body_transport_version', 'weread-web-v2')
 
     def body_attempt_key(self, article):
         return 'weread-web:' + article.review_id
@@ -235,13 +235,10 @@ class WeRSSBridge(Bridge):
                 raise AuthExpiredError('WeRead login expired') from None
             if exc.code in ('RATE_LIMITED', -2041, -2010, -2014, 429, 499):
                 raise RiskControlError('WeRead request limited') from None
+            if exc.code in ('ARTICLE_UNAVAILABLE', 'INVALID_ARTICLE', 'NOT_SUBSCRIBED'):
+                # A single unsupported article is not an account-wide verification block.
+                raise ValueError('Article body format unavailable') from None
             raise BodyVerification('WeRead body unavailable') from None
-
-    def collect(self, book_id):
-        result = super().collect(book_id)
-        if result['status'] == 'CONTENT_BLOCKED' and result.get('metadataCount', 0):
-            self.db.set_setting(self.body_cooldown_key, str(time.time()+21600))
-        return result
 
     def route(self, env):
         status, result = super().route(env)

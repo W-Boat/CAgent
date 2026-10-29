@@ -67,10 +67,12 @@ docker exec -w /app cagent-wechat python /tmp/migrate-sources.py /tmp/legacy.db 
 
 正文被拦截时，至少 6 小时内不重复请求正文；不会自动绕过微信验证。列表接口不可用时，上游可能只返回最新一篇，不能承诺历史文章完整回补。失败后不重复调用模型，也不把空白正文或验证页加入 RAG。
 
+特殊版式无法解析属于单篇失败，记录该篇的重试时间，继续读取其他文章；不触发账号共享的正文验证冷却。后台“测试正文”最多检查最近 3 篇，最新一篇不可读但其他样例可读时报告部分可用；正式同步仍只导入已经缓存的完整正文。
+
 验证命令：
 
 ```bash
 docker compose --env-file .env -f deploy/werss/compose.yml run --rm --no-deps --entrypoint python werss-adapter /app/verify-adapter.py
 ```
 
-`verify-adapter.py` 包含 11 项隔离协议/存储测试；原生镜像内可运行 `python verify-content.py` 的 6 项正文范围、缓存、验证页和授权测试。这些不是微信采集成功率测试。真实采集应分别核对目录数量、正文数量和知识库草稿数量。授权有效也可能受到微信验证或访问限制，不能保证历史文章完整采集。
+`verify-adapter.py` 包含 12 项隔离协议/存储测试；原生镜像内可运行 `python verify-content.py` 的 7 项正文范围、缓存、验证页和授权测试。这些不是微信采集成功率测试。真实采集应分别核对目录数量、正文数量和知识库草稿数量。授权有效也可能受到微信验证或访问限制，不能保证历史文章完整采集。

@@ -124,6 +124,22 @@ class Tests(unittest.TestCase):
         self.native.confirmed = True
         self.assertTrue(self.call('/auth/qr/status')[1]['data']['login_status'])
 
+    def test_unsupported_article_does_not_block_other_articles(self):
+        self.native.body = ''
+        original = self.native.data
+        def fetch(path, **kwargs):
+            if path == '/weread/article-content':
+                raise NativeFailure('ARTICLE_UNAVAILABLE')
+            return original(path, **kwargs)
+        with patch.object(self.native, 'data', side_effect=fetch):
+            self.assertEqual(self.app.collect('MP_WXS_1')['status'], 'CONTENT_BLOCKED')
+        self.assertEqual(self.app.db.get_setting(self.app.body_cooldown_key, '0'), '0')
+        # Another article can still be read through the same account immediately.
+        from dataclasses import replace
+        article = replace(self.app.db.get_articles('MP_WXS_1')[0], review_id='WERSS:two')
+        self.native.body = '<p>另一篇有正常排版的学校通知应当能够继续读取，不能被首篇格式失败阻断。</p>'
+        self.assertIn('正常排版', self.app.fetch_body(article))
+
     def test_risk_backoff_no_second_harvest(self):
         self.native.code = 400
         self.assertEqual(self.app.collect('MP_WXS_1')['status'], 'RATE_LIMITED')
