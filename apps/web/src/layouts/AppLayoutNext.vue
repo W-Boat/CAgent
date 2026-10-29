@@ -1,9 +1,19 @@
 <template>
   <div class="nx-root nx-shell">
     <!-- 手机端抽屉遮罩 -->
-    <div v-if="isMobile && mobileOpen" class="nx-backdrop" @click="mobileOpen = false"></div>
+    <div v-if="isMobile && mobileOpen" class="nx-backdrop" aria-hidden="true" @click="closeMobileDrawer"></div>
 
-    <aside class="nx-sidebar" :class="{ rail: collapsed, open: isMobile && mobileOpen }">
+    <aside
+      id="nx-sidebar"
+      ref="drawerRef"
+      class="nx-sidebar"
+      :class="{ rail: collapsed, open: isMobile && mobileOpen }"
+      :role="isMobile && mobileOpen ? 'dialog' : undefined"
+      :aria-label="isMobile && mobileOpen ? '导航菜单' : undefined"
+      :aria-modal="isMobile && mobileOpen ? 'true' : undefined"
+      :aria-hidden="isMobile && !mobileOpen ? 'true' : undefined"
+      :inert="isMobile && !mobileOpen"
+    >
       <div class="nx-brand" @click="router.push(auth.homePath)">
         <!-- CAgentMark 继承 currentColor：新版用主文字色做单色品牌印，扁平克制 -->
         <CAgentMark :size="26" class="nx-brand-logo" />
@@ -11,31 +21,63 @@
           <span class="nx-brand-name">{{ auth.siteName }}</span>
           <span class="nx-brand-sub">校园智能体平台</span>
         </span>
+        <button
+          v-if="isMobile"
+          ref="drawerCloseButton"
+          type="button"
+          class="nx-icon-btn nx-drawer-close"
+          aria-label="关闭导航菜单"
+          @click.stop="closeMobileDrawer"
+        >
+          <el-icon :size="18"><component :is="'Close'" /></el-icon>
+        </button>
       </div>
 
       <nav ref="navRef" class="nx-nav">
-        <template v-for="group in visibleGroups" :key="group.title">
-          <div v-if="showText" class="nx-nav-group">{{ group.title }}</div>
-          <div v-else class="nx-nav-divider"></div>
+        <template v-for="group in visibleGroups" :key="group.id">
+          <button
+            type="button"
+            class="nx-nav-group-toggle"
+            :class="{ active: group.id === activeGroupId }"
+            :title="showText ? undefined : groupTooltip(group)"
+            :aria-label="groupLabel(group)"
+            :aria-expanded="!isGroupCollapsed(group.id)"
+            :aria-controls="`nx-nav-items-${group.id}`"
+            :aria-current="group.id === activeGroupId ? 'true' : undefined"
+            @click="toggleGroup(group.id)"
+          >
+            <span v-if="showText" class="nx-nav-group-title">{{ group.title }}</span>
+            <span v-else class="nx-sr-only">{{ group.title }}</span>
+            <span v-if="showText && group.id === activeGroupId" class="nx-nav-current">当前</span>
+            <span class="nx-nav-group-chevron" :class="{ collapsed: isGroupCollapsed(group.id) }" aria-hidden="true"></span>
+          </button>
 
           <!--
             图标栏（折叠 / ≤1024px）下文字被隐藏，靠原生 title 提示目标；
             展开态文字可见，再加 title 只会和文本重复。
           -->
-          <router-link
-            v-for="item in group.items"
-            :key="item.path"
-            :to="item.path"
-            class="nx-nav-item"
-            :class="{ active: isActive(item.path) }"
-            :title="showText ? undefined : item.title"
-            @mouseenter="warm(item.path)"
-            @focus="warm(item.path)"
-            @touchstart.passive="warm(item.path)"
+          <div
+            :id="`nx-nav-items-${group.id}`"
+            v-show="!isGroupCollapsed(group.id)"
+            class="nx-nav-items"
           >
-            <el-icon class="nx-nav-icon"><component :is="item.icon" /></el-icon>
-            <span v-if="showText" class="nx-nav-text">{{ item.title }}</span>
-          </router-link>
+            <router-link
+              v-for="item in group.items"
+              :key="item.path"
+              :to="item.path"
+              class="nx-nav-item"
+              :class="{ active: isActive(item.path) }"
+              :title="showText ? undefined : itemTooltip(group, item)"
+              :aria-current="isActive(item.path) ? 'page' : undefined"
+              @mouseenter="warm(item.path)"
+              @focus="warm(item.path)"
+              @touchstart.passive="warm(item.path)"
+            >
+              <el-icon class="nx-nav-icon"><component :is="item.icon" /></el-icon>
+              <span v-if="showText" class="nx-nav-text">{{ item.title }}</span>
+              <span v-if="showText && item.badge" class="nx-nav-badge">{{ item.badge }}</span>
+            </router-link>
+          </div>
         </template>
       </nav>
 
@@ -58,9 +100,12 @@
       <header class="nx-topbar">
         <button
           v-if="isMobile"
+          ref="drawerTrigger"
           type="button"
           class="nx-icon-btn nx-burger"
-          aria-label="打开菜单"
+          :aria-label="mobileOpen ? '关闭菜单' : '打开菜单'"
+          :aria-expanded="mobileOpen"
+          aria-controls="nx-sidebar"
           @click="mobileOpen = !mobileOpen"
         >
           <el-icon :size="18"><component :is="mobileOpen ? 'Close' : 'Expand'" /></el-icon>
@@ -148,7 +193,12 @@
         </div>
       </header>
 
-      <main class="nx-content" :class="{ 'nx-content-full': isFullscreen }">
+      <main
+        class="nx-content"
+        :class="{ 'nx-content-full': isFullscreen }"
+        :inert="isMobile && mobileOpen"
+        :aria-hidden="isMobile && mobileOpen ? 'true' : undefined"
+      >
         <router-view v-slot="{ Component }">
           <!--
             切页淡入，刻意**不用** mode="out-in"（与经典外壳同一决策）：
@@ -188,6 +238,7 @@ const router = useRouter()
 
 /** 折叠状态持久化键：存 "1"/"0"，读写都容忍 localStorage 不可用 */
 const SIDEBAR_COLLAPSED_KEY = "cagent-sidebar-collapsed"
+const SIDEBAR_GROUPS_KEY = "cagent-sidebar-collapsed-groups"
 
 function readCollapsed(): boolean {
   if (typeof window === "undefined") return false
@@ -202,6 +253,27 @@ function readCollapsed(): boolean {
 /** 桌面端折叠成图标栏：启动时恢复上次的选择 */
 const collapsed = ref(readCollapsed())
 
+function readCollapsedGroups(): Set<string> {
+  if (typeof window === "undefined") return new Set()
+  try {
+    const value = JSON.parse(window.localStorage.getItem(SIDEBAR_GROUPS_KEY) || "[]")
+    return new Set(Array.isArray(value) ? value.filter((id): id is string => typeof id === "string") : [])
+  } catch {
+    return new Set()
+  }
+}
+
+/** 每组的收起状态单独保存；新组默认展开，路由所在组会自动展开。 */
+const collapsedGroupIds = ref(readCollapsedGroups())
+
+watch(collapsedGroupIds, (ids) => {
+  try {
+    window.localStorage.setItem(SIDEBAR_GROUPS_KEY, JSON.stringify([...ids]))
+  } catch {
+    /* 存储不可用时仍可在当前会话中折叠分组 */
+  }
+})
+
 watch(collapsed, (value) => {
   try {
     window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, value ? "1" : "0")
@@ -212,6 +284,13 @@ watch(collapsed, (value) => {
 
 /** 手机端抽屉打开状态：默认收起 */
 const mobileOpen = ref(false)
+const drawerRef = ref<HTMLElement>()
+const drawerCloseButton = ref<HTMLButtonElement>()
+const drawerTrigger = ref<HTMLButtonElement>()
+
+function closeMobileDrawer() {
+  mobileOpen.value = false
+}
 
 /**
  * 需要缓存的视图组件名，从路由 meta.keepAlive 自动派生。
@@ -238,6 +317,73 @@ function syncMobile(matches: boolean) {
 let stopMobileWatch: (() => void) | undefined
 let stopRailWatch: (() => void) | undefined
 
+let drawerReturnFocus: HTMLElement | null = null
+
+function drawerFocusableElements(): HTMLElement[] {
+  const drawer = drawerRef.value
+  if (!drawer) return []
+  return Array.from(
+    drawer.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )
+  ).filter((element) => element.getClientRects().length > 0 && !element.closest('[inert]'))
+}
+
+function handleDrawerKeydown(event: KeyboardEvent) {
+  if (!isMobile.value || !mobileOpen.value) return
+  if (event.key === "Escape") {
+    event.preventDefault()
+    closeMobileDrawer()
+    return
+  }
+  if (event.key !== "Tab") return
+
+  const focusable = drawerFocusableElements()
+  const first = focusable[0]
+  const last = focusable[focusable.length - 1]
+  if (!first || !last) {
+    event.preventDefault()
+    drawerCloseButton.value?.focus()
+    return
+  }
+
+  const active = document.activeElement
+  if (!drawerRef.value?.contains(active)) {
+    event.preventDefault()
+    ;(event.shiftKey ? last : first).focus()
+  } else if (event.shiftKey && active === first) {
+    event.preventDefault()
+    last.focus()
+  } else if (!event.shiftKey && active === last) {
+    event.preventDefault()
+    first.focus()
+  }
+}
+
+watch(
+  () => isMobile.value && mobileOpen.value,
+  (open) => {
+    if (open) {
+      const active = document.activeElement
+      drawerReturnFocus = active instanceof HTMLElement ? active : drawerTrigger.value ?? null
+      document.addEventListener("keydown", handleDrawerKeydown, true)
+      void nextTick(() => {
+        ;(drawerCloseButton.value ?? drawerFocusableElements()[0])?.focus()
+      })
+      return
+    }
+
+    document.removeEventListener("keydown", handleDrawerKeydown, true)
+    const returnTarget = drawerReturnFocus
+    drawerReturnFocus = null
+    if (returnTarget) {
+      void nextTick(() => {
+        if (returnTarget.isConnected) returnTarget.focus()
+      })
+    }
+  }
+)
+
 onMounted(() => {
   /*
    * 开发模式自检：keepAlive 路由的组件名是否匹配。
@@ -260,6 +406,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   stopMobileWatch?.()
   stopRailWatch?.()
+  document.removeEventListener("keydown", handleDrawerKeydown, true)
 })
 
 // 手机端点菜单跳转后自动收起抽屉
@@ -272,23 +419,6 @@ watch(
 
 /** 菜单滚动容器：用于定位当前激活项 */
 const navRef = ref<HTMLElement>()
-
-/*
- * 路由变化后把激活项滚入视野：菜单溢出出现滚动时，
- * 深链进入的用户不用自己翻找「我在哪」。
- * block: "nearest" 保证激活项本就可见时不产生任何滚动抖动；
- * immediate 覆盖刷新后深链直达的场景（首次执行时 nav 尚未挂载，
- * nextTick 会等到 DOM 就绪）。
- */
-watch(
-  () => route.path,
-  () => {
-    void nextTick(() => {
-      navRef.value?.querySelector(".nx-nav-item.active")?.scrollIntoView({ block: "nearest" })
-    })
-  },
-  { immediate: true }
-)
 
 /*
  * 移动端抽屉接管返回键：抽屉展开时按返回键应关抽屉而不是退出页面。
@@ -320,6 +450,50 @@ const visibleGroups = computed(() =>
       )
     }))
     .filter((group) => group.items.length > 0)
+)
+
+const activeGroupId = computed(() =>
+  visibleGroups.value.find((group) => group.items.some((item) => isActive(item.path)))?.id
+)
+
+function isGroupCollapsed(groupId: string): boolean {
+  return collapsedGroupIds.value.has(groupId)
+}
+
+function setGroupCollapsed(groupId: string, collapsed: boolean) {
+  const next = new Set(collapsedGroupIds.value)
+  if (collapsed) next.add(groupId)
+  else next.delete(groupId)
+  collapsedGroupIds.value = next
+}
+
+function toggleGroup(groupId: string) {
+  setGroupCollapsed(groupId, !isGroupCollapsed(groupId))
+}
+
+function groupLabel(group: (typeof visibleGroups.value)[number]): string {
+  const state = isGroupCollapsed(group.id) ? "已收起，点击展开" : "已展开，点击收起"
+  return `${group.title}${group.id === activeGroupId.value ? "，当前路由所在分组" : ""}，${state}`
+}
+
+function groupTooltip(group: (typeof visibleGroups.value)[number]): string {
+  return `${group.title}${group.id === activeGroupId.value ? " · 当前路由" : ""} · ${isGroupCollapsed(group.id) ? "展开分组" : "收起分组"}`
+}
+
+function itemTooltip(group: (typeof visibleGroups.value)[number], item: (typeof group.items)[number]): string {
+  return [item.title, item.badge, group.title].filter(Boolean).join(" · ")
+}
+
+/* 深链/刷新时展开当前组；窄栏下组按钮仍可操作，当前项 tooltip 也标明组名。 */
+watch(
+  [() => route.path, activeGroupId],
+  ([, groupId]) => {
+    if (groupId && isGroupCollapsed(groupId)) setGroupCollapsed(groupId, false)
+    void nextTick(() => {
+      navRef.value?.querySelector(".nx-nav-item.active")?.scrollIntoView({ block: "nearest" })
+    })
+  },
+  { immediate: true }
 )
 
 /** 是否渲染侧栏文字：手机抽屉永远显示；桌面在折叠态与 ≤1024px 图标栏下隐藏 */
@@ -414,6 +588,11 @@ async function onUserCommand(command: string) {
   color: var(--nx-accent);
 }
 
+.nx-drawer-close {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
 .nx-brand-text {
   display: flex;
   flex-direction: column;
@@ -443,21 +622,102 @@ async function onUserCommand(command: string) {
   padding: 10px 12px 16px;
 }
 
-/* 组标题：上下多留一点，分组之间更透气 */
-.nx-nav-group {
-  padding: 16px 10px 8px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+/* 可折叠分组；图标栏也保留一个小型可操作控件。 */
+.nx-nav-group-toggle {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  min-height: 30px;
+  align-items: center;
+  gap: 8px;
+  margin: 5px 0 2px;
+  padding: 4px 10px;
   color: var(--nx-text-3);
-  white-space: nowrap;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
-.nx-nav-divider {
+.nx-nav-group-toggle:hover {
+  color: var(--nx-text-2);
+  background: var(--nx-surface-hover);
+}
+
+.nx-nav-group-toggle:focus-visible {
+  outline: none;
+  box-shadow: var(--nx-focus-ring);
+}
+
+.nx-nav-group-toggle.active {
+  color: var(--nx-accent);
+}
+
+.nx-nav-group-title {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.nx-nav-current {
+  flex: 0 0 auto;
+  padding: 1px 5px;
+  border: 1px solid var(--nx-accent-border);
+  border-radius: 999px;
+  color: var(--nx-accent);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.4;
+}
+
+.nx-nav-group-chevron {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg) translateY(-2px);
+  transition: transform 0.15s ease;
+}
+
+.nx-nav-group-chevron.collapsed {
+  transform: rotate(-45deg);
+}
+
+.nx-nav-items {
+  min-width: 0;
+}
+
+.nx-nav-badge {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 1px 5px;
+  border: 1px solid var(--nx-accent-border);
+  border-radius: 999px;
+  color: var(--nx-accent);
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.nx-sr-only {
+  position: absolute;
+  width: 1px;
   height: 1px;
-  margin: 14px 10px;
-  background: var(--nx-border);
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* 菜单行：36px 高、8px 圆角、扁平灰悬停、accent 浅底激活 */
@@ -466,6 +726,7 @@ async function onUserCommand(command: string) {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
   height: 36px;
   padding: 0 10px;
   margin-bottom: 2px;
@@ -520,6 +781,8 @@ async function onUserCommand(command: string) {
 }
 
 .nx-nav-text {
+  min-width: 0;
+  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -714,6 +977,17 @@ async function onUserCommand(command: string) {
   padding: 0;
 }
 
+.nx-sidebar.rail .nx-nav-group-toggle {
+  min-height: 24px;
+  justify-content: center;
+  margin: 7px 0 4px;
+  padding: 4px 0;
+}
+
+.nx-sidebar.rail .nx-nav-current {
+  display: none;
+}
+
 .nx-sidebar.rail .nx-nav-item::before {
   left: -8px;
 }
@@ -750,7 +1024,8 @@ async function onUserCommand(command: string) {
 
   .nx-brand-text,
   .nx-nav-text,
-  .nx-nav-group,
+  .nx-nav-group-title,
+  .nx-nav-current,
   .nx-user-meta {
     display: none;
   }
@@ -820,7 +1095,8 @@ async function onUserCommand(command: string) {
 
   .nx-brand-text,
   .nx-nav-text,
-  .nx-nav-group {
+  .nx-nav-group-title,
+  .nx-nav-current {
     display: flex;
   }
 
@@ -832,13 +1108,37 @@ async function onUserCommand(command: string) {
     padding: 10px 12px 16px;
   }
 
+  .nx-sidebar.rail .nx-nav {
+    padding: 10px 12px 16px;
+  }
+
   .nx-nav-item {
+    justify-content: flex-start;
+    padding: 0 10px;
+  }
+
+  .nx-sidebar.rail .nx-nav-item {
     justify-content: flex-start;
     padding: 0 10px;
   }
 
   .nx-nav-item::before {
     left: -12px;
+  }
+
+  .nx-sidebar.rail .nx-nav-item::before {
+    left: -12px;
+  }
+
+  .nx-sidebar.rail .nx-nav-group-toggle {
+    min-height: 30px;
+    justify-content: flex-start;
+    margin: 5px 0 2px;
+    padding: 4px 10px;
+  }
+
+  .nx-sidebar.rail .nx-nav-current {
+    display: inline-flex;
   }
 
   /* 抽屉模式下不需要折叠按钮 */
@@ -869,6 +1169,16 @@ async function onUserCommand(command: string) {
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .nx-sidebar,
+  .nx-nav-group-toggle,
+  .nx-nav-group-chevron,
+  .nx-nav-item,
+  .nx-nav-item::before {
+    transition-duration: 0.01ms !important;
+  }
+}
+
 /* ---------- 手机窄屏（≤640px） ---------- */
 @media (max-width: 640px) {
   /*
@@ -885,6 +1195,12 @@ async function onUserCommand(command: string) {
 @media (hover: none) and (pointer: coarse) {
   .nx-nav-item {
     min-height: 44px;
+  }
+}
+
+@media (min-width: 769px) {
+  .nx-drawer-close {
+    display: none;
   }
 }
 </style>

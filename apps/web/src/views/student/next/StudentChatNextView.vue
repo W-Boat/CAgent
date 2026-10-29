@@ -1506,6 +1506,7 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="st-user">
+        <RouterLink to="/lectures" class="nx-icon-btn" aria-label="讲座日历" title="讲座日历"><el-icon><Calendar/></el-icon></RouterLink>
         <RouterLink v-if="display.mapEntry" to="/map" class="nx-icon-btn" aria-label="校园地图" title="校园地图">⌖</RouterLink>
         <div class="nx-avatar st-user-avatar">
           <img v-if="isImageUrl(auth.user?.avatar)" :src="auth.user!.avatar!" alt="" />

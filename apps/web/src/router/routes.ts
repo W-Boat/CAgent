@@ -85,49 +85,71 @@ export interface MenuItem {
 }
 
 export interface MenuGroup {
+  id: string
   title: string
   items: MenuItem[]
 }
 
 export const menuGroups: MenuGroup[] = [
   {
+    id: "workspace",
     title: "工作区",
     items: [
-      { title: "工作台", path: "/dashboard", icon: "Odometer" },
+      { title: "工作台", path: "/dashboard", icon: "Odometer", permission: "dashboard:read" },
       { title: "智能对话", path: "/chat", icon: "ChatDotRound" },
-      // 用 Guide 而不是 MapLocation：校园导览是「一路指引」，不是地图打点
-      { title: "校园导览", path: "/campus", icon: "Guide", permission: "campus:read" },
-      { title: "技能中心", path: "/skills", icon: "MagicStick" },
       { title: "智能体广场", path: "/agents", icon: "Promotion" },
       { title: "我的用量", path: "/usage", icon: "Histogram" },
-      { title: "我的记忆", path: "/memory", icon: "Memo", feature:"memory" }
+      { title: "我的记忆", path: "/memory", icon: "Memo", feature:"memory", badge: "Beta" }
     ]
   },
   {
-    title: "后台管理",
+    id: "knowledge-guide",
+    title: "知识与导览",
     items: [
-      { title: "数据看板", path: "/admin/dashboard", icon: "DataBoard", permission: "dashboard:read" },
-      { title: "用户管理", path: "/admin/users", icon: "User", permission: "user:read" },
-      { title: "角色权限", path: "/admin/roles", icon: "Key", permission: "role:read" },
-      { title: "模型供应商", path: "/admin/providers", icon: "Connection", permission: "provider:read" },
-      { title: "模型配置", path: "/admin/models", icon: "Cpu", permission: "model:read" },
+      // 用 Guide 而不是 MapLocation：校园导览是「一路指引」，不是地图打点
+      { title: "校园导览", path: "/campus", icon: "Guide", permission: "campus:read" },
+      { title: "讲座日历", path: "/lectures", icon: "Calendar" },
+      { title: '知识库管理', path: '/admin/knowledge', icon: 'Collection', permission: 'campus:admin' },
+      { title: "导览记录", path: "/admin/campus-runs", icon: "Compass", permission: "campus:read" },
+      { title: "导览统计", path: "/admin/campus-stats", icon: "TrendCharts", permission: "campus:admin" }
+    ]
+  },
+  {
+    id: "agents-capabilities",
+    title: "智能体与能力",
+    items: [
+      { title: "技能中心", path: "/skills", icon: "MagicStick" },
       { title: "智能体管理", path: "/admin/agents", icon: "Avatar", permission: "agent:read" },
       // 技能用 SetUp（扳手）区分于「收藏」含义的 Star
       { title: "技能管理", path: "/admin/skills", icon: "SetUp", permission: "skill:read" },
       { title: "技能运行记录", path: "/admin/skill-runs", icon: "Tickets", permission: "skill:read" },
-      { title: "导览记录", path: "/admin/campus-runs", icon: "Compass", permission: "campus:read" },
-      { title: "导览统计", path: "/admin/campus-stats", icon: "TrendCharts", permission: "campus:admin" },
-      { title: '知识库管理', path: '/admin/knowledge', icon: 'Collection', permission: 'campus:admin' },
-      { title: '界面实验室', path: '/admin/presentation', icon: 'PresentationLab', permission: 'campus:admin' },
-      { title: '反馈与学习', path: '/admin/learning', icon: 'Reading', permission: 'learning:read' },
+      { title: "模型供应商", path: "/admin/providers", icon: "Connection", permission: "provider:read" },
+      { title: "模型配置", path: "/admin/models", icon: "Cpu", permission: "model:read" },
+      { title: '界面实验室', path: '/admin/presentation', icon: 'PresentationLab', permission: 'campus:admin' }
+    ]
+  },
+  {
+    id: "evaluation-feedback",
+    title: "评测与反馈",
+    items: [
+      { title: '反馈与学习', path: '/admin/learning', icon: 'Reading', permission: 'learning:read', badge: 'Beta' },
       { title:"批量对话测试",path:"/admin/evaluations",icon:"Document",permission:"conversation:read" },
       { title: "会话审计", path: "/admin/conversations", icon: "ChatLineSquare", permission: "conversation:read" },
       { title: "消息审计", path: "/admin/messages", icon: "Document", permission: "message:read" },
+      { title: "体验版反馈", path: "/admin/trial", icon: "TrialFeedback", permission: "dashboard:read" }
+    ]
+  },
+  {
+    id: "platform-management",
+    title: "平台管理",
+    items: [
+      { title: "数据看板", path: "/admin/dashboard", icon: "DataBoard", permission: "dashboard:read" },
+      { title: "用户管理", path: "/admin/users", icon: "User", permission: "user:read" },
+      { title: "角色权限", path: "/admin/roles", icon: "Key", permission: "role:read" },
       { title: "用量统计", path: "/admin/usage", icon: "Histogram", permission: "usage:read:all" },
       { title: "配额管理", path: "/admin/quotas", icon: "Coin", permission: "quota:read" },
       { title: "审计日志", path: "/admin/audit", icon: "List", permission: "audit:read" },
-      { title: "系统设置", path: "/admin/settings", icon: "Setting", permission: "setting:read" },
-      { title: "体验版反馈", path: "/admin/trial", icon: "TrialFeedback", permission: "dashboard:read" }
+      { title: "系统设置", path: "/admin/settings", icon: "Setting", permission: "setting:read" }
     ]
   }
 ]
@@ -178,6 +200,7 @@ export const routes: RouteRecordRaw[] = [
     component: () => import("@/layouts/AppLayoutNext.vue"),
     redirect: "/dashboard",
     children: [
+      {path:'lectures',name:'lecture-calendar',component:()=>import('@/views/campus/LectureCalendarView.vue'),meta:{title:'讲座与日历',studentAllowed:true}},
       {path:'admin/knowledge',name:'admin-knowledge',component:()=>import('@/views/admin/KnowledgeAdminView.vue'),meta:{title:'知识库管理',permission:'campus:admin',keepAlive:true}},
       {path:'admin/presentation',name:'admin-presentation',component:()=>import('@/views/admin/PresentationPlayground.vue'),meta:{title:'界面实验室',permission:'campus:admin'}},
       {path:'admin/learning',name:'admin-learning',component:()=>import('@/views/admin/LearningAdminView.vue'),meta:{title:'反馈与学习',permission:'learning:read',keepAlive:true}},
@@ -185,7 +208,7 @@ export const routes: RouteRecordRaw[] = [
         path: "dashboard",
         name: "dashboard",
         component: () => import("@/views/next/WorkbenchNextView.vue"),
-        meta: { title: "工作台", keepAlive: true }
+        meta: { title: "工作台", permission: "dashboard:read", keepAlive: true }
       },
       {
         path: "chat/:id?",

@@ -5,6 +5,8 @@ export interface UiBase {id:string;sourceRefs?:string[]}
 export interface UiText extends UiBase {type:'text';role?:'heading'|'paragraph'|'caption';content:string}
 export interface UiImage extends UiBase {type:'image';url:string;alt:string;caption?:string}
 export interface UiInfo extends UiBase {type:'info_card';title:string;summary?:string;badge?:string;metrics?:{label:string;value:string}[];children?:UiNode[]}
+export interface UiService extends UiBase {type:'service_card';title:string;mode:'online'|'offline';summary?:string;location?:string;contact?:string;actionLabel?:string;action?:UiAction}
+export interface UiKeyValues extends UiBase {type:'key_values';title:string;items:{label:string;value:string}[];note?:string}
 export interface UiGroup extends UiBase {type:'card_group';layout:'stack'|'grid';children:UiNode[]}
 export interface UiTable extends UiBase {type:'table';title:string;columns:string[];rows:(string|number)[][]}
 export interface UiChart extends UiBase {type:'chart';title:string;chartType:'bar'|'line';labels:string[];series:{name:string;values:number[]}[];unit?:string}
@@ -17,7 +19,7 @@ export interface UiTimeline extends UiBase {type:'timeline';title:string;note?:s
 export interface UiNotice extends UiBase {type:'notice';title:string;body:string;tone?:'info'|'warning'|'success'}
 export interface UiFaq extends UiBase {type:'faq';title:string;items:{question:string;answer:string}[]}
 export interface UiOptions extends UiBase {type:'options';title:string;intro?:string;multiple?:boolean;submitLabel?:string;options:{label:string;value:string;desc?:string}[]}
-export type UiNode = UiText|UiImage|UiInfo|UiGroup|UiTable|UiChart|UiButton|UiForm|UiSteps|UiChecklist|UiTimeline|UiNotice|UiFaq|UiOptions
+export type UiNode = UiText|UiImage|UiInfo|UiService|UiKeyValues|UiGroup|UiTable|UiChart|UiButton|UiForm|UiSteps|UiChecklist|UiTimeline|UiNotice|UiFaq|UiOptions
 export interface UiPage extends UiBase {type:'page';version:typeof UI_VERSION;layout:'stack'|'grid';children:UiNode[];fallback:string}
 
 /** This registry is shared by prompt generation, validation and the Playground. */
@@ -25,6 +27,8 @@ export const UI_COMPONENTS = {
  text:{name:'文字',purpose:'简答、解释和结论',fields:['role','content'],required:['content'],shape:'content:string, role?:heading|paragraph|caption'},
  image:{name:'图片',purpose:'有真实图片地址的资料',fields:['url','alt','caption'],required:['url','alt'],shape:'url:https地址, alt:string, caption?:string'},
  info_card:{name:'信息卡',purpose:'一个实体、方案或业务事项',fields:['title','summary','badge','metrics','children'],required:['title'],shape:'title:string, summary?:string, badge?:string, metrics?:[{label:string,value:string}], children?:组件[]'},
+ service_card:{name:'服务入口',purpose:'明确区分线上入口和线下窗口，保留地点、联系方式与操作',fields:['title','mode','summary','location','contact','actionLabel','action'],required:['title','mode'],shape:'title:string, mode:online|offline, summary?:string, location?:string, contact?:string, actionLabel?:string, action?:{kind:ask,message:string}|{kind:link,url:http(s)地址}；action与actionLabel同时提供或同时省略'},
+ key_values:{name:'关键信息',purpose:'同一事项的地点、时间、对象等字段，按标签和值逐项扫读',fields:['title','items','note'],required:['title','items'],shape:'title:string, items:[{label:string,value:string}], note?:string；1到12项，不虚构字段内容'},
  card_group:{name:'卡片组',purpose:'并列选择或分组说明',fields:['layout','children'],required:['layout','children'],shape:'layout:stack|grid, children:组件[]'},
  table:{name:'表格',purpose:'同一维度的多对象对比',fields:['title','columns','rows'],required:['title','columns','rows'],shape:'title:string, columns:string[], rows:(string|number)[][]，每行等长'},
  chart:{name:'图表',purpose:'证据完整的数值趋势或数量对比',fields:['title','chartType','labels','series','unit'],required:['title','chartType','labels','series'],shape:'title:string, chartType:bar|line, labels:string[], series:[{name:string,values:number[]}], unit?:string；数值与labels等长'},
@@ -83,6 +87,14 @@ export function validateUiPage(value:unknown,options:{sourceIds?:ReadonlySet<str
     text(v.title,p+'.title');if(v.summary!==undefined)text(v.summary,p+'.summary',1500);if(v.badge!==undefined)text(v.badge,p+'.badge',40)
     if(v.metrics!==undefined){if(!list(v.metrics,1,8))fail(p+'.metrics','需要 1–8 项');else for(const m of v.metrics){if(!object(m)){fail(p,'指标对象无效');continue}fields(m,['label','value'],['label','value'],p);text(m.label,p,80);text(m.value,p,160)}}
     if(v.children!==undefined)children(v.children,p+'.children',depth+1);break
+   case 'service_card':
+    text(v.title,p+'.title');if(!['online','offline'].includes(String(v.mode)))fail(p+'.mode','办理方式需要 online 或 offline')
+    if(v.summary!==undefined)text(v.summary,p+'.summary',1500);if(v.location!==undefined)text(v.location,p+'.location',300);if(v.contact!==undefined)text(v.contact,p+'.contact',300)
+    if((v.action===undefined)!==(v.actionLabel===undefined))fail(p+'.action','操作与操作文案需要同时提供')
+    if(v.action!==undefined)action(v.action,p+'.action');if(v.actionLabel!==undefined)text(v.actionLabel,p+'.actionLabel',80);break
+   case 'key_values':
+    text(v.title,p+'.title');if(v.note!==undefined)text(v.note,p+'.note',1000)
+    if(!list(v.items,1,12))fail(p+'.items','需要 1到12 项');else for(const item of v.items){if(!object(item)){fail(p+'.items','需要字段对象');continue}fields(item,['label','value'],['label','value'],p+'.items');text(item.label,p+'.items.label',80);text(item.value,p+'.items.value',1500)}break
    case 'card_group':if(!['stack','grid'].includes(String(v.layout)))fail(p,'布局无效');children(v.children,p+'.children',depth+1);break
    case 'table':
     text(v.title,p+'.title');if(!list(v.columns,1,8)||!v.columns.every(x=>short(x,100)))fail(p+'.columns','需要 1–8 个标题')
@@ -147,6 +159,8 @@ export function uiContentText(value:unknown,max=4000):string {
    case 'text':add(v.content);break
    case 'image':add(v.alt);add(v.caption);add(v.url);break
    case 'info_card':add(v.title);add(v.badge);add(v.summary);if(Array.isArray(v.metrics))for(const m of v.metrics.slice(0,8))if(object(m))add(String(m.label||'')+'：'+String(m.value||''));break
+   case 'service_card':add(v.title);add(v.mode==='online'?'线上办理':v.mode==='offline'?'线下办理':undefined);add(v.summary);add(v.location);add(v.contact);add(v.actionLabel);if(object(v.action))add(v.action.kind==='link'?v.action.url:v.action.message);break
+   case 'key_values':add(v.title);if(Array.isArray(v.items))for(const item of v.items.slice(0,12))if(object(item))add(String(item.label||'')+'：'+String(item.value||''));add(v.note);break
    case 'table':add(v.title);if(Array.isArray(v.columns))add(v.columns.slice(0,8).join(' | '));if(Array.isArray(v.rows))for(const row of v.rows.slice(0,40))if(Array.isArray(row))add(row.slice(0,8).join(' | '));break
    case 'chart':add(v.title);if(Array.isArray(v.labels)&&Array.isArray(v.series))for(const s of v.series.slice(0,3))if(object(s)&&Array.isArray(s.values))add(String(s.name||'')+'：'+v.labels.slice(0,24).map((label,i)=>String(label)+' '+String(s.values instanceof Array?s.values[i]:'' )+String(v.unit||'')).join('；'));break
    case 'button':add(v.label);if(object(v.action))add(v.action.kind==='link'?v.action.url:v.action.message);break

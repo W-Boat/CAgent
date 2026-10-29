@@ -256,19 +256,21 @@ export class CampusGuideService implements OnApplicationBootstrap {
   /** Compact, permission-scoped navigation; expose categories without dumping documents. */
   async catalogBlock(options:RetrievalOptions={},budgetTokens=550):Promise<string> {
     const groups=new Map<string,Set<string>>()
+    const managedLabels=new Map<string,string>()
     for(const row of (await this.retrievalIndex(options)).rows) {
       const m=metadata(row)
       if((m.agentId && m.agentId!==options.agentId) || (options.collection && m.collection!==options.collection)
         || (options.managedOnly && !String(m.collection).startsWith('base:')))continue
       const topics=groups.get(m.collection) || new Set<string>()
+      if(String(m.collection).startsWith('base:') && typeof row.cat==='string')managedLabels.set(m.collection,row.cat)
       const path=m.sectionPath || []
-      if(path.length>=2)topics.add(path.slice(0,2).join(' / '))
+      if(path.length>=2)topics.add(String(m.collection).startsWith('base:')?path.slice(1,3).join(' / '):path.slice(0,2).join(' / '))
       groups.set(m.collection,topics)
     }
     const labels:Record<string,string>={'collective-timetable':'集体课表',maps:'校园地图',portal:'校园门户',services:'一站式服务',matters:'办理事项',courses:'课程测评',takeout:'外卖经验',survival:'生活经验',handbook:'学生生活手册',freshman:'新生指南'}
     let text='【可查询的知识分类】分类目录只用于选库，不是问题答案。检索传核心主题词；概况、名单、数量先查章节概览，再查具体条目。手册名单不等于现行完整名单。\n'
     for(const [collection,topics] of [...groups].sort(([a],[b])=>a==='handbook'?-1:b==='handbook'?1:a.localeCompare(b))) {
-      const line=`${collection}（${labels[collection] || collection}）${topics.size?'：'+[...topics].slice(0,16).join('；'):''}\n`
+      const line=`${collection}（${labels[collection] || managedLabels.get(collection) || collection}）${topics.size?'：'+[...topics].slice(0,16).join('；'):''}\n`
       if(estimateTokens(text+line)<=budgetTokens)text+=line
     }
     return text

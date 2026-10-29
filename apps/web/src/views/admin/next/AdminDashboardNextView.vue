@@ -3,10 +3,11 @@
     <!-- 头部：区间切换 + 刷新 -->
     <header class="nx-head">
       <div class="nx-head-text">
-        <h1 class="nx-h1">数据看板</h1>
-        <p class="nx-muted">平台整体运行状况 · 数据实时统计</p>
+        <h1 class="nx-h1">{{ title }}</h1>
+        <p class="nx-muted">全平台统计 · 覆盖所有用户的会话、消息及模型用量</p>
       </div>
       <div class="nx-head-actions">
+        <slot name="actions" />
         <div class="nx-seg" role="group" aria-label="统计区间">
           <button
             v-for="d in DAYS_OPTIONS"
@@ -41,7 +42,7 @@
 
     <!-- 加载失败：给重试入口 -->
     <div v-else-if="!summary" class="nx-notice nx-error">
-      看板数据加载失败
+      {{ title }}数据加载失败
       <button type="button" class="nx-link-btn" @click="reload">重试</button>
     </div>
 
@@ -193,6 +194,7 @@ import { useKeepAliveChartResize, useKeepAliveRefresh } from "@/utils/keep-alive
  * 不声明的话缓存会静默失效：切走再回来仍会重建组件、重新拉数据。
  */
 defineOptions({ name: "admin-dashboard" })
+const props = withDefaults(defineProps<{ title?: string }>(), { title: "数据看板" })
 
 const theme = useThemeStore()
 const ui = useUiStore()
@@ -284,7 +286,7 @@ const coreTiles = computed<Tile[]>(() => [
   },
   {
     key: "costMonth",
-    label: "本月费用",
+    label: "近 30 天费用",
     value: formatCost(summary.value?.usage.costMonthUsd),
     icon: "Coin",
     hint: "按模型单价估算"
@@ -548,7 +550,7 @@ async function loadAll() {
     rankings.value = r
     activity.value = a
   } catch (error) {
-    toastError(error, "看板数据加载失败")
+    toastError(error, props.title + "数据加载失败")
   } finally {
     loading.value = false
   }

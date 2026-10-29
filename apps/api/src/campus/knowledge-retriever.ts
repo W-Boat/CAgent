@@ -101,11 +101,16 @@ export class KnowledgeRetriever {
     const subject = query.replace(/可以线上办吗|能不能|怎么弄|怎么办|线上|线下|办理|申请|请问|帮我|需要|材料|哪些|什么|在哪|哪里|电话|地址|周末|这个|那个|那|多久|多少钱|要带|吗|呢|行|能|办|去|带|的|\s|[\p{P}]/gu, '')
     if (!inherited && (!subject || /^(你好|您好|在吗|谢谢|谢谢你|好的|好|ok)$/i.test(normalize(query)))) return {query,resolvedQuery,anchors:[],hits:[]}
     const q = normalize(resolvedQuery)
-    const wantsCollective=collectiveIntent(resolvedQuery),hasCollective=this.rows.some(r=>metadata(r).collection===COURSE_COLLECTION)
+    // Mentioning a timetable while asking about navigation/comparison is not a request
+    // to enumerate courses. Explicit collection/managed scopes always take precedence.
+    const timetableNavigation=/(?:日程.*(?:课表|课程安排)|(?:课表|课程安排).*日程|课表.*(?:区别|一回事)|(?:课表|课程安排).{0,8}(?:入口|怎么查|如何查|哪里看|哪里查|从哪查))/.test(resolvedQuery)
+    const wantsCollective=collectiveIntent(resolvedQuery)&&!timetableNavigation
+    const restrictToCourses=wantsCollective&&!options.managedOnly&&(!options.collection||options.collection===COURSE_COLLECTION)
+      &&this.rows.some(r=>{const m=metadata(r);return m.collection===COURSE_COLLECTION&&(!m.agentId||m.agentId===options.agentId)})
     const eligible = (i:number) => {
       const m = metadata(this.rows[i])
       return (!m.agentId || m.agentId === options.agentId) && (!options.collection || m.collection === options.collection)
-        && (!wantsCollective||!hasCollective||m.collection===COURSE_COLLECTION)
+        && (!restrictToCourses||m.collection===COURSE_COLLECTION)
         && (m.collection!==COURSE_COLLECTION||matchesCourseConstraints(this.rows[i].extra?.courseCatalog,resolvedQuery))
         && (!options.topic || (m.sectionPath || []).some((s:string)=>normalize(s)===normalize(options.topic)))
         && (!options.managedOnly || String(m.collection).startsWith('base:'))

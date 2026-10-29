@@ -8,6 +8,7 @@ import {parseKeywordRule,matchesKeywordRule,isSupportUrgent} from './keyword-rul
 import {embeddedSourceWhere,sourceDefinition,CONTEST_SQLITE,CONTEST_MARKDOWN,LEGACY_SOURCE} from './embedded-knowledge'
 import {foodSource,foodItem,dinnerEligible,mealName,type FoodItem} from './food-catalog'
 import {defaultShortcuts,shortcutBindingsSchema,shortcutSettingPrefix} from './knowledge-shortcuts'
+import {managedTaxonomy} from './managed-taxonomy'
 
 export interface EntryInput {baseId:string; title:string; question?:string; answer:string; aliases?:string[]; url?:string;
   mode?:string; status?:string; priority?:number; source?:string; sourceMessageId?:string}
@@ -137,7 +138,7 @@ export class KnowledgeStoreService {
       return parts.map((detail,i) => ({id:`managed:${e.id}:${i}`,externalId:-(parseInt(createHash('sha256').update(e.id+':'+i).digest('hex').slice(0,7),16)+1),
         title:e.title, url:e.url, cat:e.base.name, type:'知识', source:e.source || e.base.name, summaryShort:detail, detail,
         searchText:[e.title,e.question,e.summary,...(e.aliases as string[]),detail].join(' ').toLowerCase(),
-        detailStatus:'basic', verifiedAt:e.updatedAt.toISOString(), extra:{kb:{collection:`base:${e.baseId}`,parent:e.id,
+        detailStatus:'basic', verifiedAt:e.updatedAt.toISOString(), extra:{kb:{...managedTaxonomy(e),collection:`base:${e.baseId}`,parent:e.id,
           file:e.base.name, locator:e.externalKey || e.id, trust:(e.aiReview as any)?.method==='AI'&&e.aiReviewStatus==='APPROVED'?'ai_reviewed':'reviewed', agentId:e.base.agentId, aliases:[e.question,...(e.aliases as string[])],
           entryKind:e.url ? 'source' : 'none', mode:e.mode, relations:[]}}}))
     })

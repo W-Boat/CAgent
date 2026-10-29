@@ -172,7 +172,7 @@ export function parseCardSegments(text: string,cache?:CardBlockCache): Segment[]
      * 但**不要**提前渲染：选项卡渲染一半会被点击，产生错误的提交内容。
      */
     if (!closed) {
-      if(language==='json'&&!/"type"\s*:\s*"(?:page|form|table|chart|info_card|card_group|button|image|text|steps|checklist|timeline|notice|faq|options)"/.test(body.join('\n')))buffer.push(...lines.slice(start,i))
+      if(language==='json'&&!/"type"\s*:\s*"(?:page|form|table|chart|info_card|service_card|key_values|card_group|button|image|text|steps|checklist|timeline|notice|faq|options)"/.test(body.join('\n')))buffer.push(...lines.slice(start,i))
       else {flushMarkdown();out.push({ kind: "pending",text:body.join('\n') })}
       continue
     }
@@ -202,7 +202,7 @@ export function parseCardSegments(text: string,cache?:CardBlockCache): Segment[]
         out.push({ kind: "broken", text: raw })
       }
     } catch {
-      if(language==='json'&&!/"type"\s*:\s*"(?:page|form|table|chart|info_card|card_group|button|image|text|steps|checklist|timeline|notice|faq|options)"/.test(raw)){buffer.push(...lines.slice(start,i));continue}
+      if(language==='json'&&!/"type"\s*:\s*"(?:page|form|table|chart|info_card|service_card|key_values|card_group|button|image|text|steps|checklist|timeline|notice|faq|options)"/.test(raw)){buffer.push(...lines.slice(start,i));continue}
       /*
        * 模型偶尔会在 JSON 里写注释或漏逗号。这里**不尝试修复** ——
        * 自动修复会掩盖问题，还可能把内容改成模型本意之外的东西。

@@ -25,6 +25,7 @@ import { LearningModule } from "./learning/learning.module"
 import { MemoryModule } from "./memory/memory.module"
 import { ToolsModule } from "./tools/tools.module"
 import { KnowledgeAdminModule } from './knowledge/knowledge-admin.module'
+import {LecturesModule} from './lectures/lectures.module'
 
 @Module({
   imports: [
@@ -50,7 +51,8 @@ import { KnowledgeAdminModule } from './knowledge/knowledge-admin.module'
     LearningModule,
     MemoryModule,
     ToolsModule,
-    KnowledgeAdminModule
+    KnowledgeAdminModule,
+    LecturesModule
   ],
   providers: [
     // 全局鉴权：未标记 @Public 的接口都需要登录

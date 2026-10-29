@@ -8,6 +8,12 @@
       <dl v-if="node.metrics" class="aui-metrics"><div v-for="(metric,i) in node.metrics" :key="i"><dt>{{ metric.label }}</dt><dd>{{ metric.value }}</dd></div></dl>
       <div v-if="node.children" class="aui-layout aui-stack aui-inner"><AgentUiNode v-for="child in node.children" :key="child.id" :node="child" :disabled="disabled" :scope="scope" :state-key="stateKey" @ask="$emit('ask',$event)"/></div>
     </article>
+    <AgentUiService v-else-if="node.type==='service_card'" :node="node" :disabled="disabled" @ask="$emit('ask',$event)"/>
+    <section v-else-if="node.type==='key_values'" class="aui-key-values" :aria-labelledby="scope+'-'+node.id+'-title'">
+      <h4 :id="scope+'-'+node.id+'-title'">{{ node.title }}</h4>
+      <dl><div v-for="(item,i) in node.items" :key="i"><dt>{{ item.label }}</dt><dd>{{ item.value }}</dd></div></dl>
+      <p v-if="node.note" class="aui-key-note">{{ node.note }}</p>
+    </section>
     <div v-else-if="node.type==='card_group'" class="aui-layout" :class="'aui-'+node.layout"><AgentUiNode v-for="child in node.children" :key="child.id" :node="child" :disabled="disabled" :scope="scope" :state-key="stateKey" @ask="$emit('ask',$event)"/></div>
     <div v-else-if="node.type==='table'" class="aui-panel"><div class="aui-panel-title">{{ node.title }}</div><div class="aui-table-scroll" tabindex="0" :aria-label="node.title+'，可横向滚动'"><table><caption class="aui-sr">{{ node.title }}</caption><thead><tr><th v-for="(column,i) in node.columns" :key="i" scope="col">{{ column }}</th></tr></thead><tbody><tr v-for="(row,i) in node.rows" :key="i"><td v-for="(cell,j) in row" :key="j">{{ cell }}</td></tr></tbody></table></div></div>
     <AgentUiChart v-else-if="node.type==='chart'" :node="node"/>
@@ -31,6 +37,7 @@ import type {UiNode} from '@/utils/agent-ui'
 import AgentUiChart from './AgentUiChart.vue'
 import AgentUiWorkflow from './AgentUiWorkflow.vue'
 import AgentUiOptions from './AgentUiOptions.vue'
+import AgentUiService from './AgentUiService.vue'
 const props=defineProps<{node:UiNode;disabled?:boolean;scope:string;stateKey?:string}>(),emit=defineEmits<{(e:'ask',message:string):void}>()
 const imageFailed=ref(false),values=reactive<Record<string,string|number>>({}),formError=ref('')
 function askAction(){if(!props.disabled&&props.node.type==='button'&&props.node.action.kind==='ask')emit('ask',props.node.action.message)}
@@ -48,4 +55,7 @@ function submitForm(){
 .aui-table-scroll{overflow-x:auto;max-width:100%}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:12px 16px;text-align:left;vertical-align:top;min-width:100px;max-width:300px;border-bottom:1px solid var(--aui-line);white-space:pre-wrap}th{background:var(--aui-soft);font-weight:600}tr:last-child td{border-bottom:0}.aui-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
 .aui-action{display:inline-flex;align-items:center;justify-content:space-between;gap:20px;max-width:100%;padding:10px 14px;border:1px solid var(--nx-accent-border,var(--aui-line));border-radius:10px;color:var(--aui-accent);background:var(--aui-accent-soft);text-decoration:none;white-space:normal;text-align:left}.aui-action:hover:not(:disabled){border-color:var(--aui-accent)}.aui-action span{flex-shrink:0}.aui-form{display:grid;gap:14px}.aui-field{display:grid;gap:6px}.aui-field label{font-size:13px;font-weight:500}.aui-field input,.aui-field select{width:100%;min-width:0;color:var(--aui-text);background:var(--aui-bg);border:1px solid var(--aui-line);border-radius:8px;padding:9px 12px}.aui-form-error{color:var(--el-color-danger)}.aui-image img{width:100%;max-height:340px;object-fit:contain;border-radius:12px}.aui-image figcaption{font-size:12px;color:var(--aui-muted);margin-top:8px}
 @media(max-width:600px){.aui-info{padding:16px}.aui-heading{font-size:17px}th,td{padding:10px 12px}}
+.aui-key-values{padding:18px 20px;border-left:3px solid var(--aui-accent);border-radius:0 12px 12px 0;background:var(--aui-soft)}.aui-key-values h4{font-size:15px;line-height:1.5;font-weight:650}.aui-key-values dl{display:grid;gap:12px;margin:16px 0 0}.aui-key-values dl>div{display:grid;grid-template-columns:minmax(64px,22%) minmax(0,1fr);gap:16px}.aui-key-values dt{color:var(--aui-muted);font-size:13px}.aui-key-values dd{margin:0;white-space:pre-wrap;font-variant-numeric:tabular-nums}.aui-key-note{margin-top:16px!important;padding-top:12px;border-top:1px solid var(--aui-line);font-size:13px;color:var(--aui-muted);white-space:pre-wrap}
+.aui-layout.aui-grid>.aui-node>.aui-info{height:100%}.aui-metrics dd{overflow-wrap:anywhere}.aui-info,.aui-panel,.aui-service{border-radius:16px}.aui-action{min-height:44px}.aui-heading{letter-spacing:-.01em}.aui-table-scroll:focus-visible{outline:2px solid var(--aui-accent);outline-offset:-2px}tbody tr:hover{background:var(--aui-soft)}
+@media(max-width:600px){.aui-key-values{padding:16px}.aui-key-values dl>div{gap:12px;grid-template-columns:minmax(60px,25%) minmax(0,1fr)}}
 </style>

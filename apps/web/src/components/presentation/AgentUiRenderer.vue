@@ -29,7 +29,7 @@ onMounted(()=>emit('rendered'))
 .agent-ui{--aui-bg:var(--nx-surface,var(--el-bg-color));--aui-soft:var(--nx-surface-2,var(--el-fill-color-light));--aui-text:var(--nx-text,var(--el-text-color-primary));--aui-muted:var(--nx-text-2,var(--el-text-color-secondary));--aui-line:var(--nx-border,var(--el-border-color));--aui-accent:var(--nx-accent,var(--el-color-primary));--aui-accent-soft:var(--nx-accent-soft,var(--el-color-primary-light-9));color:var(--aui-text);width:100%;margin:14px 0;font-size:14px;line-height:1.65}
 .aui-layout{display:grid;gap:14px;min-width:0}.aui-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))}.aui-stack{grid-template-columns:minmax(0,1fr)}
 .aui-fallback{white-space:pre-wrap;overflow-wrap:anywhere;color:var(--nx-text,var(--el-text-color-primary));line-height:1.8}
-.agent-ui *{box-sizing:border-box}.agent-ui button,.agent-ui input,.agent-ui select{font:inherit}.agent-ui button,.agent-ui a{transition:background .15s,border-color .15s}.agent-ui :is(button,input,select,a):focus-visible{outline:3px solid var(--nx-focus-ring,var(--aui-accent));outline-offset:3px}
+.agent-ui *{box-sizing:border-box}.agent-ui button,.agent-ui input,.agent-ui select{font:inherit}.agent-ui button,.agent-ui a{transition:background .15s,border-color .15s}.agent-ui :is(button,input,select,a):focus-visible{outline:2px solid var(--aui-accent);outline-offset:3px}
 .agent-ui button:disabled{opacity:.5;cursor:default}.agent-ui button{cursor:pointer}.agent-ui :is(h3,h4,p,figure){margin:0}.agent-ui .aui-node{min-width:0;overflow-wrap:anywhere}
 @media(prefers-reduced-motion:reduce){.agent-ui *{transition:none!important}}
 </style>

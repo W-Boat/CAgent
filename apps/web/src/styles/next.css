@@ -10,9 +10,9 @@
  *   - 圆角三档 6/10/14，控件高度统一 34px；
  *   - 字体系统栈，正文 14px，界面小字 12.5px，行高宽松。
  *
- * 作用域：所有令牌挂在 `.nx-root` 上 —— 每个 next 视图的根节点都带
- * 这个 class。离开容器全部失效，与经典版的 --cg-*、学生中国风的
- * --sc-* 完全隔离，两版界面可以同时存在于一个产物里。
+ * 令牌同时挂到根节点与 `.nx-root`：页面容器和传送到 body 的弹层
+ * 使用同一套配色。旧版 --cg-* 与 Element Plus 中性色在下方统一映射，
+ * 避免遗留页面在夜间模式继续使用蓝灰色底。
  *
  * 暗色跟随全局 `html.dark`（theme store 已在管理），
  * 因此 index.html 的防闪白脚本对新版同样生效。
@@ -32,6 +32,7 @@
   --nx-accent-raw: #4f46e5;
 }
 
+:root,
 .nx-root {
   /* ---------- 中性色 ---------- */
   --nx-bg: #fafafa;                 /* 页面底 */
@@ -123,6 +124,7 @@
 }
 
 /* ---------- 暗色（近黑暖灰，强调色提亮） ---------- */
+html:root.dark,
 html.dark .nx-root {
   --nx-bg: #101013;
   --nx-bg-soft: #16161a;
@@ -841,8 +843,61 @@ html.dark .nx-root {
  *  18 个后台 CRUD 页仍由 Element Plus 渲染。经典外壳里它们维持
  *  经典观感；放进新外壳时用下面的覆盖让 EP 向新版设计语言靠拢：
  *  去大圆角、去重投影、发丝线边框、统一的悬停灰。
- *  变量本身由 index.css / EP dark css-vars 管理，这里只动形状。
+ *  旧版变量与 Element Plus 共用新版中性色，包含挂到 body 的弹层。
  * ========================================================= */
+
+html:root,
+.nx-root {
+  --cg-page-bg: var(--nx-bg);
+  --cg-card-bg: var(--nx-surface);
+  --cg-card-bg-soft: var(--nx-surface-2);
+  --cg-border: var(--nx-border);
+  --cg-border-strong: var(--nx-border-strong);
+  --cg-text: var(--nx-text);
+  --cg-text-secondary: var(--nx-text-2);
+  --cg-text-muted: var(--nx-text-2);
+  --cg-hover-bg: var(--nx-surface-hover);
+  --cg-active-bg: var(--nx-surface-active);
+  --cg-shadow-sm: var(--nx-shadow-sm);
+  --cg-shadow-md: var(--nx-shadow-md);
+  --cg-shadow-lg: var(--nx-shadow-lg);
+  --cg-sidebar-bg: var(--nx-surface);
+  --cg-sidebar-border: var(--nx-border);
+  --cg-sidebar-text: var(--nx-text-2);
+  --cg-sidebar-text-strong: var(--nx-text);
+  --cg-sidebar-text-muted: var(--nx-text-3);
+  --cg-sidebar-hover-bg: var(--nx-surface-hover);
+  --cg-sidebar-divider: var(--nx-border);
+  --cg-sidebar-foot-bg: var(--nx-surface-2);
+  --cg-inline-code-bg: var(--nx-surface-hover);
+  --cg-code-bg: #18181b;
+  --cg-code-bar-bg: #27272a;
+  --el-bg-color: var(--nx-surface);
+  --el-bg-color-overlay: var(--nx-surface);
+  --el-bg-color-page: var(--nx-bg);
+  --el-fill-color: var(--nx-surface-hover);
+  --el-fill-color-light: var(--nx-surface-hover);
+  --el-fill-color-lighter: var(--nx-surface-2);
+  --el-fill-color-extra-light: var(--nx-surface-2);
+  --el-fill-color-dark: var(--nx-surface-active);
+  --el-fill-color-darker: var(--nx-border-strong);
+  --el-fill-color-blank: var(--nx-surface);
+  --el-border-color: var(--nx-border-strong);
+  --el-border-color-light: var(--nx-border);
+  --el-border-color-lighter: var(--nx-border);
+  --el-border-color-extra-light: var(--nx-border);
+  --el-border-color-dark: var(--nx-border-strong);
+  --el-border-color-darker: var(--nx-border-strong);
+  --el-text-color-primary: var(--nx-text);
+  --el-text-color-regular: var(--nx-text-2);
+  --el-text-color-secondary: var(--nx-text-2);
+  --el-text-color-placeholder: var(--nx-text-3);
+  --el-text-color-disabled: var(--nx-text-3);
+  --el-disabled-bg-color: var(--nx-surface-2);
+  --el-disabled-text-color: var(--nx-text-3);
+  --el-disabled-border-color: var(--nx-border);
+  --el-mask-color: color-mix(in srgb, var(--nx-surface) 65%, transparent);
+}
 
 .nx-root .el-button {
   --el-button-hover-bg-color: var(--nx-surface-hover);

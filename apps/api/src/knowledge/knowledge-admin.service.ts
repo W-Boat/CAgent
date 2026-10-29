@@ -81,7 +81,7 @@ export class KnowledgeAdminService {
     if (kind!=='LOCAL'&&(kind!=='WECHAT'||(config as any).mode==='API')&&!(config as any)?.managed&&!dto.password&&!inherited) throw new BadRequestException(kind==='WECHAT'?'请填写采集器访问令牌':'请填写数据库密码')
     if(dto.automationModelId&&!await this.prisma.model.findFirst({where:{id:dto.automationModelId,enabled:true,provider:{enabled:true}}}))throw new BadRequestException('请选择可用模型')
     const data = {name:dto.name,description:dto.description || '',kind,mounted:dto.mounted ?? old?.mounted ?? false,
-      agentId:dto.agentId || null,connection:config || Prisma.DbNull,
+      agentId:dto.agentId || null,connection:config || (kind==='LOCAL' && old?.kind==='LOCAL' ? old.connection ?? Prisma.DbNull : Prisma.DbNull),
       aiReviewEnabled:dto.aiReviewEnabled??old?.aiReviewEnabled??false,aiSummaryEnabled:dto.aiSummaryEnabled??old?.aiSummaryEnabled??false,
       automationModelId:dto.automationModelId||null,automationUserId:op.id,
       passwordEncrypted:kind==='LOCAL'||(config as any)?.managed?null:dto.password?this.crypto.encrypt(dto.password):inherited}

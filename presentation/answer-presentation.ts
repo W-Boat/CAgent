@@ -13,6 +13,8 @@ function markdown(node:any):string {
   case 'card_group':return children()
   case 'image':return node.alt+(node.caption?' · '+node.caption:'')+(safeUiUrl(node.url,true)?'\n[查看图片]('+node.url+')':'')
   case 'info_card':return heading+[node.badge,node.summary,...(node.metrics||[]).map((m:any)=>'- '+m.label+'：'+m.value),children()].filter(Boolean).join('\n\n')
+  case 'service_card':return heading+[node.mode==='online'?'线上办理':'线下窗口',node.summary,node.location?'地点：'+node.location:'',node.contact?'联系：'+node.contact:'',node.action?(node.action.kind==='link'?'['+node.actionLabel+']('+node.action.url+')':node.actionLabel+'：'+node.action.message):''].filter(Boolean).join('\n\n')
+  case 'key_values':return heading+(node.items||[]).map((item:any)=>'- '+item.label+'：'+item.value).join('\n')+(node.note?'\n\n'+node.note:'')
   case 'facts':return heading+(node.items||[]).map((i:any)=>'- '+String(i.label||i.title||'')+'：'+String(i.value??i.desc??'')).join('\n')
   case 'table':case 'compare':return heading+table(node.columns,node.rows)
   case 'chart':return heading+table(['项目',...node.series.map((s:any)=>s.name+(node.unit?'（'+node.unit+'）':''))],node.labels.map((label:string,i:number)=>[label,...node.series.map((s:any)=>s.values[i])]))
@@ -31,6 +33,8 @@ function fixed(node:any):string {
   case 'page':case 'card_group':return node.children.map(fixed).join('\n')
   case 'text':case 'image':return markdown(node)+'\n'
   case 'info_card':return fence({type:'facts',title:node.title,intro:[node.badge,node.summary].filter(Boolean).join(' · '),items:(node.metrics||[]).map((m:any)=>({label:m.label,value:m.value}))})+(node.children||[]).map(fixed).join('\n')
+  case 'service_card':return fence({type:'facts',title:node.title,intro:[node.mode==='online'?'线上办理':'线下窗口',node.summary].filter(Boolean).join(' · '),items:[...(node.location?[{label:'地点',value:node.location}]:[]),...(node.contact?[{label:'联系',value:node.contact}]:[])]})+(node.action?fixed({type:'button',label:node.actionLabel,action:node.action}):'')
+  case 'key_values':return fence({type:'facts',title:node.title,intro:node.note,items:node.items})
   case 'table':return fence({type:'compare',title:node.title,columns:node.columns,rows:node.rows})
   case 'chart':return fence({type:'compare',title:node.title,columns:['项目',...node.series.map((s:any)=>s.name+(node.unit?'（'+node.unit+'）':''))],rows:node.labels.map((l:string,i:number)=>[l,...node.series.map((s:any)=>s.values[i])])})
   case 'steps':return fence({type:'steps',title:node.title,note:node.note,steps:node.steps})
@@ -45,7 +49,7 @@ function fixed(node:any):string {
 /** Finite structured data -> presentation; never fetch, execute or ask another model. */
 export function formatCardBlock(raw:string,language:string,preference:AnswerPreference,sourceIds:ReadonlySet<string>,original:string):string {
  let value:any;try{value=parseCardJson(raw)}catch{
-  if(language!=='card'&&!/"type"\s*:\s*"(?:page|info_card|steps|form|table)/.test(raw))return original
+  if(language!=='card'&&!/"type"\s*:\s*"(?:page|info_card|service_card|key_values|steps|form|table)/.test(raw))return original
   // Recover only complete JSON string fields; never execute or invent missing structure.
   const recovered:string[]=[];for(const match of raw.slice(0,128*1024).matchAll(/"(fallback|title|content|summary|body|desc|answer|label|value)"\s*:\s*("(?:\\.|[^"\\])*")/g))try{const text=JSON.parse(match[2]);if(typeof text==='string'&&text.trim()&&!recovered.includes(text))recovered.push(text)}catch{}
   return recovered.length?recovered.join('\n\n')+'\n':'这部分回答未完整生成，请重新生成以补全内容。\n'
