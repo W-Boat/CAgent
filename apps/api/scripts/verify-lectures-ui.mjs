@@ -18,6 +18,8 @@ try{
    calls.push({path:p,method:request.method()});let data=[]
    if(p==='/api/auth/me')data={id:'fixture-user',name:'测试用户',email:'ui@example.invalid',roles:[admin?'superadmin':'student'],permissions:admin?['*']:['chat:use']}
    else if(p==='/api/settings/public')data={site_name:'CAgent',default_accent_color:'#be3150',unified_theme_enabled:true,student_default_theme:'light',student_allow_theme_toggle:true,onboarding_enabled:false,memory_enabled:true}
+   else if(p==='/api/campus/shortcuts')data=[{id:'lecture-link',label:'讲座日历',question:'查看校园讲座日历',url:'/lectures'}]
+   else if(p==='/api/conversations')data={items:[],total:0,page:1,pageSize:50}
    else if(p==='/api/lectures'){
     let rows=fixtures.filter(l=>(!u.searchParams.get('q')||l.title.includes(u.searchParams.get('q')))&&(!u.searchParams.get('campus')||l.campus===u.searchParams.get('campus'))&&(!u.searchParams.get('kind')||l.content_kind===u.searchParams.get('kind')))
     if(u.searchParams.get('scope')==='undated')rows=rows.filter(l=>!l.event_date)
@@ -36,6 +38,7 @@ try{
   })
   const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message))
   await page.goto(site+'/lectures',{waitUntil:'networkidle'});await page.locator('.lecture-heading h1').waitFor()
+  if(!admin){assert.equal(new URL(page.url()).pathname,'/student/lectures');assert.equal(await page.locator('.nx-sidebar').count(),0);assert(await page.getByRole('link',{name:'返回对话',exact:true}).isVisible())}
   await page.getByLabel('选择月份',{exact:true}).fill('2026-10');await page.locator('.lecture-card').first().waitFor()
   assert.equal(await page.locator('.lecture-card').count(),2)
   await page.getByRole('button',{name:'2026-10-30，1 条活动',exact:true}).click();await page.waitForResponse(r=>r.url().includes('date=2026-10-30'));await page.waitForTimeout(250)
@@ -57,7 +60,17 @@ try{
    assert(calls.some(c=>c.path==='/api/lectures/import'))
    await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false)
    await page.screenshot({path:resolve(out,'collector-mobile-dark.png'),fullPage:true})
-  }else{assert.equal(await page.getByRole('button',{name:'采集与导入',exact:true}).count(),0);assert(!calls.some(c=>c.path.includes('/collector/')||c.method!=='GET'))}
+  }else{
+   assert.equal(await page.getByRole('button',{name:'采集与导入',exact:true}).count(),0);assert(!calls.some(c=>c.path.includes('/collector/')||c.method!=='GET'))
+   await page.goto(site+'/student',{waitUntil:'networkidle'});await page.locator('.knowledge-shortcuts .shortcut-link').waitFor()
+   const iconSizes=await page.locator('.st-utility-link svg').evaluateAll(icons=>icons.map(icon=>({width:getComputedStyle(icon).width,height:getComputedStyle(icon).height})))
+   assert(iconSizes.length>=2);assert(iconSizes.every(size=>size.width==='20px'&&size.height==='20px'))
+   await page.locator('.knowledge-shortcuts .shortcut-link').click();await page.locator('.student-lecture-bar').waitFor();assert.equal(await page.locator('.nx-sidebar').count(),0)
+   await page.goto(site+'/map',{waitUntil:'networkidle'});await page.evaluate(()=>document.documentElement.classList.add('dark'));assert.equal(await page.locator('.atlas-intro').count(),0);assert.equal(await page.locator('.atlas-heading h1').innerText(),'校园地图')
+   await page.getByRole('button',{name:'望京校区',exact:true}).click();assert(new URL(page.url()).searchParams.get('campus'))
+   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false)
+   await page.screenshot({path:resolve(out,'student-map-mobile-dark.png'),fullPage:true})
+  }
   reports.push({admin,passed:true});await context.close()
  }
  assert.deepEqual(errors,[]);writeFileSync(resolve(out,'report.json'),JSON.stringify({passed:true,site,reports,errors,scope:'Synthetic API fixture, no real login, mutation or model calls'},null,2));console.log('PASS lecture calendar/list/date selection/details/ICS/import/config/test; student isolation; mobile/light/dark')

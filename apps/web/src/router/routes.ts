@@ -155,6 +155,7 @@ export const menuGroups: MenuGroup[] = [
 ]
 
 export const routes: RouteRecordRaw[] = [
+  {path:'/student/lectures',name:'student-lectures',component:()=>import('@/views/student/next/StudentLecturesView.vue'),meta:{title:'讲座与日历',studentAllowed:true,studentOnly:true}},
   {path:'/timetable',redirect:'/campus?collection=collective-timetable',meta:{studentAllowed:true}},
   {path:'/browser',redirect:'/campus?collection=collective-timetable',meta:{studentAllowed:true}},
   {path:'/map',name:'campus-map',component:()=>import('@/views/campus/CampusMapView.vue'),meta:{public:true,studentAllowed:true,title:'校园地图'}},

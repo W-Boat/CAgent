@@ -14,6 +14,7 @@ import { LearningModule } from "../learning/learning.module"
 import { MemoryModule } from "../memory/memory.module"
 import { CampusModule } from "../campus/campus.module"
 import { KnowledgeStoreModule } from '../knowledge/knowledge-store.module'
+import {LecturesModule} from '../lectures/lectures.module'
 import {EvaluationController} from '../evaluation/evaluation.controller'
 import {EvaluationService} from '../evaluation/evaluation.service'
 
@@ -29,7 +30,7 @@ import {EvaluationService} from '../evaluation/evaluation.service'
     LearningModule,
     MemoryModule,
     // 校园导览知识库检索服务（统一知识库 answerBlock），供对话层做检索兜底注入
-    CampusModule, KnowledgeStoreModule
+    CampusModule, KnowledgeStoreModule, LecturesModule
   ],
   controllers: [ChatController,EvaluationController],
   providers: [ChatService,ResponseCacheService,RuntimeCheckpointService,EvaluationService],

@@ -1,3 +1,5 @@
+import {LecturesService} from '../lectures/lectures.service'
+import {lectureIntent,lectureToolDefinition} from '../lectures/lecture-tool'
 import {KnowledgeRetrievalBudget} from './knowledge-retrieval-policy'
 import {mergeProviderCache} from './llm/provider-cache'
 import {type EvaluationPolicy,EVALUATION_POLICY_VERSION,EVALUATION_V2_SOURCES,STRICT_PROMPT,STRICT_FALLBACK,strictPlainText,reviewStrictReply} from '../evaluation/evaluation-policy'
@@ -106,7 +108,8 @@ export class ChatService {
     private readonly campusGuide: CampusGuideService,
     @Optional() private readonly activity?:CampusActivityService,
     @Optional() private readonly responseCache?:ResponseCacheService,
-    @Optional() private readonly runtimeCheckpoints?:RuntimeCheckpointService
+    @Optional() private readonly runtimeCheckpoints?:RuntimeCheckpointService,
+    @Optional() private readonly lectures?:LecturesService
   ) {}
 
   // ============================================================
@@ -618,6 +621,7 @@ export class ChatService {
       }
 
       if(canReadSkills&&lazySkills.length)toolDefs.push({name:'skill_read',description:'按需读取本轮已授权技能的工作流程指引；不是知识库检索。长指引按 offset 继续读取。',parameters:{type:'object',properties:{name:{type:'string',enum:lazySkills.map(skill=>skill.key)},offset:{type:'integer',minimum:0,maximum:1000000}},required:['name'],additionalProperties:false}})
+      if(target.supportsTools&&!controlled&&this.lectures&&lectureIntent(dto.content)&&await this.lectures.available(knowledgeAgentId)&&!toolDefs.some(def=>def.name===lectureToolDefinition.name))toolDefs.push(lectureToolDefinition)
       if(controlled)toolDefs=toolDefs.filter(def=>def.name==='knowledge_search'&&!skillToolNames.has(def.name))
       // Keep one authoritative contract after older agent prompts and evidence, with real source IDs.
       systemPrompts.splice(presentationPromptIndex,1)
@@ -637,6 +641,7 @@ export class ChatService {
         readOnly:def.readOnly??(def.name==='knowledge_search'||def.name==='skill_read'||(!skillToolNames.has(def.name)&&ToolRegistry.get(def.name)?.readOnly===true)),
         execute:async(args,signal)=>{
           checkAbort(signal)
+            if(def.name==='campus_lectures'&&this.lectures){retrievalBudget.reserve();const result=await this.lectures.agentSearch(args,knowledgeAgentId);checkAbort(signal);return JSON.stringify(result)}
           if(def.name==='skill_read')return this.skills.readPromptSkill(String(args.name),lazySkills.map(skill=>skill.key),user.permissions,Number(args.offset)||0)
           if(skillToolNames.has(def.name))return this.skills.invokeByKey(def.name,args,{userId:user.id,conversationId:conversation!.id,input:args,userPermissions:user.permissions,signal,beforeKnowledgeRetrieval:retrievalBudget.reserve,onKnowledgeEvidence:sources=>{checkAbort(signal);rememberSources(sources);send('kb',{hits:[...sourcePool.values()],phase:'retrieved'})}})
           if(def.name==='knowledge_search'){

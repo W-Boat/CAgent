@@ -40,10 +40,12 @@
 
 <script setup lang="ts">
 import {computed,onMounted,onBeforeUnmount,ref,watch} from 'vue'
+import {useRoute} from 'vue-router'
 import {get,post,put,toastError,toastOk} from '@/api/client'
 import {useAuthStore} from '@/stores/auth'
 defineOptions({name:'lecture-calendar'})
-const auth=useAuthStore(),canManage=computed(()=>auth.can('campus:admin'))
+const props=defineProps<{studentMode?:boolean}>()
+const route=useRoute(),auth=useAuthStore(),canManage=computed(()=>!props.studentMode&&auth.can('campus:admin'))
 const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())
 const data=ref<any>({counts:{all:0,upcoming:0,undated:0},items:[],sources:[],campuses:[],types:[],days:{},total:0,pageSize:20,today,enabled:true})
 const q=ref(''),campus=ref(''),source=ref(''),kind=ref(''),scope=ref('all'),view=ref('calendar'),month=ref(today.slice(0,7)),selectedDate=ref(''),page=ref(1),busy=ref(false),error=ref('')
@@ -78,7 +80,7 @@ async function testCollector(){if(!testSource.value)return;testing.value=true;co
 async function runCollector(){queueing.value=true;try{await post('/lectures/collector/run',{});toastOk('已开始后台采集');await loadStatus()}catch(e){toastError(e,'任务未启动')}finally{queueing.value=false}}
 async function importFile(event:Event){const file=(event.target as HTMLInputElement).files?.[0];if(!file)return;importing.value=true;importProgress.value=0;try{if(file.size>8*1024*1024)throw new Error('文件不能超过 8 MiB');const value=JSON.parse(await file.text()),records=Array.isArray(value)?value:value.lectures;if(!Array.isArray(records)||!records.length||records.length>10000)throw new Error('请上传包含 1–10000 条记录的 lectures 数组');for(let i=0;i<records.length;i+=50){await post('/lectures/import',{records:records.slice(i,i+50)});importProgress.value=Math.round(Math.min(i+50,records.length)/records.length*100)}toastOk('讲座已增量导入');await load();await loadStatus()}catch(e){toastError(e,'导入未完成；已完成批次保留，可重新上传继续')}finally{importing.value=false;if(fileInput.value)fileInput.value.value=''}}
 watch(collectorVisible,visible=>{clearInterval(poll);if(visible)poll=setInterval(()=>{if(status.value.status==='SYNCING')void loadStatus()},5000)})
-onMounted(load);onBeforeUnmount(()=>{serial++;detailSerial++;clearTimeout(timer);clearInterval(poll)})
+onMounted(()=>{if(/^20\d{2}-(0[1-9]|1[0-2])$/.test(String(route.query.month||'')))month.value=String(route.query.month);void load()});onBeforeUnmount(()=>{serial++;detailSerial++;clearTimeout(timer);clearInterval(poll)})
 </script>
 
 <style scoped>

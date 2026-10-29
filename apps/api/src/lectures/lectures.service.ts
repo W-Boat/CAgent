@@ -50,17 +50,27 @@ export class LecturesService {
    return {baseId:base.id,mounted:base.mounted,created,changed,skipped,total:normalized.length}
   },{timeout:120000})
  }
- private async snapshot(){
+ async available(agentId?:string|null){const base=await this.db.knowledgeBase.findUnique({where:{id:LECTURE_BASE}});return !!base?.mounted&&base.kind!=='REMOVED'&&(!base.agentId||base.agentId===agentId)}
+ async agentSearch(input:Record<string,unknown>,agentId?:string|null){
+  const query:Record<string,string>={}
+  for(const key of ['q','date','month','campus','scope'])if(typeof input[key]==='string')query[key]=String(input[key]).slice(0,100)
+  if(!['all','upcoming','undated'].includes(query.scope))query.scope='upcoming'
+  const result=await this.directory(query,agentId)
+  return {enabled:result.enabled,today:result.today,total:result.total,calendarPath:'/lectures'+(query.month?'?month='+encodeURIComponent(query.month):''),
+   notice:'这是资料快照，历史记录和回顾不代表仍可报名。可点击输入框上方的讲座日历按钮查看；没有匹配的待开展预告时应如实说明。',
+   items:result.items.slice(0,5).map(l=>({id:l.id,title:l.title,date:l.event_date,time:l.time_text,location:l.location,campus:l.campus,speaker:l.speaker,kind:l.content_kind,url:l.url,source:l.source_name}))}
+ }
+ private async snapshot(agentId?:string|null){
   const base=await this.db.knowledgeBase.findUnique({where:{id:LECTURE_BASE}})
-  if(!base||!base.mounted||base.kind==='REMOVED'||base.agentId)return {enabled:false,rows:[] as Lecture[],updatedAt:null as Date|null}
+  if(!base||!base.mounted||base.kind==='REMOVED'||base.agentId&&base.agentId!==agentId)return {enabled:false,rows:[] as Lecture[],updatedAt:null as Date|null}
   const revision=await this.store.revision()
   if(this.cache?.revision===revision&&this.cache.expires>Date.now())return {enabled:true,rows:this.cache.rows,updatedAt:base.lastSyncAt}
   const raw=await this.db.campusGuideItem.findMany({where:{extra:{path:['kb','file'],equals:LECTURE_FILE}},select:{extra:true}})
   const rows=raw.flatMap(r=>{const l=(r.extra as any)?.lecture;return l?[l as Lecture]:[]})
   this.cache={revision,expires:Date.now()+60000,rows};return {enabled:true,rows,updatedAt:base.lastSyncAt}
  }
- async directory(query:Record<string,string>){
-  const {enabled,rows,updatedAt}=await this.snapshot(),today=shanghaiToday(),filtered=filterLectures(rows,query,today)
+ async directory(query:Record<string,string>,agentId?:string|null){
+  const {enabled,rows,updatedAt}=await this.snapshot(agentId),today=shanghaiToday(),filtered=filterLectures(rows,query,today)
   const page=Math.max(1,Math.min(10000,Math.trunc(Number(query.page)||1))),pageSize=20,days:Record<string,number>={}
   for(const l of filterLectures(rows,{...query,date:''},today))if(l.event_date)days[l.event_date]=(days[l.event_date]||0)+1
   const counts={all:rows.length,upcoming:rows.filter(l=>l.content_kind==='preview'&&l.event_date>=today).length,undated:rows.filter(l=>!l.event_date).length}

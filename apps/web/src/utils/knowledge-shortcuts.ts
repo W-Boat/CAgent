@@ -1,7 +1,7 @@
 import {ref,onMounted,onUnmounted} from 'vue'
 import {get} from '@/api/client'
 
-interface Shortcut {id:string;label:string;question:string}
+interface Shortcut {id:string;label:string;question:string;url?:string}
 const shortcuts=ref<Shortcut[]>([])
 let users=0,pending:Promise<void>|undefined,timer:ReturnType<typeof setInterval>|undefined
 const signalKey='cagent.knowledgeShortcutsChanged'

@@ -65,7 +65,7 @@ export class KnowledgeStoreService {
       if(!mounted.has(base.id))return []
       const key=shortcutSettingPrefix+base.id,parsed=shortcutBindingsSchema.safeParse(configured.has(key)?configured.get(key):defaultShortcuts(base,sourceDefinition(foodSource,['takeout']).id))
       if(!parsed.success)return []
-      return parsed.data.flatMap((binding,index)=>binding.enabled&&binding.dependencies.every(id=>mounted.has(id))?[{id:base.id+':'+index,label:binding.label,question:binding.question}]:[])
+      return parsed.data.flatMap((binding,index)=>binding.enabled&&binding.dependencies.every(id=>mounted.has(id))?[{id:base.id+':'+index,label:binding.label,question:binding.question,...((base.connection as any)?.sourceKey==='讲座聚合/lectures.json'&&binding.question==='查看校园讲座日历'?{url:'/lectures'}:{})}]:[])
     }).slice(0,120)
   }
   private foodSnapshot?:{revision:unknown;expires:number;items:FoodItem[]}

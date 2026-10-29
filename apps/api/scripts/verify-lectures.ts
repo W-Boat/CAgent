@@ -9,6 +9,8 @@ import {CampusGuideService} from '../src/campus/campus-guide.service'
 import {LecturesService,LECTURE_BASE} from '../src/lectures/lectures.service'
 import {collectorSchema,defaultCollectorConfig,filterLectures,dateOnly,lectureUrl,normalizeLecture} from '../src/lectures/lecture-data'
 import {publicAddress,parseLectureDetail,parseLectureListing,crawlLectures} from '../src/lectures/lecture-crawler'
+import {AgentRuntime} from '../src/chat/runtime/agent-runtime'
+import {lectureToolDefinition,lectureIntent} from '../src/lectures/lecture-tool'
 const root=resolve(__dirname,'../../..'),checks:string[]=[],pass=(s:string)=>{checks.push(s);console.log('PASS '+s)}
 async function main(){
  const packet=JSON.parse(readFileSync(resolve(root,'knowledge/lectures/lectures.json'),'utf8')),rows=packet.lectures.map(normalizeLecture)
@@ -42,6 +44,20 @@ async function main(){
   assert.equal(total,1189);assert.equal((await service.directory({})).counts.all,1189)
   const search=await guide.search(rows[0].title,'guide',5,{collection:'lectures'});assert(search.hits.some(h=>h.id===rows[0].id))
   pass('独立真实 PostgreSQL schema 全量导入与现有知识检索联通')
+  assert(lectureIntent('今天有哪些校园讲座'));assert(lectureIntent('打开讲座日历'));assert(await service.available())
+  let modelRound=0,toolRuns=0
+  const runtime=await new AgentRuntime().run({provider:{type:'OPENAI_COMPATIBLE',async *stream(options){
+   if(++modelRound===1){assert(options.tools?.some(t=>t.name==='campus_lectures'));yield {type:'tool_call',call:{id:'lecture-test',name:'campus_lectures',arguments:JSON.stringify({month:'2026-10',scope:'all'})}}}
+   else{const result=JSON.parse(options.messages.filter(m=>m.role==='tool').at(-1)!.content as string);assert(result.total>0);assert.equal(result.calendarPath,'/lectures?month=2026-10');yield {type:'text',text:'请点击讲座日历查看当月活动，具体信息以原通知为准。'}}
+   yield {type:'done'}
+  }},request:{model:'fixture-only',apiKey:'fixture-only',maxTokens:256},messages:[{role:'user',content:'查询2026年10月讲座日历'}],tools:[{...lectureToolDefinition,execute:async args=>{toolRuns++;return JSON.stringify(await service.agentSearch(args))}}],contextWindow:8192,maxToolRounds:3,signal:new AbortController().signal,emit:()=>{}})
+  assert.equal(toolRuns,1);assert.equal(runtime.tools[0].status,'SUCCESS');assert(runtime.text.includes('讲座日历'))
+  assert((await store.publicShortcuts()).some(s=>s.label==='讲座日历'&&(s as any).url==='/lectures'))
+  await db.knowledgeBase.update({where:{id:LECTURE_BASE},data:{agentId:'restricted-agent'}})
+  assert(!await service.available());assert.equal((await service.agentSearch({scope:'all'})).enabled,false)
+  assert.equal((await service.agentSearch({scope:'all'},'restricted-agent')).enabled,true)
+  await db.knowledgeBase.update({where:{id:LECTURE_BASE},data:{agentId:null}})
+  pass('AgentRuntime真实工具调用闭环（模拟模型、真实讲座服务），日期筛选与日历链接返回，快捷按钮和Agent范围隔离')
   const revision=await store.revision(),again=await service.importRecords(packet.lectures.slice(0,100));assert.equal(again.created+again.changed,0);assert.equal(again.skipped,100);assert.equal(await store.revision(),revision)
   await service.importRecords([{...packet.lectures[0],speaker:'已更新主讲人'}]);assert.equal((await service.detail(rows[0].id)).speaker,'已更新主讲人')
   await service.importRecords([{...packet.lectures[0],speaker:''}]);assert.equal((await service.detail(rows[0].id)).speaker,'已更新主讲人')
@@ -52,6 +68,8 @@ async function main(){
   assert(one.items.every(i=>i.event_date===day));assert.deepEqual(one.days,month.days)
   await db.knowledgeBase.update({where:{id:LECTURE_BASE},data:{mounted:false}});await store.bump()
   assert.equal((await service.directory({})).enabled,false);await assert.rejects(()=>service.detail(rows[0].id))
+  assert(!await service.available());assert.equal((await service.agentSearch({scope:'all'})).items.length,0)
+  assert(!(await store.publicShortcuts()).some(s=>s.label==='讲座日历'))
   assert.equal((await guide.search(rows[0].title,'guide',5,{collection:'lectures'})).hits.length,0)
   await service.importRecords([packet.lectures[0]]);assert.equal((await db.knowledgeBase.findUnique({where:{id:LECTURE_BASE}}))?.mounted,false)
   await db.knowledgeBase.update({where:{id:LECTURE_BASE},data:{kind:'REMOVED'}});await assert.rejects(()=>service.importRecords([packet.lectures[0]]))

@@ -14,6 +14,8 @@
 }
 
 /* ═══════════ 侧栏 ═══════════ */
+.st-utility-link .el-icon,.st-utility-link svg{width:20px;height:20px;font-size:20px}
+.st-utility-link{flex-shrink:0}
 
 .st-side {
   display: flex;

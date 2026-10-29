@@ -1506,8 +1506,8 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="st-user">
-        <RouterLink to="/lectures" class="nx-icon-btn" aria-label="讲座日历" title="讲座日历"><el-icon><Calendar/></el-icon></RouterLink>
-        <RouterLink v-if="display.mapEntry" to="/map" class="nx-icon-btn" aria-label="校园地图" title="校园地图">⌖</RouterLink>
+        <RouterLink to="/student/lectures" class="nx-icon-btn st-utility-link" aria-label="讲座日历" title="讲座日历"><el-icon><Calendar/></el-icon></RouterLink>
+        <RouterLink v-if="display.mapEntry" to="/map" class="nx-icon-btn st-utility-link" aria-label="校园地图" title="校园地图"><el-icon><MapLocation/></el-icon></RouterLink>
         <div class="nx-avatar st-user-avatar">
           <img v-if="isImageUrl(auth.user?.avatar)" :src="auth.user!.avatar!" alt="" />
           <template v-else>{{ (auth.user?.name || "同").slice(0, 1) }}</template>

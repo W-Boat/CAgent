@@ -114,6 +114,9 @@ router.beforeEach(async (to) => {
    *   /chat 位于 AppLayoutNext 之内，带侧边栏与顶栏，会重新把整套
    *   管理端导航暴露出来。学生端有自己的独立外壳。
    */
+  if (auth.isStudent && to.path === '/lectures') {
+    return {path:'/student/lectures',query:to.query,hash:to.hash,replace:true}
+  }
   if (auth.isStudent && !to.meta.studentAllowed) {
     return { path: "/student", replace: true }
   }
