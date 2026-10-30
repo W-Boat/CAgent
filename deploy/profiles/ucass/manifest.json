@@ -1,23 +1,23 @@
 {
   "schemaVersion": 1,
-  "name": "ucass-campus-defaults-2026-10-14",
-  "exportedAt": "2026-10-14T11:42:23.233Z",
+  "name": "ucass-campus-defaults-2026-10-30",
+  "exportedAt": "2026-10-30T06:13:51.061Z",
   "counts": {
     "settings": 54,
     "providers": 9,
     "models": 17,
     "agents": 4,
     "skills": 7,
-    "bases": 40,
-    "entries": 37,
-    "items": 29592
+    "bases": 45,
+    "entries": 287,
+    "items": 30787
   },
   "files": [
     {
       "path": "configuration.json",
       "kind": "configuration",
-      "bytes": 75675,
-      "sha256": "9cb1713fc510bd03786bf0d6e212b694bdcc500e4e38d930c5efef578e492cf5"
+      "bytes": 437791,
+      "sha256": "3366598694f1cc868bdb0444f910af4ca1a854b2a4415c65d42fe600acc780ef"
     },
     {
       "path": "items-001.json",
@@ -196,8 +196,20 @@
     {
       "path": "items-collective-timetable.json",
       "kind": "items",
-      "bytes": 2126982,
-      "sha256": "5d45d52d1f99a28e862d7f816fc35c05eb7877779d6e529e69c0aab7ad0159a4"
+      "bytes": 2119048,
+      "sha256": "d986433dc6d2b55409069922fe19e6a85110a8ff1bb2cba6e6b2d9aff1afff67"
+    },
+    {
+      "path": "items-update-20261030-001.json",
+      "kind": "items",
+      "bytes": 10475768,
+      "sha256": "634d755e0f7aba5d081bcec14011ff0d9abfd15b5c43a1ef78a60c037368460b"
+    },
+    {
+      "path": "items-update-20261030-002.json",
+      "kind": "items",
+      "bytes": 2103071,
+      "sha256": "b4bf746a387f305a121e0b8a072064532bb78d0fce3ce7417e2a888bdb35da9e"
     }
   ],
   "excluded": [
