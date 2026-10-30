@@ -23,6 +23,11 @@ export interface SettingDef {
  * 新增设置项只需在此登记，seed 会自动补齐默认值。
  */
 export const SETTING_DEFS: SettingDef[] = [
+  {key:'web_search_enabled',group:'search',label:'Agent 联网搜索',description:'开启且配置有效密钥后，Agent可调用公开网页搜索。需自行承担搜索接口费用，不自动入库。',type:'boolean',defaultValue:false,superAdminOnly:true},
+  {key:'web_search_provider',group:'search',label:'搜索引擎',description:'DeepSeek使用DEEPSEEK_SEARCH_API_KEY，或DEEPSEEK_API_KEY，或后台deepseek供应商密钥；Tavily使用TAVILY_API_KEY或同名供应商密钥。密钥不填在本页。',type:'string',defaultValue:'deepseek',options:[{label:'DeepSeek Search 与 Fetch',value:'deepseek'},{label:'Tavily Search',value:'tavily'}],superAdminOnly:true},
+  {key:'web_search_external',group:'search',label:'允许外部新闻搜索',description:'关闭时只允许ucass.edu.cn及子域名。开启后可选校外或全网搜索，校外来源单独标明。',type:'boolean',defaultValue:false,superAdminOnly:true},
+  {key:'web_search_count',group:'search',label:'单次结果数量',description:'1–8条，默认5条；每个问题最多3次搜索或正文调用，搜索缓存2分钟。',type:'number',defaultValue:5,superAdminOnly:true},
+  {key:'web_search_content',group:'search',label:'搜索时附带正文',description:'关闭只取摘要，节省响应体和token；DeepSeek可按需用Fetch补读。开启仍截取有限正文片段，不保证全文。',type:'boolean',defaultValue:false,superAdminOnly:true},
   {key:'memory_enabled',group:'general',label:'全站记忆功能',description:'关闭后不注入、提取或创建长期记忆，同时隐藏记忆入口；保留已有数据，可重新开启。仅影响长期记忆，多轮会话上下文继续有效。',type:'boolean',defaultValue:true},
   {key:'onboarding_enabled',group:'general',label:'进入引导弹窗',description:'全站总开关。关闭后所有用户进入页面均不弹首次使用引导；学生端首次使用引导设置还需同时开启。',type:'boolean',defaultValue:true},
   {key:'knowledge_retrieval_depth',group:'knowledge',label:'检索深度（最大次数）',description:'每个问题最多检索 1–8 次，默认 3 次；首轮自动检索也计入。较浅更快、更省 token，较深可补充缺失证据。仅限制知识库查询，不限制其他工具。',type:'number',defaultValue:3},

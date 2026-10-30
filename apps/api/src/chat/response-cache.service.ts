@@ -13,7 +13,7 @@ export const normalizedCacheQuestion=(text:string)=>text.normalize('NFC').trim()
 /** Exact-question reuse is deliberately independent of conversation history. */
 export function cacheHistory(_history:{role:string;content:string}[],_question:string){return []}
 export function cacheEligible(query:string,images?:string[],bypass?:boolean){return !bypass&&!images?.length&&query.length<=6000&&!/今天|明天|昨天|今晚|本周|周末|最近|最新|现在|当前|天气|今日|本月|下周|今年|提醒|随机|抽签|换一个|重新生成|记录|保存|添加|修改|删除|提交|发送|订阅|更新|创建|自杀|自伤|不想活|\b(?:today|tomorrow|yesterday|tonight|current|latest|weather|random|remind|save|add|modify|delete|submit|send|subscribe|update|create)\b/i.test(query)}
-const semanticSettings=['knowledge_revision','default_system_prompt','default_temperature','enable_tools','skill_enabled','browser_enabled','memory_enabled','knowledge_retrieval_depth','knowledge_continuous_retrieval']
+const semanticSettings=['web_search_enabled','web_search_provider','web_search_external','web_search_content','web_search_count','knowledge_revision','default_system_prompt','default_temperature','enable_tools','skill_enabled','browser_enabled','memory_enabled','knowledge_retrieval_depth','knowledge_continuous_retrieval']
 const canonical=(value:any):any=>value instanceof Date?value.toISOString():Array.isArray(value)?value.map(canonical):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().filter(key=>value[key]!==undefined).map(key=>[key,canonical(value[key])])):value
 @Injectable()
 export class ResponseCacheService {

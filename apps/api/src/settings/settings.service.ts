@@ -124,6 +124,7 @@ export class SettingsService {
     for (const [key,value] of Object.entries(payload)) {
       const def=SETTING_MAP.get(key)!
       this.validate(def.type,key,value)
+      if(key==='web_search_count'&&(!Number.isInteger(value)||Number(value)<1||Number(value)>8))throw new BadRequestException('搜索结果数量须为1–8的整数')
       if(key==='knowledge_retrieval_depth'&&(!Number.isInteger(value)||Number(value)<1||Number(value)>8))throw new BadRequestException('知识库检索深度须为 1–8 的整数')
       if(key==='answer_cache_days'&&(!Number.isInteger(value)||Number(value)<1||Number(value)>30))throw new BadRequestException('回答缓存保留天数须为 1–30 的整数')
       if(def.options?.length&&!def.options.some(option=>option.value===value))throw new BadRequestException(`设置项 ${def.label} 的选项无效`)

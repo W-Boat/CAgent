@@ -39,6 +39,14 @@
         :label="group.label"
       >
         <el-card shadow="never" class="block">
+          <div v-if="group.key==='search'" style="margin-bottom:20px">
+            <p>先保存搜索设置，再测试接口。默认覆盖 ucass.edu.cn 及全部子域名，仅搜索已收录的公开网页。</p>
+            <el-input v-model="searchQuery" placeholder="例如：中国社会科学院大学 学术新闻" maxlength="100" style="max-width:460px" />
+            <el-select v-model="searchScope" style="width:130px;margin:8px"><el-option label="校内子域名" value="campus"/><el-option label="校外新闻" value="external"/><el-option label="全网" value="all"/></el-select>
+            <el-button :loading="searchBusy" :disabled="dirtyKeys.length>0||!auth.can('setting:write')" @click="testSearch">测试搜索</el-button>
+            <p v-if="searchReport">{{searchReport}}</p>
+            <p v-for="item in searchResults" :key="item.url"><a :href="item.url" target="_blank" rel="noopener noreferrer">{{item.title}}</a> · {{item.published||'日期未提供'}}</p>
+          </div>
           <div v-if="!groups[group.key]" class="empty-block">该分组暂无设置项</div>
           <StudentDisplayPanel v-else-if="group.key==='student'" :values="model" :models="availableModels" :disabled="!auth.can('setting:write')" @change="setValue"/>
           <el-form v-else label-width="200px" label-position="right" class="setting-form" @submit.prevent>
@@ -137,7 +145,7 @@
 import { computed, onMounted, reactive, ref } from "vue"
 import StudentDisplayPanel from "@/components/admin/StudentDisplayPanel.vue"
 import { settingsApi,modelsApi } from "@/api"
-import { toastError, toastOk } from "@/api/client"
+import { toastError, toastOk,request } from "@/api/client"
 import { useAuthStore } from "@/stores/auth"
 import type { SettingItem } from "@/api/types"
 import { useKeepAliveRefresh } from "@/utils/keep-alive"
@@ -149,12 +157,15 @@ import { useKeepAliveRefresh } from "@/utils/keep-alive"
 defineOptions({ name: "admin-settings" })
 
 const auth = useAuthStore()
+const searchQuery=ref('中国社会科学院大学 学术新闻'),searchScope=ref('campus'),searchBusy=ref(false),searchReport=ref(''),searchResults=ref<{title:string;url:string;published:string}[]>([])
+async function testSearch(){searchBusy.value=true;searchResults.value=[];try{const result=await request<any>({method:'POST',url:'/search/test',data:{query:searchQuery.value,scope:searchScope.value}});searchResults.value=result.results;searchReport.value=`返回 ${result.results.length} 条${result.cached?'（缓存）':''}；${result.notice}`}catch(e){searchReport.value='测试未通过，请检查开关、密钥、权限或网络';toastError(e)}finally{searchBusy.value=false}}
 
 const GROUP_ORDER = [
   { key: "general", label: "通用" },
   { key: "student", label: "学生端与主题" },
   { key: "chat", label: "对话" },
   { key: "knowledge", label: "知识库与检索" },
+  { key: "search", label: "联网搜索" },
   { key: "security", label: "内容安全" },
   { key: "skill", label: "技能系统" },
   { key: "browser", label: "浏览器操控" }
