@@ -18,9 +18,9 @@ export class SettingsService {
    *   非超管**不返回**，而不是返回一个改不动的开关 ——
    *   看得见却存不下，比看不见更让人困惑。
    */
-  async grouped(grantedPermissions: string[] = []) {
+  async grouped(grantedPermissions: string[] = [], roles: string[] = []) {
     const granted = new Set(grantedPermissions)
-    const isSuper = granted.has("*") || granted.has("feature:toggle")
+    const isSuper = roles.includes('super_admin') || granted.has("*") || granted.has("feature:toggle")
     const rows = await this.prisma.setting.findMany()
     const rowMap = new Map(rows.map((r) => [r.key, r]))
 
@@ -87,7 +87,7 @@ export class SettingsService {
    */
   async updateMany(
     payload: Record<string, unknown>,
-    operator?: { id: string; email: string; permissions?: string[] }
+    operator?: { id: string; email: string; permissions?: string[]; roles?: string[] }
   ) {
     const unknownKeys = Object.keys(payload).filter(
       (k) => !SETTING_MAP.has(k)
@@ -106,7 +106,7 @@ export class SettingsService {
      * 这里只针对**被改到的那几个 key** 判权限，其余照常。
      */
     const granted = new Set(operator?.permissions ?? [])
-    const isSuper = granted.has("*") || granted.has("feature:toggle")
+    const isSuper = operator?.roles?.includes('super_admin') || granted.has("*") || granted.has("feature:toggle")
     if (!isSuper) {
       const blocked = Object.keys(payload).filter(
         (k) => SETTING_MAP.get(k)?.superAdminOnly

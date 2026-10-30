@@ -40,10 +40,14 @@
       >
         <el-card shadow="never" class="block">
           <div v-if="group.key==='search'" style="margin-bottom:20px">
-            <p>先保存搜索设置，再测试接口。默认覆盖 ucass.edu.cn 及全部子域名，仅搜索已收录的公开网页。</p>
+            <h3>搜索接口配置</h3>
+            <p>下方可设置搜索开关、搜索引擎、校外范围、结果数量和正文。密钥通过服务器环境变量或模型供应商后台配置。</p>
+            <el-button type="primary" :loading="saving" :disabled="!auth.can('setting:write')||!groups.search?.length" @click="save('search')">保存搜索配置</el-button>
+            <el-alert v-if="!groups.search?.length" title="当前账号未取得搜索配置项，请重新载入；仍不可见时请管理员检查设置权限。" type="warning" :closable="false" show-icon/>
+            <p>保存后可测试接口。默认覆盖 ucass.edu.cn 及全部子域名，仅搜索已收录的公开网页。</p>
             <el-input v-model="searchQuery" placeholder="例如：中国社会科学院大学 学术新闻" maxlength="100" style="max-width:460px" />
             <el-select v-model="searchScope" style="width:130px;margin:8px"><el-option label="校内子域名" value="campus"/><el-option label="校外新闻" value="external"/><el-option label="全网" value="all"/></el-select>
-            <el-button :loading="searchBusy" :disabled="dirtyKeys.length>0||!auth.can('setting:write')" @click="testSearch">测试搜索</el-button>
+            <el-button :loading="searchBusy" :disabled="dirtyKeys.length>0||!auth.can('setting:write')||!groups.search?.length" @click="testSearch">测试搜索</el-button>
             <p v-if="searchReport">{{searchReport}}</p>
             <p v-for="item in searchResults" :key="item.url"><a :href="item.url" target="_blank" rel="noopener noreferrer">{{item.title}}</a> · {{item.published||'日期未提供'}}</p>
           </div>
@@ -269,14 +273,15 @@ async function load() {
   }
 }
 
-async function save() {
+async function save(onlyGroup?: unknown) {
+  const keys=typeof onlyGroup==='string'?dirtyKeys.value.filter(key=>groups.value[onlyGroup]?.some(item=>item.key===key)):dirtyKeys.value
   if(saving.value || loading.value)return
-  if (dirtyKeys.value.length === 0) {
+  if (keys.length === 0) {
     toastOk("没有需要保存的修改")
     return
   }
 
-  const invalid = dirtyKeys.value.filter((k) => jsonValid[k] === false)
+  const invalid = keys.filter((k) => jsonValid[k] === false)
   if (invalid.length > 0) {
     toastError(new Error(`以下设置项 JSON 格式有误：${invalid.join(", ")}`))
     return
@@ -285,7 +290,7 @@ async function save() {
   saving.value = true
   try {
     const payload: Record<string, unknown> = {}
-    for (const key of dirtyKeys.value) payload[key] = JSON.parse(JSON.stringify(model[key] ?? null))
+    for (const key of keys) payload[key] = JSON.parse(JSON.stringify(model[key] ?? null))
 
     const flat = await settingsApi.update(payload)
     // 用后端返回值刷新快照

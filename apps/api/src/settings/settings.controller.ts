@@ -53,7 +53,7 @@ export class SettingsController {
   @ApiOperation({ summary: "系统设置（分组）" })
   grouped(@CurrentUser() me: AuthUser) {
     // 传入权限：superAdminOnly 的项只对超管返回
-    return this.settings.grouped(me.permissions ?? [])
+    return this.settings.grouped(me.permissions ?? [], me.roles ?? [])
   }
 
   @Get("flat")
@@ -74,7 +74,8 @@ export class SettingsController {
       id: me.id,
       email: me.email,
       // 权限用于拦截 superAdminOnly 的开关（超管专属）
-      permissions: me.permissions ?? []
+      permissions: me.permissions ?? [],
+      roles: me.roles ?? []
     })
   }
 }
