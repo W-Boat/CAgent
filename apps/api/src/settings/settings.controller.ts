@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Header, Put } from "@nestjs/common"
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger"
+import buildInfo from '../common/build-info.json'
 import {SETTING_DEFS} from "./setting-defs"
 import { SettingsService } from "./settings.service"
 import { RequirePermissions } from "../common/decorators/permissions.decorator"
@@ -55,6 +56,10 @@ export class SettingsController {
     // 传入权限：superAdminOnly 的项只对超管返回
     return this.settings.grouped(me.permissions ?? [], me.roles ?? [])
   }
+
+  @Get("version")
+  @RequirePermissions("setting:read")
+  version(){return buildInfo}
 
   @Get("flat")
   @RequirePermissions("setting:read")

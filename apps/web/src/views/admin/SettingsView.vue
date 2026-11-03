@@ -2,7 +2,7 @@
   <div class="page">
     <div class="page-header">
       <div>
-        <h2 class="page-title">系统设置</h2>
+        <h2 class="page-title">系统设置</h2><p class="page-subtitle">前端构建 {{buildInfo.version}} · {{buildInfo.builtAt}}<br/>服务端构建 {{serverBuild?.version||'读取中'}} · {{serverBuild?.builtAt||''}}</p>
         <p class="page-subtitle">站点品牌、对话默认参数、内容安全、技能与浏览器操控开关</p>
       </div>
       <div class="page-actions">
@@ -146,6 +146,8 @@
 </template>
 
 <script setup lang="ts">
+import {get} from '@/api/client'
+import buildInfo from '../../data/build-info.json'
 import { computed, onMounted, reactive, ref } from "vue"
 import StudentDisplayPanel from "@/components/admin/StudentDisplayPanel.vue"
 import { settingsApi,modelsApi } from "@/api"
@@ -341,7 +343,8 @@ async function resetAll() {
  * 避免快速来回切换时打出一串请求。
  */
 const { refresh } = useKeepAliveRefresh(()=>{if(!dirtyKeys.value.length && !saving.value)return load()}, { staleAfter: 120000 })
-onMounted(refresh)
+const serverBuild=ref<{version:string;builtAt:string}>()
+onMounted(()=>{void get<{version:string;builtAt:string}>('/settings/version').then(v=>serverBuild.value=v).catch(()=>serverBuild.value={version:'暂不可读',builtAt:''});refresh()})
 </script>
 
 <style scoped>

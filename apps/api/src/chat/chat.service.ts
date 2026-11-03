@@ -254,8 +254,8 @@ export class ChatService {
   // ============================================================
 
   async streamChat(user: AuthUser, dto: SendMessageDto, res: Response, revisionMessageId?:string, internal?:{evaluation?:boolean;signal?:AbortSignal;evaluationPolicy?:EvaluationPolicy}) {
-    const policy=internal?.evaluation?internal.evaluationPolicy:undefined,strict=policy?.strictMode===true,v2Only=policy?.knowledgeScope==='v2-only',controlled=strict||v2Only
-    const retrievalScope=v2Only?{sourceKeys:EVALUATION_V2_SOURCES,managedOnly:false}:{}
+    const policy=internal?.evaluation?internal.evaluationPolicy:undefined,strict=policy?.strictMode===true,v2Only=policy?.knowledgeScope==='v2-only',controlled=strict||v2Only||policy?.concise===true
+    const retrievalScope=v2Only?{sourceKeys:EVALUATION_V2_SOURCES,managedOnly:false}:policy?.knowledgeBaseIds?.length?{baseIds:policy.knowledgeBaseIds,managedOnly:false}:{}
     const strictEvidence:string[]=[]
     if(strict)dto={...dto,outputPreference:'text'}
     let strictReleased=false
@@ -678,7 +678,7 @@ export class ChatService {
           return typeof output==='string'?output:JSON.stringify(output,null,2)
         }
       })).filter(tool=>!internal?.evaluation||tool.readOnly===true)
-      const layoutPreference=strict?'text':presentationPlan(dto.content,presentationContext).mode==='plain'?'text':presentationContext.outputPreference!
+      const layoutPreference=(strict||policy?.concise)?'text':presentationPlan(dto.content,presentationContext).mode==='plain'?'text':presentationContext.outputPreference!
       const layout=new AnswerPresentationStream(layoutPreference,presentationSourceIds)
       const run=await new AgentRuntime().run({provider:this.llmFactory.resolve(target.providerType),request:{model:target.modelKey,apiKey,baseUrl,temperature:dto.temperature??target.temperature,maxTokens:target.maxOutputTokens},messages,tools:runtimeTools,contextWindow:target.contextWindow,maxToolRounds:agentMeta?.maxToolRounds??MAX_TOOL_ROUNDS,signal:scope.signal,
         checkpoint:!strict&&this.runtimeCheckpoints?{runId:revisionMessageId?assistantMessage.id+'-'+randomUUID():assistantMessage.id,scopeKey:createHash('sha256').update(JSON.stringify({user:user.id,permissions:[...user.permissions].sort(),agent:knowledgeAgentId,model:target.modelId,conversation:conversation.id,policy:systemPrompts,revision:await this.knowledgeStore.revision()})).digest('hex'),save:state=>this.runtimeCheckpoints!.save(state)}:undefined,

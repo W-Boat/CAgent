@@ -10,7 +10,7 @@ import {parseTestSet,flattenTestSet,csvCell} from './batch-format'
 import {CreateEvaluationDto} from './evaluation.dto'
 import {EvaluationResponse} from './evaluation-response'
 import {runEvaluationBatches,EVALUATION_POLICY_VERSION} from './evaluation-policy'
-import {resultWorkbook,XLSX_MIME} from './evaluation-xlsx'
+import {parseValidationWorkbook,resultWorkbook,XLSX_MIME} from './evaluation-xlsx'
 
 @Injectable()
 export class EvaluationService implements OnModuleInit,OnModuleDestroy {
@@ -30,20 +30,20 @@ export class EvaluationService implements OnModuleInit,OnModuleDestroy {
  private scope(user:AuthUser){return user.permissions.includes('*')?{}:{userId:user.id}}
  private async owned(user:AuthUser,id:string){const job=await this.db.evaluationJob.findFirst({where:{id,...this.scope(user)}});if(!job)throw new NotFoundException('测试任务不存在');return job}
  async create(user:AuthUser,dto:CreateEvaluationDto){
-  let batches;try{batches=parseTestSet(dto.data,dto.format,dto.split)}catch(e){throw new BadRequestException((e as Error).message)}
+  let batches;try{if(dto.format!=='xlsx')throw Error('仅支持 Excel 验证集');batches=parseValidationWorkbook(dto.data)}catch(e){throw new BadRequestException((e as Error).message)}
   if(!dto.title?.trim())throw new BadRequestException('请输入任务名称')
-  if(dto.concurrency!==undefined&&(!Number.isInteger(dto.concurrency)||dto.concurrency<1||dto.concurrency>8))throw new BadRequestException('并发批次数须为 1–8 的整数')
-  if(dto.knowledgeScope!==undefined&&!['mounted','v2-only'].includes(dto.knowledgeScope))throw new BadRequestException('无效的评测知识库范围')
-  if(dto.agentId&&!await this.db.agent.findFirst({where:{id:dto.agentId,enabled:true,...visibleCapabilityWhere,OR:[{visibility:'PUBLIC'},{ownerId:user.id},...(user.permissions.includes('*')?[{}]:[])]},select:{id:true}}))throw new BadRequestException('智能体不存在或不可用')
+  const selected=[...new Set(dto.knowledgeBaseIds||[])]
+  if(selected.length&&await this.db.knowledgeBase.count({where:{id:{in:selected},mounted:true,kind:{not:'REMOVED'},agentId:null}})!==selected.length)throw new BadRequestException('所选知识库未挂载、已移除或不可用于公共评测')
   if(dto.modelId&&!await this.db.model.findFirst({where:{id:dto.modelId,enabled:true,provider:{enabled:true}},select:{id:true}}))throw new BadRequestException('模型不存在或不可用')
   const turns=flattenTestSet(batches),job=await this.db.$transaction(async tx=>{
    await tx.$queryRaw`SELECT id FROM users WHERE id=${user.id} FOR UPDATE`
    if(await tx.evaluationJob.count({where:{userId:user.id,status:{in:['QUEUED','RUNNING','CANCELLING']}}})>=2)throw new BadRequestException('最多同时保留两个待执行任务，请等待或停止现有任务')
-   return tx.evaluationJob.create({data:{userId:user.id,title:dto.title.trim(),status:'QUEUED',total:turns.length,batchCount:batches.length,options:{modelId:dto.modelId||null,agentId:dto.agentId||null,bypassCache:dto.bypassCache!==false,outputPreference:dto.strictMode?'text':dto.outputPreference||(dto.split==='validation'?'text':'adaptive'),concurrency:dto.concurrency??1,strictMode:dto.strictMode===true,knowledgeScope:dto.knowledgeScope||'mounted',policyVersion:EVALUATION_POLICY_VERSION,inputSha256:createHash('sha256').update(JSON.stringify(batches)).digest('hex'),expectedAnswers:turns.map(t=>t.expectedAnswer)},turns:{create:turns.map(({expectedAnswer,...t},i)=>({...t,position:i,status:'PENDING'}))}}})
+   return tx.evaluationJob.create({data:{userId:user.id,title:dto.title.trim(),status:'QUEUED',total:turns.length,batchCount:batches.length,options:{modelId:dto.modelId||null,agentId:null,bypassCache:true,outputPreference:'text',concurrency:2,strictMode:false,concise:true,knowledgeScope:'mounted',knowledgeBaseIds:selected,policyVersion:EVALUATION_POLICY_VERSION,inputSha256:createHash('sha256').update(JSON.stringify(batches)).digest('hex'),expectedAnswers:turns.map(t=>t.expectedAnswer)},turns:{create:turns.map(({expectedAnswer,...t},i)=>({...t,position:i,status:'PENDING'}))}}})
   })
   await this.audit.log({userId:user.id,actor:user.email,action:'evaluation.create',resource:'evaluation',resourceId:job.id,detail:{total:job.total,batchCount:job.batchCount}})
   void this.pump();return job
  }
+ async knowledgeOptions(){return this.db.knowledgeBase.findMany({where:{mounted:true,kind:{not:'REMOVED'},agentId:null},select:{id:true,name:true},orderBy:{name:'asc'}})}
  async list(user:AuthUser){return this.db.evaluationJob.findMany({where:this.scope(user),orderBy:{createdAt:'desc'},take:50})}
  async detail(user:AuthUser,id:string){const job=await this.owned(user,id),turns=await this.db.evaluationTurn.findMany({where:{jobId:id},orderBy:{position:'asc'},select:{id:true,position:true,batchId:true,split:true,turn:true,question:true,status:true,error:true,reply:true,usage:true,latencyMs:true,conversationId:true,assistantMessageId:true}});return {...job,turns:turns.map(t=>({...t,expectedAnswer:this.reference(job.options,t.position),reply:t.reply.slice(0,4000),previewTruncated:t.reply.length>4000}))}}
  private reference(options:unknown,position:number):string {const value=(options as {expectedAnswers?:unknown[]})?.expectedAnswers?.[position];return typeof value==='string'?value:''}
@@ -54,7 +54,7 @@ export class EvaluationService implements OnModuleInit,OnModuleDestroy {
   await this.count(id)
   return this.owned(user,id)
  }
- async export(user:AuthUser,id:string,format:string){if(!['json','csv','xlsx'].includes(format))throw new BadRequestException('仅支持 Excel、JSON 或 CSV');const job=await this.owned(user,id),turns=await this.db.evaluationTurn.findMany({where:{jobId:id},orderBy:{position:'asc'}})
+ async export(user:AuthUser,id:string,format:string){if(format!=='xlsx')throw new BadRequestException('仅支持 Excel 结果下载');const job=await this.owned(user,id),turns=await this.db.evaluationTurn.findMany({where:{jobId:id},orderBy:{position:'asc'}})
   const rows=turns.map(t=>({batch_id:t.batchId,split:t.split,turn:t.turn,question:t.question,expected_answer:this.reference(job.options,t.position),reply:t.reply,status:t.status,error:t.error||'',latency_ms:t.latencyMs,conversation_id:t.conversationId,assistant_message_id:t.assistantMessageId,usage:t.usage,runtime:t.runtime,sources:t.sources}))
   if(format==='xlsx')return {mime:XLSX_MIME,body:resultWorkbook(rows)}
   if(format==='json')return {mime:'application/json; charset=utf-8',body:JSON.stringify({schemaVersion:1,task:{id:job.id,title:job.title,status:job.status,createdAt:job.createdAt,options:job.options},batches:Array.from(new Set(rows.map(r=>r.batch_id))).map(batch_id=>({batch_id,split:rows.find(r=>r.batch_id===batch_id)!.split,turns:rows.filter(r=>r.batch_id===batch_id)}))},null,2)}
@@ -64,7 +64,7 @@ export class EvaluationService implements OnModuleInit,OnModuleDestroy {
  private async actor(id:string):Promise<AuthUser>{const u=await this.db.user.findUnique({where:{id},include:{roles:{include:{role:{include:{permissions:{include:{permission:true}}}}}}}});if(!u||u.status!=='ACTIVE')throw new ForbiddenException('执行账号不可用');const permissions=[...new Set(u.roles.flatMap(r=>r.role.permissions.map(p=>p.permission.code)))];if(!permissions.includes('*')&&!permissions.includes('conversation:read'))throw new ForbiddenException('批量测试权限已撤销');return {id:u.id,email:u.email,name:u.name,status:u.status,roles:u.roles.map(r=>r.role.key),permissions}}
  private async pump(){if(this.busy||this.stopped)return;this.busy=true
   try{while(!this.stopped){const job=await this.db.evaluationJob.findFirst({where:{status:'QUEUED'},orderBy:{createdAt:'asc'}});if(!job)break;const claimed=await this.db.evaluationJob.updateMany({where:{id:job.id,status:'QUEUED'},data:{status:'RUNNING',startedAt:new Date()}});if(!claimed.count)continue
-   const controller=new AbortController();this.active={id:job.id,controller};const options=job.options as {modelId?:string;agentId?:string;bypassCache:boolean;outputPreference:'cards'|'adaptive'|'text';concurrency?:number;strictMode?:boolean;knowledgeScope?:'mounted'|'v2-only'},conversations=new Map<string,string>(),blocked=new Set<string>()
+   const controller=new AbortController();this.active={id:job.id,controller};const options=job.options as {modelId?:string;agentId?:string;bypassCache:boolean;outputPreference:'cards'|'adaptive'|'text';concurrency?:number;strictMode?:boolean;knowledgeScope?:'mounted'|'v2-only';knowledgeBaseIds?:string[];concise?:boolean},conversations=new Map<string,string>(),blocked=new Set<string>()
    try{
    const turns=await this.db.evaluationTurn.findMany({where:{jobId:job.id},orderBy:{position:'asc'}}),batches=new Map<string,typeof turns>()
    for(const turn of turns){const batch=batches.get(turn.batchId)||[];batch.push(turn);batches.set(turn.batchId,batch)}
@@ -75,7 +75,7 @@ export class EvaluationService implements OnModuleInit,OnModuleDestroy {
     if(!conversationId){const conversation=await this.db.conversation.create({data:{userId:user.id,title:`测试 · ${job.title} · ${turn.batchId}`.slice(0,200),evaluationJobId:job.id,modelId:options.modelId||null,agentId:options.agentId||null}});conversationId=conversation.id;conversations.set(turn.batchId,conversationId)}
     await this.db.evaluationTurn.update({where:{id:turn.id},data:{status:'RUNNING',conversationId}});const response=new EvaluationResponse(),started=Date.now()
     let turnError:string|undefined
-    try{await this.chat.streamChat(user,{conversationId,content:turn.question,modelId:options.modelId||undefined,agentId:options.agentId||undefined,origin:'api',outputPreference:options.strictMode?'text':options.outputPreference,bypassCache:options.bypassCache,memoryEnabled:false},response as any,undefined,{evaluation:true,signal:controller.signal,evaluationPolicy:{strictMode:options.strictMode===true,knowledgeScope:options.knowledgeScope||'mounted'}})}catch{turnError=controller.signal.aborted?'任务已停止':'本题执行异常，请查看会话审计；其他独立批次继续执行'}
+    try{await this.chat.streamChat(user,{conversationId,content:turn.question,modelId:options.modelId||undefined,agentId:options.agentId||undefined,origin:'api',outputPreference:options.strictMode?'text':options.outputPreference,bypassCache:options.bypassCache,memoryEnabled:false},response as any,undefined,{evaluation:true,signal:controller.signal,evaluationPolicy:{strictMode:options.strictMode===true,knowledgeScope:options.knowledgeScope||'mounted',knowledgeBaseIds:options.knowledgeBaseIds,concise:options.concise===true}})}catch{turnError=controller.signal.aborted?'任务已停止':'本题执行异常，请查看会话审计；其他独立批次继续执行'}
     const message=response.assistantMessageId?await this.db.message.findUnique({where:{id:response.assistantMessageId},select:{content:true,status:true,error:true}}):null,reply=message?.content||response.reply
     let status=controller.signal.aborted?'CANCELLED':turnError?'FAILED':message?.status||response.status
     if(status==='SUCCESS'&&!reply.trim()){status='FAILED';turnError='模型未返回有效回复'}

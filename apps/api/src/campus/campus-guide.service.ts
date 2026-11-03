@@ -75,6 +75,12 @@ export class CampusGuideService implements OnApplicationBootstrap {
   private evaluationLoading?:Promise<KnowledgeRetriever>
   /** Explicit administrator evaluation scope; never changes global mounted flags. */
   private async retrievalIndex(options:RetrievalOptions):Promise<KnowledgeRetriever>{
+    if(options.baseIds?.length){
+      const bases=await this.prisma.knowledgeBase.findMany({where:{id:{in:[...options.baseIds]},mounted:true,kind:{not:'REMOVED'},agentId:null},select:{id:true,connection:true}})
+      if(bases.length!==options.baseIds.length)throw new BadRequestException('所选知识库不可用')
+      const index=await this.index()
+      return new KnowledgeRetriever(index.rows.filter(row=>{const m=metadata(row);return bases.some(b=>{const c=b.connection as any;if(m.collection==='base:'+b.id)return true;const source=c?.sourceKey;if(source===CONTEST_SQLITE)return m.collection==='campus-v2-contest'&&m.file==='database/campus.sqlite';if(source===CONTEST_MARKDOWN)return m.collection==='campus-v2-contest'&&String(m.file).startsWith('knowledge/');if(source)return (m.file||'legacy/guide_v4.json')===source;return c?.collection===m.collection})}))
+    }
     if(!options.sourceKeys)return this.index()
     if(options.sourceKeys.length!==2||![CONTEST_SQLITE,CONTEST_MARKDOWN].every(key=>options.sourceKeys!.includes(key)))throw new BadRequestException('无效的评测知识库范围')
     const bases=await this.prisma.knowledgeBase.findMany({where:{id:{in:[CONTEST_SQLITE,CONTEST_MARKDOWN].map(embeddedSourceId)},kind:'EMBEDDED',OR:[{agentId:null},...(options.agentId?[{agentId:options.agentId}]:[])]},select:{id:true}})
