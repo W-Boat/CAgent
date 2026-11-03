@@ -1,4 +1,8 @@
 import {IsBoolean,IsIn,IsInt,Min,Max,IsOptional,IsString,MaxLength} from 'class-validator'
+export class ImportEvaluationWorkbookDto {
+ @IsString() @MaxLength(1_333_336) data!:string
+ @IsOptional() @IsIn(['test','validation']) split?:'test'|'validation'
+}
 export class CreateEvaluationDto {
  @IsString() @MaxLength(120) title!:string
  @IsIn(['json','csv']) format!:'json'|'csv'

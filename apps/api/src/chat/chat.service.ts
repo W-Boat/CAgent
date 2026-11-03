@@ -3,7 +3,7 @@ import {SearchService,searchTool,fetchTool,searchIntent} from '../search/search.
 import {lectureIntent,lectureToolDefinition} from '../lectures/lecture-tool'
 import {KnowledgeRetrievalBudget} from './knowledge-retrieval-policy'
 import {mergeProviderCache} from './llm/provider-cache'
-import {type EvaluationPolicy,EVALUATION_POLICY_VERSION,EVALUATION_V2_SOURCES,STRICT_PROMPT,STRICT_FALLBACK,strictPlainText,reviewStrictReply} from '../evaluation/evaluation-policy'
+import {type EvaluationPolicy,EVALUATION_POLICY_VERSION,EVALUATION_V2_SOURCES,EVALUATION_ANSWER_PROMPT,STRICT_PROMPT,STRICT_FALLBACK,strictPlainText,reviewStrictReply} from '../evaluation/evaluation-policy'
 import {appOrigin} from '../common/app-origin'
 import {CampusActivityService} from "../campus/campus-activity.service"
 import {ANSWER_CARD_PROTOCOL,supportCardFallback} from './answer-card-protocol'
@@ -637,6 +637,7 @@ export class ChatService {
       if(toolDefs.length)systemPrompts.push('【工具调用协议】工具只能通过接口的标准工具调用字段请求；正文禁止输出 DSML、invoke、function_calls 或模拟工具执行。不需要工具时直接回答，不能用文字工具调用替代接口调用。')
       systemPrompts.push(`【管理员检索策略】本轮知识库查询最多 ${retrievalBudget.limit} 次（已自动查询 ${retrievalBudget.count} 次）。达到上限后依据现有证据完成回答，缺项说明未收录，不编造。`)
       if(v2Only)systemPrompts.push('【本轮资料范围】只可查询校园事务 2.0 的 SQLite 与 Markdown 两库。不得使用其他知识库、技能资料、外网或通用知识补齐缺失事实。2.0 包含赛事模拟资料，必须保留模拟性质，不当作实时校方通知。')
+      if(policy)systemPrompts.push(EVALUATION_ANSWER_PROMPT)
       if(strict)systemPrompts.push(STRICT_PROMPT)
       systemPrompts.push(datePrompt)
       // One model boundary accounts for history, image costs and tool schemas together.

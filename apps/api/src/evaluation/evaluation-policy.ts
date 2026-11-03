@@ -6,7 +6,8 @@ import {addProviderCache} from '../chat/llm/provider-cache'
 import type {LlmUsage} from '../chat/llm/types'
 import {CONTEST_SQLITE,CONTEST_MARKDOWN} from '../knowledge/embedded-knowledge'
 
-export const EVALUATION_POLICY_VERSION='evaluation-v1'
+export const EVALUATION_POLICY_VERSION='evaluation-v2'
+export const EVALUATION_ANSWER_PROMPT='【批量问答要求】先直接回答所问，再按问题列全有证据的关键要素：涉及时间、地点、办理条件、材料、步骤、入口、联系方式时分别交代，保留准确的数字、名称与限制条件。避免无关开场、过程宣告和重复总结；不要以追问代替已能回答的部分。缺失信息明确说明，冲突资料按来源时间与权威程度判断，不编造；不要猜测所谓标准答案。'
 export const EVALUATION_V2_SOURCES=Object.freeze([CONTEST_SQLITE,CONTEST_MARKDOWN])
 export interface EvaluationPolicy {strictMode:boolean;knowledgeScope:'mounted'|'v2-only'}
 export const STRICT_FALLBACK='此测试模式仅提供中性的校园办事、地点和服务指引。请说明你想查询的校园事项。'
