@@ -89,4 +89,13 @@ export class ModelsController {
   remove(@Param("id") id: string, @CurrentUser() me: AuthUser) {
     return this.models.remove(id, { id: me.id, email: me.email })
   }
+
+  // Some campus gateways drop DELETE before it reaches the application.
+  // Keep the same authentication, permission and audited deletion service.
+  @Post(":id/remove")
+  @RequirePermissions("model:delete")
+  @ApiOperation({ summary: "删除模型（受限网络兼容入口）" })
+  removeCompatible(@Param("id") id: string, @CurrentUser() me: AuthUser) {
+    return this.models.remove(id, { id: me.id, email: me.email })
+  }
 }

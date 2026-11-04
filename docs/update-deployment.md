@@ -53,3 +53,6 @@ docker compose exec api node scripts/import-campus-profile.mjs /tmp/ucass-profil
 ## 5. 验收与回退
 
 在「系统设置」核对两端版本，测试登录、知识查询和 Excel 测试。异常查看 `docker compose logs --tail=100 api`；必要时回退 API/Web，数据库不兼容时停机恢复匹配备份。
+
+
+若校内部署点击删除一直等待：检查网关是否拦截 DELETE。模型删除已提供 POST /api/models/{id}/remove 兼容入口，权限仍为 model:delete。需要同时更新 API 和前端；只更新静态页面会报接口不存在。旧 DELETE 路由继续兼容。无法区分拦截设备时，对比网关地址与服务器本机 API 的响应，并核对代理/安全设备日志。

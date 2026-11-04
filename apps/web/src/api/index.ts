@@ -243,7 +243,7 @@ export const modelsApi = {
   toggle: (id: string, enabled: boolean) =>
     patch<ModelItem>(`/models/${id}/toggle`, { enabled }),
   setDefault: (id: string) => patch<ModelItem>(`/models/${id}/default`),
-  remove: (id: string) => del<{ success: boolean }>(`/models/${id}`),
+  remove: (id: string) => post<{ success: boolean }>(`/models/${id}/remove`),
   test: (payload: { modelId: string; prompt?: string }) =>
     post<TestModelResult>("/chat/test-model", payload),
 }
