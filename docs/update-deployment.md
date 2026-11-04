@@ -55,4 +55,6 @@ docker compose exec api node scripts/import-campus-profile.mjs /tmp/ucass-profil
 在「系统设置」核对两端版本，测试登录、知识查询和 Excel 测试。异常查看 `docker compose logs --tail=100 api`；必要时回退 API/Web，数据库不兼容时停机恢复匹配备份。
 
 
-若校内部署点击删除一直等待：检查网关是否拦截 DELETE。模型删除已提供 POST /api/models/{id}/remove 兼容入口，权限仍为 model:delete。需要同时更新 API 和前端；只更新静态页面会报接口不存在。旧 DELETE 路由继续兼容。无法区分拦截设备时，对比网关地址与服务器本机 API 的响应，并核对代理/安全设备日志。
+若校内部署点击删除一直等待，检查网关是否阻断 DELETE。前端公共 del() 已统一通过 POST 与 X-CAgent-Method: DELETE 发送；API 在路由匹配前转换到原 DELETE 处理，认证、权限、数据归属、确认参数和审计沿用原逻辑。覆盖用户、角色、供应商、供应商密钥、模型、会话、技能、智能体、记忆、学习条目、撤销反馈与关闭浏览器会话；知识库和批量删除本已使用 POST 的入口继续沿用。
+
+必须同时更新 API 与前端并重新构建、重启 API；仅更新一端不能解决。原生 DELETE 和已有模型 POST 删除入口继续兼容。服务器应允许 X-CAgent-Method 请求头传递到 API；跨域部署还应允许该请求头的 CORS 预检。同源部署不增加跨域要求。校内网络与 API 直连结果不同时，请核对代理及安全设备日志。

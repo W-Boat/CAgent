@@ -7,6 +7,7 @@ import express from "express"
 import { AppModule } from "./app.module"
 import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter"
 import { TransformInterceptor } from "./common/interceptors/transform.interceptor"
+import {deleteCompatibility} from './common/delete-compatibility'
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -19,6 +20,7 @@ async function bootstrap() {
   const webOrigin = config.get("WEB_ORIGIN") || "http://localhost:5173"
 
   app.setGlobalPrefix(prefix)
+  app.use('/'+prefix,deleteCompatibility)
 
   /*
    * JSON body 上限：默认 100KB 会拒绝知识包级别的大提示词

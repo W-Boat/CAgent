@@ -171,7 +171,7 @@ export function put<T>(url: string, data?: unknown) {
 }
 
 export function del<T>(url: string, params?: object) {
-  return request<T>({ url, method: "DELETE", params })
+  return request<T>({ url, method: "POST", params, headers: { "X-CAgent-Method": "DELETE" } })
 }
 
 /** 把 axios 错误转换为人类可读文案 */
