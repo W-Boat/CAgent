@@ -22,6 +22,13 @@ import {
 @ApiBearerAuth()
 @Controller("providers")
 export class ProvidersController {
+  @Post(':id/models/discover')
+  @RequirePermissions('provider:write')
+  discoverModels(@Param('id') id:string){return this.providers.discoverModels(id)}
+
+  @Post(':id/models/import')
+  @RequirePermissions('model:write')
+  importModels(@Param('id') id:string,@Body('keys') keys:unknown,@CurrentUser() me:AuthUser){return this.providers.importDiscovered(id,keys,{id:me.id,email:me.email})}
   constructor(
     private readonly providers: ProvidersService,
     private readonly keys: ProviderKeyService

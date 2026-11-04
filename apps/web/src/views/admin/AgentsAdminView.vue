@@ -121,7 +121,6 @@
               text
               type="danger"
               size="small"
-              :disabled="row.isSystem"
               @click="remove(row)"
             >
               删除
@@ -564,7 +563,7 @@ async function toggle(row: AgentItem, enabled: boolean) {
 async function remove(row: AgentItem) {
   try {
     await ElMessageBox.confirm(
-      `删除智能体「${row.name}」？已有 ${row.conversationCount ?? 0} 个会话关联，删除后这些会话将失去智能体配置。`,
+      `删除智能体「${row.name}」？已有 ${row.conversationCount ?? 0} 个会话关联，移除后停止使用该配置，已有会话和关联资料保留。`,
       "删除智能体",
       { type: "warning", confirmButtonText: "删除", cancelButtonText: "取消" }
     )

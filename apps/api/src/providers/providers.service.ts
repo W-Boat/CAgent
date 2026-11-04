@@ -1,3 +1,4 @@
+import {removedConfigurationIds,assertConfigurationPresent,removeConfiguration} from '../common/configuration-removal'
 import {
   BadRequestException,
   ConflictException,
@@ -9,9 +10,28 @@ import { CryptoService } from "../common/services/crypto.service"
 import { AuditService } from "../common/services/audit.service"
 import { ProviderKeyService } from "./provider-key.service"
 import { CreateProviderDto, UpdateProviderDto } from "./dto/provider.dto"
+import {discoverProviderModels,type DiscoveredModel} from './model-discovery'
 
 @Injectable()
 export class ProvidersService {
+  private discovered=new Map<string,{until:number;models:DiscoveredModel[]}>()
+  async discoverModels(id:string){
+    const {provider,baseUrl,apiKey}=await this.resolveCredentials(id)
+    const result=await discoverProviderModels(provider.type,baseUrl,apiKey)
+    if(this.discovered.size>=100)this.discovered.delete(this.discovered.keys().next().value!)
+    this.discovered.set(id,{until:Date.now()+600000,models:result.models})
+    const existing=new Set((await this.prisma.model.findMany({where:{providerId:id},select:{key:true}})).map(m=>m.key))
+    return {...result,models:result.models.map(m=>({...m,existing:existing.has(m.key)}))}
+  }
+  async importDiscovered(id:string,input:unknown,operator:{id:string;email:string}){
+    if(!Array.isArray(input)||!input.length||input.length>200||input.some(k=>typeof k!=='string'))throw new BadRequestException('请选择 1–200 个模型')
+    const snapshot=this.discovered.get(id);if(!snapshot||snapshot.until<Date.now())throw new BadRequestException('嗅探结果已过期或服务已重启，请重新嗅探')
+    const keys=[...new Set(input as string[])],selected=keys.map(key=>snapshot.models.find(m=>m.key===key));if(selected.some(m=>!m))throw new BadRequestException('只能导入本次嗅探返回的模型')
+    if(!await this.prisma.provider.findFirst({where:{id,enabled:true}}))throw new BadRequestException('供应商不存在或已关闭')
+    const result=await this.prisma.model.createMany({data:selected.map(m=>({providerId:id,key:m!.key,name:m!.name,enabled:false,isDefault:false,supportsVision:m!.supportsVision??false,supportsTools:false,contextWindow:m!.contextWindow??8192,maxOutputTokens:Math.min(m!.maxOutputTokens??4096,m!.contextWindow??8192)})),skipDuplicates:true})
+    await this.audit.log({userId:operator.id,actor:operator.email,action:'provider.models.import',resource:'provider',resourceId:id,detail:{created:result.count,requested:keys.length}})
+    return {created:result.count,skipped:keys.length-result.count}
+  }
   constructor(
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
@@ -55,7 +75,9 @@ export class ProvidersService {
   }
 
   async list() {
+    const removed=await removedConfigurationIds(this.prisma,'provider')
     const providers = await this.prisma.provider.findMany({
+      where:{id:{notIn:removed}},
       orderBy: [{ sort: "asc" }, { createdAt: "asc" }],
       include: { _count: { select: { models: true } } }
     })
@@ -72,6 +94,7 @@ export class ProvidersService {
    * 返回的 keyId 用于请求结束后上报成败，驱动 Key 的健康状态流转。
    */
   async resolveCredentials(providerId: string) {
+    await assertConfigurationPresent(this.prisma,'provider',providerId)
     const provider = await this.prisma.provider.findUnique({
       where: { id: providerId }
     })
@@ -160,6 +183,7 @@ export class ProvidersService {
   }
 
   async detail(id: string) {
+    await assertConfigurationPresent(this.prisma,'provider',id)
     const provider = await this.prisma.provider.findUnique({
       where: { id },
       include: {
@@ -208,6 +232,7 @@ export class ProvidersService {
     dto: UpdateProviderDto,
     operator?: { id: string; email: string }
   ) {
+    await assertConfigurationPresent(this.prisma,'provider',id)
     const provider = await this.prisma.provider.findUnique({ where: { id } })
     if (!provider) throw new NotFoundException("供应商不存在")
 
@@ -255,16 +280,7 @@ export class ProvidersService {
       }
     })
     if (!provider) throw new NotFoundException("供应商不存在")
-    if (provider.isSystem) {
-      throw new BadRequestException("系统内置供应商不可删除，可将其禁用")
-    }
-    if (provider._count.models > 0) {
-      throw new BadRequestException(
-        `该供应商下还有 ${provider._count.models} 个模型，请先删除模型`
-      )
-    }
-
-    await this.prisma.provider.delete({ where: { id } })
+    await removeConfiguration(this.prisma,'provider',id)
     await this.audit.log({
       userId: operator?.id,
       actor: operator?.email,
@@ -277,6 +293,7 @@ export class ProvidersService {
   }
 
   async toggle(id: string, enabled: boolean, operator?: { id: string; email: string }) {
+    await assertConfigurationPresent(this.prisma,'provider',id)
     const provider = await this.prisma.provider.update({
       where: { id },
       data: { enabled },

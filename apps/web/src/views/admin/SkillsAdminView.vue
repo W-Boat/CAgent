@@ -104,7 +104,7 @@
             text
             type="danger"
             size="small"
-            :disabled="!auth.can('skill:delete') || row.isSystem"
+            :disabled="!auth.can('skill:delete')"
             @click="removeSkill(row)"
           >
             删除
@@ -860,7 +860,7 @@ async function toggleSkill(row: SkillItem, enabled: boolean) {
 async function removeSkill(row: SkillItem) {
   try {
     await ElMessageBox.confirm(
-      `删除技能「${row.name}」？该操作不可恢复，历史运行记录会一并删除。`,
+      `删除技能「${row.name}」？移除后停止调用，历史运行记录保留。`,
       "删除技能",
       { type: "warning", confirmButtonText: "删除", cancelButtonText: "取消" }
     )

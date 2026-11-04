@@ -1,3 +1,4 @@
+import {removedConfigurationIds,assertConfigurationPresent,removeConfiguration} from '../common/configuration-removal'
 import {
   BadRequestException,
   Injectable,
@@ -65,6 +66,7 @@ export class SkillsEngineService {
 
   async list(query: QuerySkillDto = {}) {
     const where: Prisma.SkillWhereInput = {...visibleCapabilityWhere}
+    where.id={notIn:await removedConfigurationIds(this.prisma,'skill')}
     if (query.keyword) {
       where.OR = [
         { key: { contains: query.keyword, mode: "insensitive" } },
@@ -117,6 +119,7 @@ export class SkillsEngineService {
   }
 
   async detail(id: string) {
+    await assertConfigurationPresent(this.prisma,'skill',id)
     const skill = await this.prisma.skill.findUnique({
       where: { id },
       include: {
@@ -190,6 +193,7 @@ export class SkillsEngineService {
     dto: UpdateSkillDto,
     operator?: { id: string; email: string }
   ) {
+    await assertConfigurationPresent(this.prisma,'skill',id)
     const skill = await this.prisma.skill.findUnique({ where: { id } })
     if (!skill) throw new NotFoundException("技能不存在")
     assertVisibleCapability(skill)
@@ -229,9 +233,8 @@ export class SkillsEngineService {
     const skill = await this.prisma.skill.findUnique({ where: { id } })
     if (!skill) throw new NotFoundException("技能不存在")
     assertVisibleCapability(skill)
-    if (skill.isSystem) throw new BadRequestException("内置技能不可删除，可将其禁用")
 
-    await this.prisma.skill.delete({ where: { id } })
+    await removeConfiguration(this.prisma,'skill',id)
     await this.audit.log({
       userId: operator?.id,
       actor: operator?.email,
@@ -248,6 +251,7 @@ export class SkillsEngineService {
     enabled: boolean,
     operator?: { id: string; email: string }
   ) {
+    await assertConfigurationPresent(this.prisma,'skill',id)
     await this.detail(id)
     const skill = await this.prisma.skill.update({
       where: { id },

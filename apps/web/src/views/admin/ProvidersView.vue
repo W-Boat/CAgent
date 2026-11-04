@@ -66,6 +66,7 @@
           </div>
 
           <div class="pc-actions">
+            <el-button v-if="auth.can('provider:write')" text type="primary" size="small" :disabled="!p.enabled" @click="discover(p)">嗅探模型</el-button>
             <el-button
               v-permission="'provider:read'"
               text
@@ -92,7 +93,6 @@
               text
               type="danger"
               size="small"
-              :disabled="p.isSystem"
               @click="remove(p)"
             >
               删除
@@ -102,6 +102,16 @@
       </el-col>
     </el-row>
 
+    <el-dialog v-model="discoveryVisible" title="供应商模型嗅探" width="min(760px, 94vw)">
+      <p>读取已保存供应商的模型列表，不发起推理。勾选后导入；已有模型保留，新模型默认禁用，请核对能力和价格后启用。</p>
+      <el-alert v-if="discoveryError" :title="discoveryError" type="error" :closable="false"/>
+      <el-alert v-if="discoveryPartial" title="供应商返回分页列表，本次结果可能不完整，可继续手动补充。" type="warning" :closable="false"/>
+      <el-table :data="discoveredModels" v-loading="discovering" max-height="400" @selection-change="(rows:any[])=>discoverySelection=rows">
+        <el-table-column type="selection" :selectable="(row:any)=>!row.existing" width="44"/>
+        <el-table-column prop="key" label="模型 ID"/><el-table-column prop="name" label="名称"/>
+        <el-table-column label="状态" width="100"><template #default="{row}">{{row.existing?'已添加':'待导入'}}</template></el-table-column>
+      </el-table><template #footer><el-button @click="discoveryVisible=false">关闭</el-button><el-button v-if="auth.can('model:write')" type="primary" :loading="discoveryImporting" :disabled="!discoverySelection.length||discovering" @click="importDiscovery">导入所选 {{discoverySelection.length}} 个</el-button></template>
+    </el-dialog>
     <el-empty v-if="!loading && providers.length === 0" description="还没有配置供应商" />
 
     <el-dialog
@@ -168,6 +178,7 @@
 import { computed, onMounted, reactive, ref } from "vue"
 import { useRouter } from "vue-router"
 import type { FormInstance, FormRules } from "element-plus"
+import {post,errorMessage} from '@/api/client'
 import { providersApi } from "@/api"
 import { toastError, toastOk } from "@/api/client"
 import { useAuthStore } from "@/stores/auth"
@@ -195,6 +206,9 @@ const PROVIDER_TYPES: { label: string; value: ProviderType; hint: string }[] = [
   { label: "Azure OpenAI", value: "AZURE_OPENAI", hint: "需要填写部署名与 api-version" }
 ]
 
+const discoveryVisible=ref(false),discovering=ref(false),discoveryImporting=ref(false),discoveryError=ref(''),discoveryPartial=ref(false),discoveredModels=ref<any[]>([]),discoverySelection=ref<any[]>([]);let discoveryProvider='',discoveryRequest=0
+async function discover(p:ProviderItem){discoveryProvider=p.id;const request=++discoveryRequest;discoveryVisible.value=true;discovering.value=true;discoveryError.value='';discoveredModels.value=[];discoverySelection.value=[];discoveryPartial.value=false;try{const result=await post<{models:any[];partial:boolean}>('/providers/'+p.id+'/models/discover');if(request===discoveryRequest){discoveredModels.value=result.models;discoveryPartial.value=result.partial}}catch(e){if(request===discoveryRequest)discoveryError.value=errorMessage(e)}finally{if(request===discoveryRequest)discovering.value=false}}
+async function importDiscovery(){if(discoveryImporting.value)return;discoveryImporting.value=true;try{const result=await post<{created:number;skipped:number}>('/providers/'+discoveryProvider+'/models/import',{keys:discoverySelection.value.map(m=>m.key)});toastOk(`已添加 ${result.created} 个，已有 ${result.skipped} 个；新模型默认禁用`);discoveryVisible.value=false;await load()}catch(e){discoveryError.value=errorMessage(e)}finally{discoveryImporting.value=false}}
 const providers = ref<ProviderItem[]>([])
 const loading = ref(false)
 const saving = ref(false)
@@ -327,7 +341,7 @@ async function toggle(p: ProviderItem, enabled: boolean) {
 async function remove(p: ProviderItem) {
   try {
     await ElMessageBox.confirm(
-      `删除供应商「${p.name}」将同时影响其下 ${p.modelCount ?? 0} 个模型，确定继续吗？`,
+      `删除供应商「${p.name}」将同时移除其下 ${p.modelCount ?? 0} 个模型的可用配置，历史数据保留，确定继续吗？`,
       "删除供应商",
       { type: "warning", confirmButtonText: "删除", cancelButtonText: "取消" }
     )

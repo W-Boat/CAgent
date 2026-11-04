@@ -1,3 +1,4 @@
+import {removedConfigurationIds,assertConfigurationPresent,removeConfiguration} from '../common/configuration-removal'
 import {
   BadRequestException,
   ConflictException,
@@ -17,6 +18,7 @@ export class ModelsService {
 
   async list(query: QueryModelDto = {}) {
     const where: any = {}
+    where.id={notIn:await removedConfigurationIds(this.prisma,'model')}
     if (query.providerId) where.providerId = query.providerId
     if (query.keyword) {
       where.OR = [
@@ -63,6 +65,7 @@ export class ModelsService {
   }
 
   async detail(id: string) {
+    await assertConfigurationPresent(this.prisma,'model',id)
     const model = await this.prisma.model.findUnique({
       where: { id },
       include: { provider: true }
@@ -120,6 +123,7 @@ export class ModelsService {
     dto: UpdateModelDto,
     operator?: { id: string; email: string }
   ) {
+    await assertConfigurationPresent(this.prisma,'model',id)
     const existing = await this.prisma.model.findUnique({ where: { id } })
     if (!existing) throw new NotFoundException("模型不存在")
 
@@ -167,7 +171,7 @@ export class ModelsService {
     const model = await this.prisma.model.findUnique({ where: { id } })
     if (!model) throw new NotFoundException("模型不存在")
 
-    await this.prisma.model.delete({ where: { id } })
+    await removeConfiguration(this.prisma,'model',id)
     await this.audit.log({
       userId: operator?.id,
       actor: operator?.email,
@@ -184,6 +188,7 @@ export class ModelsService {
     enabled: boolean,
     operator?: { id: string; email: string }
   ) {
+    await assertConfigurationPresent(this.prisma,'model',id)
     const model = await this.prisma.model.update({
       where: { id },
       data: { enabled }
@@ -201,6 +206,7 @@ export class ModelsService {
 
   /** 设为默认模型 */
   async setDefault(id: string, operator?: { id: string; email: string }) {
+    await assertConfigurationPresent(this.prisma,'model',id)
     await this.clearDefault(id)
     const model = await this.prisma.model.update({
       where: { id },

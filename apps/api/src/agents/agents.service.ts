@@ -1,3 +1,4 @@
+import {removedConfigurationIds,assertConfigurationPresent,removeConfiguration} from '../common/configuration-removal'
 import {
   BadRequestException,
   Injectable,
@@ -22,6 +23,7 @@ export class AgentsService {
 
   async list(query: QueryAgentDto = {}) {
     const where: Prisma.AgentWhereInput = {...visibleCapabilityWhere}
+    where.id={notIn:await removedConfigurationIds(this.prisma,'agent')}
     if (query.keyword) {
       where.OR = [
         { key: { contains: query.keyword, mode: "insensitive" } },
@@ -97,6 +99,7 @@ export class AgentsService {
   }
 
   async detail(id: string) {
+    await assertConfigurationPresent(this.prisma,'agent',id)
     const agent = await this.prisma.agent.findUnique({
       where: { id },
       include: {
@@ -179,6 +182,7 @@ export class AgentsService {
     dto: UpdateAgentDto,
     operator?: { id: string; email: string }
   ) {
+    await assertConfigurationPresent(this.prisma,'agent',id)
     const agent = await this.prisma.agent.findUnique({ where: { id } })
     if (!agent) throw new NotFoundException("智能体不存在")
     assertVisibleCapability(agent)
@@ -240,9 +244,8 @@ export class AgentsService {
     const agent = await this.prisma.agent.findUnique({ where: { id } })
     if (!agent) throw new NotFoundException("智能体不存在")
     assertVisibleCapability(agent)
-    if (agent.isSystem) throw new BadRequestException("内置智能体不可删除，可将其禁用")
 
-    await this.prisma.agent.delete({ where: { id } })
+    await removeConfiguration(this.prisma,'agent',id)
     await this.audit.log({
       userId: operator?.id,
       actor: operator?.email,
@@ -259,6 +262,7 @@ export class AgentsService {
     enabled: boolean,
     operator?: { id: string; email: string }
   ) {
+    await assertConfigurationPresent(this.prisma,'agent',id)
     await this.detail(id)
     const agent = await this.prisma.agent.update({
       where: { id },

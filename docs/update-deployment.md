@@ -1,8 +1,8 @@
-# CAgent 更新与知识库还原
+# CAgent 保留数据更新说明
 
-在项目根目录执行；账号、数据库名按实际修改。先结束批量测试。
+在项目根目录执行。先结束批量任务，保存本机未提交修改；不要清空数据库、审计日志、知识库或 storage，不要重新执行 seed/campus:init。
 
-## 1. 停止 API 并备份
+## 1. 备份
 
 ```sh
 docker compose stop api
@@ -10,19 +10,9 @@ docker compose exec -T db pg_dump -U cagent -d cagent -Fc -f /tmp/before-upgrade
 docker cp cagent-db:/tmp/before-upgrade.dump ./before-upgrade.dump
 ```
 
-另存 `.env`、storage 和上一版构建。
+另存 `.env`、storage、上一版 API 镜像和前端 dist。数据库名及账号按实际配置替换。
 
-## 2. 清空审计日志
-
-备份成功后执行，永久删除历史操作审计：
-
-```sh
-docker compose exec -T db psql -U cagent -d cagent -v ON_ERROR_STOP=1 -c "TRUNCATE TABLE public.audit_logs;"
-```
-
-## 3. 更新版本
-
-保存本机修改，在 `.env` 设置自己的 `SITE_ORIGIN`：
+## 2. 同时更新前后端
 
 ```sh
 git pull --ff-only
@@ -34,27 +24,14 @@ docker compose build api
 docker compose up -d --no-deps api web
 ```
 
-API 启动自动迁移。已有站点不要重复 seed 或删除数据卷。原生 Windows 部署须自行构建 API/Web、执行 `prisma migrate deploy`，再重启原服务。
+构建前将 SITE_ORIGIN 环境变量设为自己的站点地址。API 启动自动执行增量迁移。沿用原 `.env`、数据库卷及 storage 卷；不要运行 `docker compose down -v`。不要用空白初始化包覆盖当前资料。
 
-## 4. 还原知识库
+原生 Windows 部署：执行同样的拉取、依赖安装及版本生成；构建 API/Web，执行 `npx pnpm@11.8.0 --filter @cagent/api db:deploy`，再重启原 Node 服务及反向代理。仅替换程序与网页文件，数据库和运行目录继续沿用。
 
-解压知识库部署包，取出 `ucass-profile`。以下仅用于完成迁移和管理员初始化、业务数据为空的新环境：
+## 3. 验收
 
-```sh
-docker cp ucass-profile cagent-api:/tmp/ucass-profile
-docker compose exec api node scripts/import-campus-profile.mjs /tmp/ucass-profile
-docker compose exec api node scripts/import-campus-profile.mjs /tmp/ucass-profile --apply
-```
+在系统设置查看前后端构建版本。确认原用户、会话与知识库仍在，检查新版 Excel 批量测试、配置移除和供应商「嗅探模型」。新嗅探模型默认禁用，核对能力及价格后再启用。
 
-先校验，再用 `--apply` 导入。包含 30,850 条索引、45 个库、289 条已发布条目；之后配置模型密钥并核对库开关。
+全站删除兼容使用 POST 加 X-CAgent-Method 请求头；须同时更新 API 与前端。移除模型、供应商、智能体、技能会停用并隐藏配置，保留历史记录；移除供应商同时移除其模型的可用配置。知识库仍须输入全名确认，资料保留。内置身份不再禁止移除。
 
-`knowledge.sqlite` 仅供离线查看，主库仍为 PostgreSQL。已有站点升级跳过此步骤；不要删除初始化标记强行覆盖。已有资料误删，应从 PostgreSQL 备份恢复。
-
-## 5. 验收与回退
-
-在「系统设置」核对两端版本，测试登录、知识查询和 Excel 测试。异常查看 `docker compose logs --tail=100 api`；必要时回退 API/Web，数据库不兼容时停机恢复匹配备份。
-
-
-若校内部署点击删除一直等待，检查网关是否阻断 DELETE。前端公共 del() 已统一通过 POST 与 X-CAgent-Method: DELETE 发送；API 在路由匹配前转换到原 DELETE 处理，认证、权限、数据归属、确认参数和审计沿用原逻辑。覆盖用户、角色、供应商、供应商密钥、模型、会话、技能、智能体、记忆、学习条目、撤销反馈与关闭浏览器会话；知识库和批量删除本已使用 POST 的入口继续沿用。
-
-必须同时更新 API 与前端并重新构建、重启 API；仅更新一端不能解决。原生 DELETE 和已有模型 POST 删除入口继续兼容。服务器应允许 X-CAgent-Method 请求头传递到 API；跨域部署还应允许该请求头的 CORS 预检。同源部署不增加跨域要求。校内网络与 API 直连结果不同时，请核对代理及安全设备日志。
+异常时查看 `docker compose logs --tail=100 api`；恢复上一版 API/Web。涉及数据库回退时先停机，再恢复匹配备份。知识库部署包只用于新环境导入，不参与日常升级。
