@@ -94,3 +94,25 @@ handoff.md
 
 !docs/update-deployment.md
 outputs/
+
+# Private knowledge, initialization data and evaluation inputs
+knowledge/**
+!knowledge/README.md
+!knowledge/*.mjs
+!knowledge/*.py
+deploy/profiles/**
+!deploy/profiles/ucass/
+!deploy/profiles/ucass/README.md
+*.sqlite
+*.sqlite3
+*.db
+*.csv
+*.xlsx
+*.xls
+*.jsonl
+datasets/
+private-data/
+backups/
+
+apps/web/public/maps/*
+!apps/web/public/maps/example.svg
