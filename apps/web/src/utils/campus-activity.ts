@@ -1,8 +1,9 @@
+import {requestId} from './request-id'
 import {tokenStore} from '@/api/client'
 export function campusOrigin(){const p=location.pathname;return p.startsWith('/student')?'student-chat':p.startsWith('/test')?'trial-chat':p.startsWith('/chat')?'admin-chat':p.startsWith('/map')?'campus-map':'campus-guide'}
 export function trackCampus(eventType:'CONTENT_VIEW'|'LINK_CLICK'|'MAP_VIEW',data:{entryId?:string;collection?:string;title?:string;url?:string}={}){
  const headers:Record<string,string>={'Content-Type':'application/json'};if(tokenStore.access)headers.Authorization='Bearer '+tokenStore.access
- const payload={requestId:crypto.randomUUID(),eventType,origin:campusOrigin(),entryId:data.entryId?.slice(0,160),collection:data.collection?.slice(0,160),title:data.title?.slice(0,240),url:data.url?.slice(0,2000)}
+ const payload={requestId:requestId(),eventType,origin:campusOrigin(),entryId:data.entryId?.slice(0,160),collection:data.collection?.slice(0,160),title:data.title?.slice(0,240),url:data.url?.slice(0,2000)}
  void fetch((import.meta.env.VITE_API_BASE||'/api')+'/campus/activity',{method:'POST',headers,keepalive:true,body:JSON.stringify(payload)}).catch(()=>undefined)
 }
 let installed=false

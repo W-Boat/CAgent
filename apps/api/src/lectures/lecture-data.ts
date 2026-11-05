@@ -5,11 +5,11 @@ import {DEFAULT_LECTURE_SOURCES} from './lecture-sources'
 
 export const LECTURE_FILE='讲座聚合/lectures.json', LECTURE_COLLECTION='lectures'
 export function lectureUrl(value:string){
- try{const u=new URL(value);if(u.protocol!=='https:'||u.port||u.username||u.password||!(u.hostname==='ucass.edu.cn'||u.hostname.endsWith('.ucass.edu.cn')||u.hostname==='mp.weixin.qq.com'))return null
+ try{const u=new URL(value),school=u.hostname==='ucass.edu.cn'||u.hostname.endsWith('.ucass.edu.cn');if(!(u.protocol==='https:'||u.protocol==='http:'&&school)||u.port||u.username||u.password||!(school||u.hostname==='mp.weixin.qq.com'))return null
   u.hash='';return u.href
  }catch{return null}
 }
-const endpoint=z.string().max(1000).refine(value=>!!lectureUrl(value),'仅支持学校公开网站及微信公众号 HTTPS 地址')
+const endpoint=z.string().max(1000).refine(value=>!!lectureUrl(value),'仅支持学校域名 HTTP/HTTPS 或微信公众号 HTTPS 地址')
 export const collectorSchema=z.object({
  enabled:z.boolean().default(false),intervalMinutes:z.number().int().min(60).max(10080).default(720),
  campusNetwork:z.boolean().default(false),

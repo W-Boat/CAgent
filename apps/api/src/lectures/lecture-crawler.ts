@@ -1,10 +1,20 @@
 import {get} from 'node:https'
+import {get as httpGet} from 'node:http'
 import {lookup} from 'node:dns/promises'
 import {load} from 'cheerio'
 import {type CollectorConfig,plain,dateOnly,lectureUrl,normalizeLecture} from './lecture-data'
 import {isVerificationPage} from '../knowledge/wechat-content'
 
 export class LectureContentBlocked extends Error {}
+export function pinnedLectureLookup(address:{address:string;family:number}){
+ return (_host:unknown,options:any,callback:any)=>options?.all?callback(null,[address]):callback(null,address.address,address.family)
+}
+function connectionError(error:any){
+ const code=String(error?.code||'')
+ if(['ENOTFOUND','EAI_AGAIN'].includes(code))return '校园域名解析失败，请检查服务器 DNS（校内 DNS 可按部署要求设为 10.27.88.8）'
+ if(/CERT|TLS|SSL|SELF_SIGNED/.test(code))return '来源 TLS 证书验证失败，请配置受信任证书；未关闭证书校验'
+ return '来源连接失败或超时'+(code?'（'+code.replace(/[^A-Z0-9_]/g,'').slice(0,60)+'）':'')
+}
 
 export function publicAddress(address:string){
  if(address.includes(':'))return /^[23][0-9a-f]{0,3}:/i.test(address)&&!address.toLowerCase().startsWith('2001:db8:')
@@ -14,13 +24,15 @@ export function publicAddress(address:string){
 /** Every redirect is revalidated; connect to the checked address, not a second DNS result. */
 export async function readLecturePage(input:string,signal:AbortSignal,redirects=0,campusNetwork=false):Promise<string>{
  const safe=lectureUrl(input);if(!safe||signal.aborted)throw new Error('来源地址不允许或任务已超时')
- const url=new URL(safe),addresses=await lookup(url.hostname,{all:true})
+ const url=new URL(safe);let addresses:{address:string;family:number}[]
+ try{addresses=await lookup(url.hostname,{all:true})}catch(e){throw new Error(connectionError(e))}
  const campusHost=url.hostname==='ucass.edu.cn'||url.hostname.endsWith('.ucass.edu.cn')
  if(!addresses.length||addresses.some(a=>!publicAddress(a.address)&&!(campusNetwork&&campusHost&&/^10\.27\.\d{1,3}\.\d{1,3}$/.test(a.address))))throw new Error('解析到内网地址；校内来源可启用校园网直连后重试')
  const address=addresses.find(a=>a.family===4)||addresses[0]
+ if(url.protocol==='http:'&&(!campusNetwork||!campusHost))throw new Error('学校 HTTP 来源需要开启校园网直连')
  return new Promise((resolve,reject)=>{
-  const request=get(url,{signal,timeout:10000,family:address.family,lookup:((_host:any,_options:any,callback:any)=>callback(null,address.address,address.family)) as any,
-   headers:{'User-Agent':'CAgent-LectureCollector/1.0','Accept':'text/html','Accept-Language':'zh-CN,zh;q=0.9'}},response=>{
+  const request=(url.protocol==='http:'?httpGet:get)(url,{signal,timeout:10000,family:address.family,lookup:pinnedLectureLookup(address) as any,
+   headers:{'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130.0.0.0 Safari/537.36','Accept':'text/html','Accept-Language':'zh-CN,zh;q=0.9'}},response=>{
    const status=response.statusCode||0
    if(status>=300&&status<400){response.resume();if(redirects>=3||!response.headers.location)return reject(new Error('重定向次数过多'));readLecturePage(new URL(response.headers.location,url).href,signal,redirects+1,campusNetwork).then(resolve,reject);return}
    if(status!==200){response.resume();reject(new Error('来源返回 HTTP '+status));return}
@@ -33,7 +45,7 @@ export async function readLecturePage(input:string,signal:AbortSignal,redirects=
     try{resolve(new TextDecoder(encoding).decode(bytes))}catch{reject(new Error('页面字符编码不支持'))}
    })
   })
-  request.on('timeout',()=>request.destroy(new Error('来源请求超时')));request.on('error',()=>reject(new Error('来源连接失败或超时')))
+  request.on('timeout',()=>request.destroy(new Error('来源请求超时')));request.on('error',e=>reject(new Error(connectionError(e))))
  })
 }
 const lectureWords=/讲座|沙龙|论坛|研讨|报告会|工作坊|学术活动|学术交流|圆桌|名家讲坛/
@@ -103,7 +115,7 @@ export async function crawlLectures(config:CollectorConfig,test=false,onProgress
     onProgress?.({scanned,collected:records.length,source:source.name});await new Promise(r=>setTimeout(r,250))
    }
    if(!listing.items.length)warnings.push(source.name+'：未找到匹配文章，请核对栏目或筛选模式')
-  }catch(e){const campus=/解析到内网地址/.test((e as Error).message);if(e instanceof LectureContentBlocked){blocked++;warnings.push(source.name+'：栏目要求访问验证，未读取真实文章列表')}else warnings.push(source.name+'：'+(campus?'域名解析为校园网地址，请按需开启校园网直连。':'栏目连接失败或无法解析'))}
+  }catch(e){const message=(e as Error).message;if(e instanceof LectureContentBlocked){blocked++;warnings.push(source.name+'：栏目要求访问验证，未读取真实文章列表')}else warnings.push(source.name+'：'+message.slice(0,220))}
  }
  if(signal.aborted)warnings.push('已达到本次采集时间上限；部分结果可保留，历史资料未删除')
  return {records,warnings:[...new Set(warnings)].slice(0,50),scanned,requests,blocked,limited:records.length>=limit||requests>=100||signal.aborted,nextSource:enabled.length?(offset+attempted)%enabled.length:0}
