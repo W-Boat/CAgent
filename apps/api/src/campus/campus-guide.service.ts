@@ -66,6 +66,27 @@ export interface GuideHit {
 
 @Injectable()
 export class CampusGuideService implements OnApplicationBootstrap {
+  async manageItem(id:string,input:{action:string;title?:string;detail?:string;url?:string;confirmTitle?:string},operator:{id:string;email:string}){
+    if(!input||!['edit','remove'].includes(input.action))throw new BadRequestException('操作无效')
+    if(input.action==='edit'&&(typeof input.title!=='string'||!input.title.trim()||input.title.length>500||typeof input.detail!=='string'||!input.detail.trim()||input.detail.length>100000||typeof input.url!=='string'||input.url.length>2000||input.url&&!/^https?:\/\//i.test(input.url)))throw new BadRequestException('请填写有效标题、正文与 HTTP(S) 链接')
+    return this.prisma.$transaction(async tx=>{
+      const managed=id.startsWith('managed:'),key=managed?id.split(':')[1]:id
+      const row:any=managed?await tx.knowledgeEntry.findUnique({where:{id:key}}):await tx.campusGuideItem.findUnique({where:{id:key}})
+      if(!row)throw new NotFoundException('资料不存在')
+      if(input.action==='remove'&&input.confirmTitle!==row.title)throw new BadRequestException('请输入完全一致的资料标题确认移除')
+      if(managed){
+        await tx.knowledgeRevision.create({data:{entryId:key,snapshot:JSON.parse(JSON.stringify(row)),operatorId:operator.id}})
+        await tx.knowledgeEntry.update({where:{id:key},data:input.action==='remove'?{status:'ARCHIVED'}:{title:input.title!.trim(),answer:input.detail!,url:input.url!,summary:'',aiReviewStatus:'IDLE'}})
+      }else{
+        const extra={...(row.extra||{}),kb:{...(row.extra?.kb||{}),...(input.action==='remove'?{superseded:true}:{}),adminEditedAt:new Date().toISOString()}}
+        await tx.setting.create({data:{key:'campus_edit_revision:'+key+':'+Date.now()+':'+Math.random().toString(36).slice(2),group:'knowledge-history',value:JSON.parse(JSON.stringify(row))}})
+        await tx.campusGuideItem.update({where:{id:key},data:input.action==='remove'?{extra}:{title:input.title!.trim(),detail:input.detail!,summaryShort:input.detail!.slice(0,300),url:input.url!,steps:[],keyFacts:[],detailParts:Prisma.DbNull,searchText:[input.title,input.detail,row.dept,row.source].join(' ').toLowerCase(),extra}})
+      }
+      await this.store.bump(tx)
+      await tx.auditLog.create({data:{userId:operator.id,actor:operator.email,action:'campus.item.'+input.action,resource:managed?'knowledge_entry':'campus_guide_item',resourceId:key,detail:{title:row.title},success:true}})
+      return {success:true}
+    })
+  }
   constructor(private readonly prisma: PrismaService,private readonly store:KnowledgeStoreService) {}
   onApplicationBootstrap(){void this.index().catch(()=>undefined)}
   private loadedRevision:unknown
@@ -97,7 +118,7 @@ export class CampusGuideService implements OnApplicationBootstrap {
   }
   private async catalogWhere():Promise<Prisma.CampusGuideItemWhereInput> {
     const unified = this.snapshot?.index.rows.some(r=>r.extra?.kb?.schema==='kb/v2') || await this.prisma.campusGuideItem.count({where:{externalId:{gte:500000000,lt:900000000}}})
-    return {AND:[...(unified?[{NOT:{externalId:{gte:2000000,lt:3000000}}}]:[]),{NOT:{OR:[{title:{contains:'人文之光'}},{title:{contains:'情侣空间'}},{source:{contains:'editorial',mode:'insensitive'}},{source:{contains:'loveline',mode:'insensitive'}}]}},await this.store.embeddedWhere()]}
+    return {AND:[...(unified?[{NOT:{externalId:{gte:2000000,lt:3000000}}}]:[]),{OR:[{extra:{path:['kb','superseded'],equals:Prisma.AnyNull}},{NOT:{extra:{path:['kb','superseded'],equals:true}}}]},{NOT:{OR:[{title:{contains:'人文之光'}},{title:{contains:'情侣空间'}},{source:{contains:'editorial',mode:'insensitive'}},{source:{contains:'loveline',mode:'insensitive'}}]}},await this.store.embeddedWhere()]}
   }
 
   /** All rows are indexed in stable pages. No arbitrary candidate cap can hide the right subject. */

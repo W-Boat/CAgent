@@ -29,6 +29,8 @@ import {KnowledgeStoreService} from '../knowledge/knowledge-store.service'
 @ApiBearerAuth()
 @Controller("campus")
 export class CampusController {
+  @Post('items/:id/manage') @RequirePermissions('campus:admin')
+  manageItem(@Param('id') id:string,@Body() input:{action:string;title?:string;detail?:string;url?:string;confirmTitle?:string},@CurrentUser() me:AuthUser){return this.guide.manageItem(id,input,me)}
   constructor(
     private readonly guide: CampusGuideService,
     private readonly runs: CampusGuideRunService,

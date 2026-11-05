@@ -25,13 +25,17 @@
    <div class="reader-scroll" :aria-busy="reading">
     <div v-if="reading" class="reader-loading" role="status"><el-icon class="is-loading"><Loading /></el-icon><p>正在读取资料…</p><div class="reading-lines" aria-hidden="true"><i /><i /><i /></div></div>
     <div v-else-if="detailError" class="empty-state" role="alert"><h2>资料暂时无法读取</h2><p>{{detailError}}</p><el-button @click="retryDetail">重新读取</el-button></div>
-    <KnowledgeContent v-else-if="activeHit" :key="activeHit.id" :hit="activeHit" @ask="quickSearch" @select="selectHit" />
+    <div v-else-if="activeHit"><div v-if="auth.can('campus:admin')" class="entry-admin-actions"><el-button @click="openEdit">编辑条目</el-button><el-button type="danger" plain @click="removeItem">移除条目</el-button></div><KnowledgeContent :key="activeHit.id" :hit="activeHit" @ask="quickSearch" @select="selectHit" /></div>
     <div v-else class="reader-empty"><el-icon><Reading /></el-icon><h2>选择一条资料开始阅读</h2><p>正文、来源和附件在这里查看。需要办理时，使用资料中的入口按钮前往对应服务。</p><span v-if="meta">已收录 {{meta.total}} 条索引</span></div>
    </div>
   </section>
+ <el-dialog v-model="editOpen" title="编辑知识条目" width="min(760px,94vw)" :close-on-click-modal="!editBusy"><el-form label-position="top"><el-form-item label="标题"><el-input v-model="editTitle" maxlength="500"/></el-form-item><el-form-item label="正文"><el-input v-model="editDetail" type="textarea" :rows="14" maxlength="100000"/></el-form-item><el-form-item label="来源链接"><el-input v-model="editUrl" maxlength="2000"/></el-form-item></el-form><p>修改整条资料正文，保留修改前快照和审计记录；自动同步的信息源后续可能覆盖人工修改。</p><template #footer><el-button @click="editOpen=false" :disabled="editBusy">取消</el-button><el-button type="primary" :loading="editBusy" @click="saveEdit">保存修改</el-button></template></el-dialog>
  </div>
 </template>
 <script setup lang="ts">
+import {ElMessageBox,ElMessage} from 'element-plus'
+import {post,errorMessage} from '@/api/client'
+import {useAuthStore} from '@/stores/auth'
 import {computed,nextTick,onBeforeUnmount,onMounted,ref} from 'vue'
 import {useRoute} from 'vue-router'
 import {campusApi} from '@/api'
@@ -39,6 +43,7 @@ import type {CampusCategories,CampusGuideHit,CampusMeta,CampusSearchResult} from
 import KnowledgeContent from '@/components/KnowledgeContent.vue'
 import {contentFormatLabel,contentPreview,readerUrl} from '@/utils/campus-reader'
 import {trackCampus} from '@/utils/campus-activity'
+const auth=useAuthStore(),editOpen=ref(false),editBusy=ref(false),editTitle=ref(''),editDetail=ref(''),editUrl=ref('')
 const QUICK=['校园卡补办','四六级报名','报销流程','VPN 怎么连','宿舍报修','成绩查询']
 const FORMATS={article:'文章 / 知识块',link:'服务入口',document:'文档 / 附件',map:'校园地图',fixed:'固定问答 / 纠错',rule:'关键词约定',cards:'排版卡片'}
 const route=useRoute(),keyword=ref(''),collection=ref(typeof route.query.collection==='string'?route.query.collection:''),contentType=ref('')
@@ -48,6 +53,9 @@ const hits=ref<CampusGuideHit[]>([]),guidance=ref<CampusSearchResult['guidance']
 const activeHit=ref<CampusGuideHit|null>(null),selected=ref<CampusGuideHit|null>(null),selectedId=computed(()=>selected.value?.id||''),reading=ref(false),detailError=ref(''),readerPanel=ref<HTMLElement>()
 const narrowQuery=window.matchMedia('(max-width: 1100px)'),isNarrow=ref(narrowQuery.matches),mobilePane=ref<'list'|'reader'>('list')
 let listRequest=0,detailRequest=0,disposed=false
+function openEdit(){if(!activeHit.value)return;editTitle.value=activeHit.value.title;editDetail.value=activeHit.value.detail||activeHit.value.summaryShort||'';editUrl.value=activeHit.value.url||'';editOpen.value=true}
+async function saveEdit(){if(!activeHit.value||editBusy.value)return;editBusy.value=true;try{const id=activeHit.value.id;await post('/campus/items/'+encodeURIComponent(id)+'/manage',{action:'edit',title:editTitle.value,detail:editDetail.value,url:editUrl.value});editOpen.value=false;const row=await campusApi.item(id);activeHit.value=row;selected.value=row;const index=hits.value.findIndex(h=>h.id===id);if(index>=0)hits.value[index]=row;ElMessage.success('资料已修改')}catch(e){ElMessage.error(errorMessage(e))}finally{editBusy.value=false}}
+async function removeItem(){if(!activeHit.value||editBusy.value)return;const row=activeHit.value;try{const result=await ElMessageBox.prompt('输入完整标题确认移除，资料将退出导览和检索，原记录保留：'+row.title,'移除知识条目',{inputValidator:value=>value===row.title||'标题不一致',confirmButtonText:'确认移除',cancelButtonText:'取消'});await post('/campus/items/'+encodeURIComponent(row.id)+'/manage',{action:'remove',confirmTitle:result.value});clearSelection();retryList();ElMessage.success('资料已移除')}catch(e){if(e!=='cancel'&&e!=='close')ElMessage.error(errorMessage(e))}}
 function clearSelection(){detailRequest++;selected.value=null;activeHit.value=null;detailError.value='';reading.value=false;mobilePane.value='list'}
 function errorText(error:unknown,fallback:string){return error instanceof Error?error.message:fallback}
 async function loadLibrary(page=1){
@@ -90,3 +98,5 @@ onBeforeUnmount(()=>{disposed=true;listRequest++;detailRequest++;narrowQuery.rem
 .reader-bar{display:flex;align-items:center;gap:12px;min-height:48px;padding:0 18px;flex-shrink:0;border-bottom:1px solid var(--nx-border);font-size:12px;color:var(--nx-text-2)}.reader-bar>span:first-of-type,.reader-bar button{display:inline-flex;align-items:center;gap:7px}.reader-tip{margin-left:auto;font-size:11px}.reader-scroll{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain}.reader-empty,.reader-loading,.empty-state{padding:44px 24px;text-align:center;color:var(--nx-text-2);line-height:1.8}.reader-empty{max-width:460px;margin:12vh auto}.reader-empty>.el-icon{font-size:38px;color:var(--nx-accent)}.reader-empty h2,.empty-state h2{color:var(--nx-text);font-size:18px}.reader-empty p{font-size:14px}.reader-empty>span{font-size:12px}.reader-loading>.el-icon{font-size:24px;color:var(--nx-accent)}.reading-lines{display:grid;gap:14px;max-width:520px;margin:24px auto}.reading-lines i{height:12px;border-radius:5px;background:var(--nx-surface-2)}.reading-lines i:nth-child(2){width:84%}.reading-lines i:last-child{width:65%}.list-loading{padding:28px 12px;display:flex;justify-content:center;align-items:center;gap:8px;font-size:13px;color:var(--nx-text-2)}.guided-search{padding:12px;margin:4px 4px 12px;background:var(--nx-surface-2);border-radius:10px;color:var(--nx-text-2);font-size:12px;line-height:1.7}.guided-search p{margin:6px 0}.guided-search button{border:1px solid var(--nx-accent-border);padding:6px 8px;margin:4px 6px 0 0;border-radius:6px;color:var(--nx-accent);background:var(--nx-surface);cursor:pointer}.categories{font-size:12px;padding:10px;color:var(--nx-text-2);border-top:1px solid var(--nx-border)}.categories summary{cursor:pointer;padding:6px 0}.categories button{display:flex;justify-content:space-between;gap:8px;width:100%;border:0;background:none;color:inherit;text-align:left;padding:9px 0;cursor:pointer}.mobile-switch{display:flex;gap:4px;padding:4px;border:1px solid var(--nx-border);border-radius:10px;background:var(--nx-surface)}.mobile-switch button{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;min-height:40px;border:0;border-radius:7px;color:var(--nx-text-2);background:none;font:inherit;cursor:pointer}.mobile-switch button[aria-pressed=true]{color:var(--nx-accent);background:var(--nx-accent-soft);font-weight:600}.mobile-switch button:disabled{opacity:.5;cursor:default}.campus-page :is(button,summary):focus-visible{outline:2px solid var(--nx-accent);outline-offset:2px}.reader-panel:focus{outline:none}
 @media(max-width:1100px){.campus-page{display:flex;flex-direction:column;padding:12px;gap:12px}.side,.reader-panel{flex:1}.mobile-hide{display:none}.reader-bar{padding:0 12px}.reader-tip{display:none}.reader-empty{margin:5vh auto}}@media(max-width:480px){.campus-page{padding:10px;gap:10px}.side-head{padding:14px 14px 8px}.side-search{padding:4px 14px 8px}.filters{padding:0 14px 8px}.quick-tags{padding:0 14px 10px}.hit{padding:12px 10px}.mobile-switch button{font-size:13px}}@media(prefers-reduced-motion:reduce){.campus-page *{animation:none!important;transition:none!important}}
 </style>
+
+<style scoped>.entry-admin-actions{display:flex;gap:8px;padding:16px 24px 0;flex-wrap:wrap}</style>
