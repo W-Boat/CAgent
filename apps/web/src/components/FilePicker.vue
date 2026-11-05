@@ -1,0 +1,8 @@
+<script setup lang="ts">
+import {ref} from 'vue'
+const props=withDefaults(defineProps<{accept:string;disabled?:boolean;file?:File;label?:string;hint?:string}>(),{label:'选择文件'})
+const emit=defineEmits<{change:[event:Event]}>(),input=ref<HTMLInputElement>()
+function selected(e:Event){emit('change',e)}
+</script>
+<template><div class="file-picker"><input ref="input" type="file" :accept="accept" :disabled="disabled" hidden @change="selected"/><el-button :disabled="disabled" @click="input?.click()"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 16V3m-5 5 5-5 5 5M4 15v5h16v-5"/></svg><span>{{file?'更换文件':label}}</span></el-button><div class="file-picker-info" aria-live="polite"><strong v-if="file" :title="file.name">{{file.name}}</strong><span v-if="file">{{Math.max(1,Math.ceil(file.size/1024))}} KB</span><span v-else>{{hint||'尚未选择文件'}}</span></div></div></template>
+<style scoped>.file-picker{display:flex;align-items:center;gap:14px;min-width:0;padding:14px;border:1px solid var(--nx-border,var(--el-border-color));border-radius:10px;background:var(--nx-surface-2,var(--el-fill-color-light))}.file-picker .el-button{flex-shrink:0}.file-picker svg{margin-right:8px}.file-picker-info{display:flex;flex-direction:column;gap:3px;min-width:0;color:var(--nx-text-3,var(--el-text-color-secondary));font-size:12px}.file-picker-info strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;color:var(--nx-text,var(--el-text-color-primary))}@media(max-width:500px){.file-picker{align-items:flex-start;flex-direction:column}.file-picker-info{max-width:100%}}</style>
