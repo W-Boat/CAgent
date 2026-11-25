@@ -4,13 +4,14 @@ import {useRoute,useRouter} from 'vue-router'
 import {get} from '@/api/client'
 import {campusFeatureLabels,campusPages,type CampusFeature} from '@/utils/campus-features'
 import {useAuthStore} from '@/stores/auth'
+import PageLoading from '@/components/PageLoading.vue'
 
 defineProps<{narrow?:boolean;mobileMode?:'drawer'|'full'}>()
 const emit=defineEmits<{ask:[text:string]}>()
 const route=useRoute(),router=useRouter(),auth=useAuthStore()
-const CampusGame=defineAsyncComponent(()=>import('./CampusGame.vue'))
-const StudentCard=defineAsyncComponent(()=>import('./StudentCard.vue'))
-const LecturePanel=defineAsyncComponent(()=>import('@/views/campus/LectureCalendarView.vue'))
+const XinguaGame=defineAsyncComponent({loader:()=>import('./XinguaGame.vue'),loadingComponent:PageLoading,delay:0})
+const StudentCard=defineAsyncComponent({loader:()=>import('./StudentCard.vue'),loadingComponent:PageLoading,delay:0})
+const LecturePanel=defineAsyncComponent({loader:()=>import('@/views/campus/LectureCalendarView.vue'),loadingComponent:PageLoading,delay:0})
 const current=ref<CampusFeature>('game'),open=ref(false),busy=ref(false),card=ref<Record<string,unknown>>(),frame=ref(''),frameReady=ref(false)
 const title=computed(()=>campusFeatureLabels[current.value])
 const width=ref(520),resizing=ref(false)
@@ -52,16 +53,16 @@ defineExpose({show})
 </script>
 
 <template>
-  <el-drawer v-model="open" :title="title" :direction="narrow?'btt':'rtl'" :size="narrow?(mobileMode==='full'?'100dvh':'63dvh'):`min(${width}px, calc(100vw - 76px))`" destroy-on-close class="campus-function-drawer" :class="{'campus-has-frame':frame,'campus-resizing':resizing}">
+  <el-drawer v-model="open" :title="title" :direction="narrow?'btt':'rtl'" :size="narrow?(mobileMode==='full'?'100dvh':'63dvh'):`min(${width}px, calc(100vw - 76px))`" append-to-body destroy-on-close class="campus-function-drawer" :class="{'campus-has-frame':frame,'campus-resizing':resizing}">
     <div v-if="!narrow" class="campus-panel-resize" role="separator" aria-label="调整校园功能窗口宽度" aria-orientation="vertical" :aria-valuenow="width" aria-valuemin="360" aria-valuemax="1100" tabindex="0" @pointerdown="start" @pointermove="move" @pointerup="end" @pointercancel="end" @lostpointercapture="end" @keydown="keyResize"/>
     <div class="nx-root campus-panel-content">
       <template v-if="frame">
-        <el-skeleton v-if="!frameReady" class="campus-frame-loading" :rows="5" animated/>
-        <iframe :key="frame" :src="frame" :title="title" :class="{'is-ready':frameReady}" @load="frameReady=true"/>
+        <PageLoading v-if="!frameReady" class="campus-frame-loading" :label="'正在加载'+title"/>
+        <iframe :key="frame" :src="frame" :title="title" :aria-hidden="!frameReady" :tabindex="frameReady?undefined:-1" :class="{'is-ready':frameReady}" @load="frameReady=true"/>
       </template>
-      <CampusGame v-else-if="current==='game'"/>
+      <XinguaGame v-else-if="current==='game'"/>
       <LecturePanel v-else-if="current==='lecture'" student-mode/>
-      <el-skeleton v-else-if="busy" :rows="4" animated/>
+      <PageLoading v-else-if="busy" :label="'正在加载'+title"/>
       <StudentCard v-else-if="card" :card="card" @ask="ask"/>
       <el-empty v-else description="该校园服务暂未开放"/>
     </div>
@@ -70,5 +71,5 @@ defineExpose({show})
 
 <style>
 .campus-function-drawer .el-drawer__header{margin-bottom:0;padding-block:12px;border-bottom:1px solid var(--el-border-color-lighter)}.campus-function-drawer .el-drawer__body{position:relative}.campus-has-frame .el-drawer__body{padding:0;overflow:hidden}.campus-has-frame .campus-panel-content,.campus-has-frame iframe{height:100%;width:100%;border:0;display:block}.campus-panel-resize{position:absolute;left:0;inset-block:0;width:10px;z-index:2;cursor:ew-resize;touch-action:none}.campus-panel-resize::after{content:'';position:absolute;top:46%;left:3px;width:3px;height:34px;border-radius:999px;background:var(--el-border-color)}.campus-panel-resize:is(:hover,:focus-visible)::after{background:var(--el-color-primary)}.campus-resizing iframe{pointer-events:none}
-.campus-has-frame iframe{opacity:0;transition:opacity .18s ease}.campus-has-frame iframe.is-ready{opacity:1}.campus-frame-loading{box-sizing:border-box;position:absolute;inset:0;padding:18px;width:100%;pointer-events:none}@media(prefers-reduced-motion:reduce){.campus-has-frame iframe{transition:none}}
+.campus-has-frame iframe{opacity:0;transition:opacity .18s ease}.campus-has-frame iframe.is-ready{opacity:1}.campus-frame-loading{box-sizing:border-box;position:absolute;inset:0;margin:0;padding:18px;width:100%;align-content:start;pointer-events:none}@media(prefers-reduced-motion:reduce){.campus-has-frame iframe{transition:none}}
 </style>

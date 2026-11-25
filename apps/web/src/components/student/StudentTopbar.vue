@@ -91,8 +91,9 @@ const editing=ref(false),draftLayout=ref<TopbarLayout>(initialLayout())
 const themeOpen=ref(false)
 const draftMobile=ref<'drawer'|'full'>('drawer')
 const prefKey=computed(()=> 'cagent.topbar.'+(auth.user?.id||'guest'))
-const media=window.matchMedia('(max-width: 650px)')
+const media=window.matchMedia('(max-width: 768px), (max-width: 960px) and (pointer: coarse)')
 const syncWidth=()=>{small.value=media.matches}
+const mobileMode=computed(()=>prefs.value.mobile)
 function read(){
   try {
     const stored=JSON.parse(localStorage.getItem(prefKey.value)||'{}')
@@ -133,7 +134,7 @@ function chooseTheme(value:unknown){
 }
 function showFeature(id:CampusFeature,card?:Record<string,unknown>){return featureHost.value?.show(id,card)}
 function askOnChat(text:string){if(props.chat||props.menuOnly)emit('ask',text);else void router.push({path:returnPath.value,query:{ask:text}})}
-defineExpose({showFeature})
+defineExpose({showFeature,small,mobileMode})
 onMounted(()=>{
   syncWidth();media.addEventListener('change',syncWidth)
   if(!props.chat)void get<typeof availableFeatures.value>('/campus/shortcuts').then(items=>availableFeatures.value=items).catch(()=>undefined)

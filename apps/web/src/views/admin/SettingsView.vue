@@ -31,17 +31,26 @@
       </template>
     </el-alert>
 
-    <div class="settings-layout" v-loading="loading">
+    <div class="settings-layout">
       <nav class="settings-nav" aria-label="设置分类">
         <section v-for="section in sections" :key="section.label" class="settings-nav-section" :aria-label="section.label">
-          <h3>{{section.label}}</h3>
+          <h3><el-icon aria-hidden="true"><component :is="section.icon"/></el-icon>{{section.label}}</h3>
           <button v-for="group in section.groups" :key="group.key" type="button"
             :aria-current="activeGroup === group.key ? 'true' : undefined" @click="activeGroup = group.key">{{group.label}}</button>
         </section>
       </nav>
-      <div class="settings-panels">
-        <el-card v-for="group in GROUP_ORDER" v-show="activeGroup === group.key" :key="group.key" shadow="never" class="settings-card">
-          <template #header><h3 class="admin-section-title settings-panel-title">{{ group.label }}</h3></template>
+      <div class="settings-panels" :aria-busy="loading">
+        <PageLoading v-if="loading" :rows="loaded ? 0 : 5" label="正在读取平台设置"/>
+        <el-card v-for="group in GROUP_ORDER" v-show="activeGroup === group.key && (loaded || !loading)" :key="group.key" :inert="loading" shadow="never" class="settings-card">
+          <template #header>
+            <div class="settings-panel-heading">
+              <span class="settings-panel-icon" aria-hidden="true"><el-icon><component :is="group.icon"/></el-icon></span>
+              <div class="settings-panel-caption" :class="{'is-current':activeGroup===group.key}">
+                <h3 class="admin-section-title settings-panel-title">{{ group.label }}</h3>
+                <p class="settings-panel-description">{{ group.description }}</p>
+              </div>
+            </div>
+          </template>
           <RouterLink v-if="group.key==='security'" to="/admin/sensitive-words" class="nx-btn nx-btn-secondary settings-words">打开敏感词管理</RouterLink>
           <div v-if="group.key==='search'" class="settings-search">
             <h4 class="admin-section-title">搜索接口配置</h4>
@@ -163,6 +172,8 @@
 import {get} from '@/api/client'
 import buildInfo from '../../data/build-info.json'
 import { computed, onMounted, reactive, ref } from "vue"
+import { Collection, Monitor, Operation, Lock } from '@element-plus/icons-vue'
+import PageLoading from '@/components/PageLoading.vue'
 import StudentDisplayPanel from "@/components/admin/StudentDisplayPanel.vue"
 import ExperienceSettingsPanel from '@/components/admin/ExperienceSettingsPanel.vue'
 import PlatformBackupPanel from '@/components/admin/PlatformBackupPanel.vue'
@@ -183,17 +194,35 @@ const searchQuery=ref('校园 学术新闻'),searchScope=ref('campus'),searchBus
 async function testSearch(){searchBusy.value=true;searchResults.value=[];try{const result=await request<any>({method:'POST',url:'/search/test',data:{query:searchQuery.value,scope:searchScope.value}});searchResults.value=result.results;searchReport.value=`返回 ${result.results.length} 条${result.cached?'（缓存）':''}；${result.notice}`}catch(e){searchReport.value='测试未通过，请检查开关、密钥、权限或网络';toastError(e)}finally{searchBusy.value=false}}
 
 const sections = computed(() => [
-  {label:'站点与外观',groups:[{key:'general',label:'站点与注册'},{key:'student',label:'学生界面与主题'},{key:'presentation',label:'回答排版与吉祥物'}]},
-  {label:'对话与交互',groups:[{key:'chat',label:'对话与记忆'},{key:'voice',label:'语音输入与播报'},{key:'skill',label:'工具与技能'},{key:'browser',label:'浏览器能力'}]},
-  {label:'检索与更新',groups:[{key:'knowledge',label:'知识库与检索'},{key:'search',label:'联网搜索'},{key:'officialNews',label:'官网资讯采集'}]},
-  {label:'安全与运维',groups:[{key:'security',label:'内容审计'},{key:'test',label:'测试账号'},...(auth.roles.includes('super_admin')?[{key:'backup',label:'备份与迁移'}]:[])]}
+  {label:'站点与外观',icon:Monitor,groups:[
+    {key:'general',label:'站点与注册',description:'设置平台名称与新用户注册规则。'},
+    {key:'student',label:'学生界面与主题',description:'设置学生端首页、主题色和默认显示内容。'},
+    {key:'presentation',label:'回答排版与吉祥物',description:'配置回答样式、渲染回退顺序和吉祥物。'},
+  ]},
+  {label:'对话与交互',icon:Operation,groups:[
+    {key:'chat',label:'对话与记忆',description:'设置回答缓存、上下文和记忆功能。'},
+    {key:'voice',label:'语音输入与播报',description:'设置语音识别、播报服务和默认参数。'},
+    {key:'skill',label:'工具与技能',description:'设置对话中可用的工具和技能规则。'},
+    {key:'browser',label:'浏览器能力',description:'管理浏览器功能及其访问范围。'},
+  ]},
+  {label:'检索与更新',icon:Collection,groups:[
+    {key:'knowledge',label:'知识库与检索',description:'控制检索深度、连续检索等查询行为。'},
+    {key:'search',label:'联网搜索',description:'配置搜索服务、结果范围，并测试接口。'},
+    {key:'officialNews',label:'官网资讯采集',description:'管理校园要闻来源和自动更新。'},
+  ]},
+  {label:'安全与运维',icon:Lock,groups:[
+    {key:'security',label:'内容审计',description:'设置内容审核规则，并访问敏感词列表。'},
+    {key:'test',label:'测试账号',description:'管理演示模式和测试账号。'},
+    ...(auth.roles.includes('super_admin')?[{key:'backup',label:'备份与迁移',description:'导出或恢复平台配置与知识库。'}]:[]),
+  ]},
 ])
-const GROUP_ORDER=computed(()=>sections.value.flatMap(section=>section.groups))
+const GROUP_ORDER=computed(()=>sections.value.flatMap(section=>section.groups.map(group=>({...group,icon:section.icon}))))
 
 const activeGroup = ref("general")
 const groups = ref<Record<string, SettingItem[]>>({})
 const availableModels=ref<{id:string;name:string}[]>([])
 const loading = ref(false)
+const loaded = ref(false)
 const saving = ref(false)
 
 /** 当前编辑值 */
@@ -267,6 +296,7 @@ async function load() {
     const data=results[0].value
     if(results[1].status==='fulfilled')availableModels.value=results[1].value
     groups.value = data
+    loaded.value = true
 
     for (const key of Object.keys(model)) delete model[key]
     for (const key of Object.keys(snapshot)) delete snapshot[key]
@@ -377,15 +407,29 @@ onMounted(()=>{void get<{version:string;builtAt:string}>('/settings/version').th
   position: sticky; top: 12px;
 }
 .settings-nav button {
+  position: relative;
   appearance: none; background: transparent; border: 0; border-radius: var(--nx-radius);
   padding: 8px 11px; min-height: 36px; text-align: start; font: inherit; color: var(--nx-text-2); cursor: pointer;
+  transition: background-color .16s ease, color .16s ease;
 }
 .settings-nav button:hover { background: var(--nx-surface-hover); }
 .settings-nav button[aria-current] { background: var(--nx-accent-soft); color: var(--nx-accent); font-weight: 650; }
+.settings-nav button[aria-current]::after { content: ''; position: absolute; inset-inline-start: 0; inset-block: 10px; width: 2px; border-radius: 999px; background: currentColor; }
 .settings-nav button:focus-visible { outline: 2px solid var(--nx-accent); outline-offset: -2px; }
 .settings-nav-section{display:flex;flex-direction:column;gap:2px}.settings-nav-section + .settings-nav-section{border-top:1px solid var(--nx-border);padding-top:5px;margin-top:4px}.settings-nav-section h3{margin:5px 11px;color:var(--nx-text-2);font-size:11px;font-weight:650}.settings-words{margin-bottom:var(--admin-card-gap)}
+.settings-nav-section h3 { display: flex; align-items: center; gap: 6px; }
+.settings-nav-section:has([aria-current]) h3 { color: var(--nx-accent); }
 .settings-panels { min-width: 0; }
+.settings-panel-heading { display: flex; align-items: center; gap: 12px; }
+.settings-panel-icon { display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 10px; background: var(--nx-accent-soft); color: var(--nx-accent); font-size: 18px; }
+.settings-panel-caption.is-current { animation: settings-caption-in .18s ease-out; }
 .settings-panel-title { margin: 0; }
+.settings-panel-description { margin: 4px 0 0; color: var(--nx-text-2); font-size: 12px; line-height: 1.5; }
+@keyframes settings-caption-in { from { opacity: .6; transform: translateY(3px); } }
+@media (prefers-reduced-motion: reduce) {
+  .settings-panel-caption.is-current { animation: none; }
+  .settings-nav button { transition: none; }
+}
 .setting-form {
   width: 100%;
 }
@@ -449,6 +493,7 @@ onMounted(()=>{void get<{version:string;builtAt:string}>('/settings/version').th
   .settings-layout { grid-template-columns: minmax(0, 1fr); }
   .settings-nav { position: static; flex-direction: row; overflow-x: auto; scrollbar-width: thin; scrollbar-color: var(--nx-border-strong) transparent; }
   .settings-nav button { flex: none; white-space: nowrap; }
+  .settings-nav button[aria-current]::after { inset-inline: 10px; inset-block: auto 2px; width: auto; height: 2px; }
   .settings-nav-section{flex-direction:row;align-items:center;flex:none}.settings-nav-section + .settings-nav-section{border-top:0;border-left:1px solid var(--nx-border);padding:0 0 0 6px;margin:0 0 0 2px}.settings-nav-section h3{white-space:nowrap}
 }
 @media (max-width: 620px) {

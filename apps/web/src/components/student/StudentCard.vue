@@ -297,6 +297,7 @@
  * 因此提交后进入 locked 态，只留「已发送」的痕迹。
  */
 import { computed, reactive, ref, defineAsyncComponent } from "vue"
+import PageLoading from '@/components/PageLoading.vue'
 import { toastOk } from "@/api/client"
 import KnowledgeCard from './KnowledgeCard.vue'
 import AnswerLayoutCard from './AnswerLayoutCard.vue'
@@ -304,8 +305,8 @@ import CareCard from './CareCard.vue'
 import PlaceCard from './PlaceCard.vue'
 import CampusMapCard from '@/components/maps/CampusMapCard.vue'
 import CampusEffectCard from './CampusEffectCard.vue'
-const DinnerCard=defineAsyncComponent(()=>import('./DinnerCard.vue'))
-const TakeoutCard=defineAsyncComponent(()=>import('./TakeoutCard.vue'))
+const DinnerCard=defineAsyncComponent({loader:()=>import('./DinnerCard.vue'),loadingComponent:PageLoading,delay:0})
+const TakeoutCard=defineAsyncComponent({loader:()=>import('./TakeoutCard.vue'),loadingComponent:PageLoading,delay:0})
 
 const props = defineProps<{
   card: Record<string, unknown>

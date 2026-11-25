@@ -800,12 +800,12 @@ html.dark .el-pagination.is-background .el-pager li:not(.is-active):hover {
     justify-content: center;
   }
 
-  /* 抽屉/弹窗铺满可用宽度 */
+  /* 侧向抽屉控制宽度，底部抽屉保留整屏宽度。 */
   .el-dialog {
     width: calc(100vw - 24px) !important;
     margin-top: 8vh !important;
   }
-  .el-drawer {
+  .el-drawer:is(.rtl, .ltr) {
     width: min(92vw, 420px) !important;
   }
   .el-message-box {

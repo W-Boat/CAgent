@@ -4,6 +4,7 @@ import {useRoute} from 'vue-router'
 import {Search,Phone} from '@element-plus/icons-vue'
 import {errorMessage,get} from '@/api/client'
 import StudentTopbar from '@/components/student/StudentTopbar.vue'
+import PageLoading from '@/components/PageLoading.vue'
 
 type Entry={id:string;title:string;content:string;url:string;source:string;aliases?:string[];date?:string|null;phones?:string[];group?:string}
 type Directory={sourceUrl:string;items:Entry[]}
@@ -37,7 +38,7 @@ watch(kind,()=>{query.value='';group.value='';content.value=undefined;void load(
         <el-select v-if="!calendar" v-model="group" aria-label="筛选部门"><el-option label="全部部门" value=""/><el-option v-for="label in groups" :key="label" :value="label"/></el-select>
       </div>
       <el-alert v-if="failure" :title="failure" type="error" :closable="false"><el-button text @click="load">重新读取</el-button></el-alert>
-      <el-skeleton v-else-if="loading" animated :rows="5"/>
+      <PageLoading v-else-if="loading" :rows="5" :label="'正在读取'+heading"/>
       <el-empty v-else-if="!rows.length" :description="query||group?'没有找到匹配条目':'此知识库暂无已发布条目'"/>
       <div v-else-if="calendar" class="calendar-results">
         <section v-if="dated.length"><h2>公开教学日期</h2><article v-for="entry in dated" :key="entry.id" class="directory-row"><time :datetime="entry.date||undefined">{{entry.date}}</time><div><h3>{{entry.title}}</h3><p>{{entry.content.replace(/^日期：[^\n]*\s*/,'')}}</p></div><a v-if="entry.url" :href="entry.url" target="_blank" rel="noopener noreferrer">原文 ↗</a></article></section>

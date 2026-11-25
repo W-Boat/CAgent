@@ -5,6 +5,7 @@ import {useComposerHeight} from '@/composables/useComposerHeight'
 import {groupConversations} from '@/utils/conversation-groups'
 import '@/styles/chat-workspace.css'
 import StudentTopbar from '@/components/student/StudentTopbar.vue'
+import PageLoading from '@/components/PageLoading.vue'
 import {featureFromCard} from '@/utils/campus-features'
 import {useResizablePanel} from '@/composables/useResizablePanel'
 import {get as getTrace,errorMessage as traceErrorMessage} from '@/api/client'
@@ -1154,7 +1155,7 @@ onBeforeUnmount(() => {
       <div class="ac-stage">
         <div ref="scrollEl" class="ac-scroll" @scroll.passive="onScroll">
           <div class="ac-body">
-            <div v-if="loadingMessages" class="history-state" role="status"><span class="history-pulse"></span>正在加载对话…</div>
+            <PageLoading v-if="loadingMessages" :rows="messages.length ? 0 : 4" label="正在加载对话"/>
             <div v-if="historyError" class="history-state history-failed" role="alert"><span>{{ historyError }}</span><button type="button" class="nx-btn nx-btn-secondary" @click="messages.length ? loadEarlier() : loadMessages(activeId)">重试加载</button></div>
             <div v-if="hasEarlier && !loadingMessages" class="history-more"><button type="button" class="nx-btn nx-btn-secondary" :disabled="loadingEarlier || streaming" @click="loadEarlier">{{ loadingEarlier ? '正在加载…' : '加载更早的消息' }}</button></div>
             <!-- 空态：品牌问候 + 开场建议 + 智能体卡片 -->
@@ -1378,7 +1379,7 @@ onBeforeUnmount(() => {
 
             <div class="ac-composer-foot">
               <div class="ac-composer-left">
-                <VoiceInput v-if="auth.settings?.voice_asr_enabled" :max-seconds="auth.settings.voice_asr_max_seconds || 60" :disabled="streaming" @transcript="draft = draft ? draft + ' ' + $event : $event"/>
+                <VoiceInput v-if="auth.settings?.voice_asr_enabled" :hold-target="inputEl" :max-seconds="auth.settings.voice_asr_max_seconds || 60" :disabled="streaming || loadingMessages || (Boolean(historyError) && !messages.length)" @transcript="draft = draft ? draft + ' ' + $event : $event"/>
                 <button
                   v-if="visionSupported"
                   type="button"
@@ -2391,5 +2392,5 @@ button.nx-chip:hover .ac-chip-x {
 </style>
 
 <style scoped>
-.history-state{display:flex;align-items:center;justify-content:center;gap:12px;padding:24px 16px;color:var(--nx-text-2);font-size:14px;flex-wrap:wrap}.history-failed{color:var(--nx-danger);background:var(--nx-danger-soft);border-radius:12px;overflow-wrap:anywhere}.history-more{text-align:center;margin:0 0 24px}.history-pulse{width:8px;height:8px;border-radius:50%;background:var(--nx-accent);animation:history-pulse 1.2s ease-in-out infinite}@keyframes history-pulse{50%{opacity:.3}}@media(prefers-reduced-motion:reduce){.history-pulse{animation:none}}
+.history-state{display:flex;align-items:center;justify-content:center;gap:12px;padding:24px 16px;color:var(--nx-text-2);font-size:14px;flex-wrap:wrap}.history-failed{color:var(--nx-danger);background:var(--nx-danger-soft);border-radius:12px;overflow-wrap:anywhere}.history-more{text-align:center;margin:0 0 24px}
 </style>

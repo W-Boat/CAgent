@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { request, errorMessage } from '@/api/client'
 import StudentTopbar from '@/components/student/StudentTopbar.vue'
 import MarkdownView from '@/components/MarkdownView.vue'
+import PageLoading from '@/components/PageLoading.vue'
 
 type Item = {
   id: string; title: string; category: string; summary: string; url: string
@@ -98,7 +99,7 @@ watch(lastPage, max => { if (page.value > max) page.value = max })
         <button v-if="information" type="button" class="nx-btn nx-btn-secondary" :aria-pressed="savedOnly" @click="savedOnly = !savedOnly">{{ savedOnly ? '查看全部' : '我的收藏' }}</button>
       </div>
       <p v-if="error" class="portal-state" role="alert">{{ error }} <button class="nx-btn nx-btn-secondary" type="button" @click="load">重新加载</button></p>
-      <p v-else-if="busy && !result" class="portal-state" role="status">正在读取{{ heading }}…</p>
+      <PageLoading v-else-if="busy" :rows="result ? 0 : 5" :label="'正在读取'+heading"/>
       <p v-if="result" class="portal-count" aria-live="polite">共 {{ matching.length }} 条</p>
       <p v-if="result && !visible.length" class="portal-state">{{ result.items.length ? '没有找到符合条件的内容。' : '知识库还没有已发布的条目，可以打开学校门户查看。' }}</p>
       <div v-if="visible.length" class="portal-grid">
@@ -109,7 +110,7 @@ watch(lastPage, max => { if (page.value > max) page.value = max })
           <p v-if="item.summary">{{ item.summary }}</p>
           <details v-if="item.kind!=='official-link'" @toggle="loadDetail(item.id,$event)">
             <summary>{{ section === 'services' ? '查看办理详情' : '阅读详情' }}</summary>
-            <p v-if="details[item.id]?.busy" role="status">正在读取知识库…</p>
+            <PageLoading v-if="details[item.id]?.busy" :rows="2" label="正在读取条目详情"/>
             <p v-else-if="details[item.id]?.error" role="alert">{{ details[item.id]?.error }} <button type="button" class="nx-btn nx-btn-secondary" @click="loadDetail(item.id)">重试</button></p>
             <template v-else-if="details[item.id]?.data">
               <dl><template v-for="[label, value] in [['负责部门', details[item.id].data?.department], ['校区', details[item.id].data?.campus], ['地点', details[item.id].data?.place], ['时间', details[item.id].data?.officeTime]]" :key="label"><div v-if="value"><dt>{{ label }}</dt><dd>{{ value }}</dd></div></template></dl>

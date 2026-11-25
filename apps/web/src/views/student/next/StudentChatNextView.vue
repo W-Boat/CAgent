@@ -12,6 +12,7 @@ import ImageTransferProgress from '@/components/ImageTransferProgress.vue'
 import {useImageAttachments} from '@/composables/useImageAttachments'
 import {regenerateChat,type ChatStreamHandlers,type SendMessagePayload} from '@/api/chat-stream'
 import StudentTopbar from '@/components/student/StudentTopbar.vue'
+import PageLoading from '@/components/PageLoading.vue'
 import ComposerSources from '@/components/student/ComposerSources.vue'
 import CampusMascot from '@/components/student/CampusMascot.vue'
 import {Delete,EditPen,Download,Paperclip} from '@element-plus/icons-vue'
@@ -162,8 +163,8 @@ const featureOpen=ref(false),petHidden=ref(false)
 const accountPane=ref<'memory'|'usage'|''>('')
 const quickFeatures=ref<{label:string;question:string}[]>([])
 const takeoutShortcut=computed(()=>quickFeatures.value.some(x=>/外卖红黑榜/.test(x.label+' '+x.question)))
-const OwnMemory=defineAsyncComponent(()=>import('@/views/memory/MemoryView.vue'))
-const OwnUsage=defineAsyncComponent(()=>import('@/views/usage/MyUsageView.vue'))
+const OwnMemory=defineAsyncComponent({loader:()=>import('@/views/memory/MemoryView.vue'),loadingComponent:PageLoading,delay:0})
+const OwnUsage=defineAsyncComponent({loader:()=>import('@/views/usage/MyUsageView.vue'),loadingComponent:PageLoading,delay:0})
 try{petHidden.value=localStorage.getItem('cagent.pet.hidden')==='1'}catch{}
 watch(petHidden,value=>{try{localStorage.setItem('cagent.pet.hidden',value?'1':'0')}catch{}})
 function showFeature(card:Record<string,unknown>){const id=featureFromCard(card);if(id)void topbar.value?.showFeature(id,card)}
@@ -1634,7 +1635,7 @@ onBeforeUnmount(() => {
       <div class="st-stage">
         <div ref="scrollEl" class="st-scroll" @scroll.passive="onScroll">
           <div class="st-body">
-            <div v-if="loadingMessages" class="history-state" role="status"><span class="history-pulse"></span>正在加载对话…</div>
+            <PageLoading v-if="loadingMessages" :rows="messages.length ? 0 : 4" label="正在加载对话"/>
             <div v-if="historyError" class="history-state history-failed" role="alert"><span>{{ historyError }}</span><button type="button" class="nx-btn nx-btn-secondary" @click="messages.length ? loadEarlier() : loadMessages(activeId)">重试加载</button></div>
             <div v-if="hasEarlier && !loadingMessages" class="history-more"><button type="button" class="nx-btn nx-btn-secondary" :disabled="loadingEarlier || streaming" @click="loadEarlier">{{ loadingEarlier ? '正在加载…' : '加载更早的消息' }}</button></div>
             <!-- 空态：迎宾 + 开场白 + 智能体网格 -->
@@ -1853,7 +1854,7 @@ onBeforeUnmount(() => {
 
             <div class="st-composer-foot">
               <div class="st-composer-left">
-                <VoiceInput v-if="auth.isLoggedIn && auth.settings?.voice_asr_enabled" :max-seconds="auth.settings.voice_asr_max_seconds || 60" :disabled="streaming" @transcript="draft = draft ? draft + ' ' + $event : $event"/>
+                <VoiceInput v-if="auth.isLoggedIn && auth.settings?.voice_asr_enabled" :hold-target="inputEl" :max-seconds="auth.settings.voice_asr_max_seconds || 60" :disabled="streaming || loadingMessages || (Boolean(historyError) && !messages.length)" @transcript="draft = draft ? draft + ' ' + $event : $event"/>
                 <button
                   type="button"
                   class="nx-icon-btn"
@@ -1898,7 +1899,7 @@ onBeforeUnmount(() => {
         <p v-if="display.footer" class="st-display-footer">{{ display.footer }}</p>
       </footer>
     </section>
-    <el-drawer v-model="featureOpen" :direction="isNarrow?'btt':'rtl'" :size="isNarrow?'58dvh':'min(640px,90vw)'" :title="accountPane==='usage'?'我的用量':'我的记忆'" destroy-on-close>
+    <el-drawer v-model="featureOpen" :direction="topbar?.small?'btt':'rtl'" :size="topbar?.small?(topbar.mobileMode==='full'?'100dvh':'63dvh'):'min(640px,90vw)'" :title="accountPane==='usage'?'我的用量':'我的记忆'" append-to-body destroy-on-close>
       <div class="nx-root student-feature-body"><OwnMemory v-if="accountPane==='memory'"/><OwnUsage v-else-if="accountPane==='usage'"/></div>
     </el-drawer>
 
@@ -1964,5 +1965,5 @@ onBeforeUnmount(() => {
 <style scoped src="./student-chat.css"></style>
 
 <style scoped>
-.history-state{display:flex;align-items:center;justify-content:center;gap:12px;padding:24px 16px;color:var(--nx-text-2);font-size:14px;flex-wrap:wrap}.history-failed{color:var(--nx-danger);background:var(--nx-danger-soft);border-radius:12px;overflow-wrap:anywhere}.history-more{text-align:center;margin:0 0 24px}.history-pulse{width:8px;height:8px;border-radius:50%;background:var(--nx-accent);animation:history-pulse 1.2s ease-in-out infinite}@keyframes history-pulse{50%{opacity:.3}}@media(prefers-reduced-motion:reduce){.history-pulse{animation:none}}
+.history-state{display:flex;align-items:center;justify-content:center;gap:12px;padding:24px 16px;color:var(--nx-text-2);font-size:14px;flex-wrap:wrap}.history-failed{color:var(--nx-danger);background:var(--nx-danger-soft);border-radius:12px;overflow-wrap:anywhere}.history-more{text-align:center;margin:0 0 24px}
 </style>

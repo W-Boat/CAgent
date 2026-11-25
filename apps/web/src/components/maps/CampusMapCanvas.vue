@@ -2,7 +2,7 @@
   <div class="map-canvas" :class="{'map-compact':compact}">
     <div class="map-compass" :title="`北方向${campus.northRotation===90?'右':'右上'}`"><svg viewBox="0 0 40 40" aria-hidden="true"><g :transform="`rotate(${campus.northRotation} 20 20)`"><path d="M20 3 12 24l8-4 8 4Z" fill="currentColor"/><path d="M20 20v17" stroke="currentColor" stroke-width="2"/></g></svg><span>北</span></div>
     <svg ref="svgEl" class="map-drawing" :viewBox="viewBox" :style="{aspectRatio:campus.width+'/'+campus.height}" role="img" :aria-label="`${campus.name}校园示意地图`" @wheel.prevent="onWheel" @pointerdown="onDown" @pointermove="onMove" @pointerup="onUp" @pointercancel="onUp">
-      <image :href="campus.imageUrl" x="0" y="0" :width="campus.width" :height="campus.height" preserveAspectRatio="xMidYMid meet"/>
+      <image v-if="campus.imageUrl" :key="campus.imageUrl" :href="campus.imageUrl" x="0" y="0" :width="campus.width" :height="campus.height" preserveAspectRatio="xMidYMid meet" @load="imagePending=false" @error="imagePending=false"/>
       <g v-for="p in campus.places" :key="p.id" class="map-place" :class="{'is-selected':focusIds.includes(p.id)}" :data-place="p.id" tabindex="0" role="button" :aria-label="`${p.name}，${p.description}`" :aria-pressed="focusIds.includes(p.id)" @keydown.enter.prevent="$emit('select',p.id)" @keydown.space.prevent="$emit('select',p.id)">
         <title>{{p.name}} · {{p.description}}</title>
         <polygon v-if="p.shape==='polygon'" :points="p.points" class="map-footprint"/>
@@ -15,14 +15,18 @@
     </svg>
     <div class="map-zoom" aria-label="地图缩放"><button type="button" aria-label="放大地图" @click="setZoom(zoom*1.3)">＋</button><button type="button" aria-label="缩小地图" @click="setZoom(zoom/1.3)">−</button><button type="button" aria-label="查看全校地图" @click="reset">全图</button></div>
     <span class="map-scale-note">原图标记 · 可拖动</span>
+    <PageLoading v-if="imagePending" class="map-image-loading" :rows="2" label="正在加载校园地图原图"/>
   </div>
 </template>
 <script setup lang="ts">
 import {computed,ref,watch} from 'vue'
+import PageLoading from '@/components/PageLoading.vue'
 import type {CampusMap} from './map-data'
 const props=withDefaults(defineProps<{campus:CampusMap;focusIds?:string[];compact?:boolean}>(),{focusIds:()=>[],compact:false})
 const emit=defineEmits<{(e:'select',id:string):void}>()
 const svgEl=ref<SVGSVGElement>(),zoom=ref(1),cx=ref(500),cy=ref(370)
+const imagePending=ref(false)
+watch(()=>props.campus.imageUrl,url=>{imagePending.value=Boolean(url)},{immediate:true})
 const viewWidth=computed(()=>props.campus.width/zoom.value),viewHeight=computed(()=>props.campus.height/zoom.value)
 const viewBox=computed(()=>`${Math.max(0,Math.min(props.campus.width-viewWidth.value,cx.value-viewWidth.value/2))} ${Math.max(0,Math.min(props.campus.height-viewHeight.value,cy.value-viewHeight.value/2))} ${viewWidth.value} ${viewHeight.value}`)
 function setZoom(n:number){zoom.value=Math.max(1,Math.min(4,n))}
@@ -36,6 +40,7 @@ function onMove(e:PointerEvent){const old=pointers.get(e.pointerId);if(!old)retu
 function onUp(e:PointerEvent){if(!pointers.has(e.pointerId))return;pointers.delete(e.pointerId);if(svgEl.value?.hasPointerCapture(e.pointerId))svgEl.value.releasePointerCapture(e.pointerId);if(!pointers.size && !moved && pendingPlace && e.type!=='pointercancel')emit('select',pendingPlace)}
 </script>
 <style scoped>
+.map-image-loading{position:absolute;inset:0;margin:0;padding:16px;align-content:start;pointer-events:none;background:var(--nx-surface,var(--el-bg-color))}
 .map-canvas{position:relative;overflow:hidden;background:#f6f4ed;border:1px solid #d8e1d7;border-radius:20px;isolation:isolate}.map-drawing{display:block;width:100%;aspect-ratio:1000/740;touch-action:none;user-select:none}.map-place{cursor:pointer;outline:none}.map-footprint{fill:#a1bbb0;stroke:#688c7c;stroke-width:2;transition:stroke .15s,fill .15s}.residence .map-footprint{fill:#e4c897;stroke:#b29c71}.dining .map-footprint{fill:#daa788;stroke:#b58268}.sports .map-footprint{fill:#c19c84;stroke:#9a7964}.service .map-footprint{fill:#bdc7c7;stroke:#879b99}.landscape .map-footprint{fill:#d2ddb1;stroke:#aab98b}.gate .map-footprint{fill:#ead7a3;stroke:#bda66f}.map-place:hover .map-footprint,.map-place:focus-visible .map-footprint{stroke:#324e43;stroke-width:4}.is-selected .map-footprint{stroke:#d76849!important;stroke-width:5;filter:drop-shadow(0 3px 3px #ad614336)}.map-label{fill:#233d32;text-anchor:middle;font-weight:650;pointer-events:none;paint-order:stroke;stroke:#f9f7ee;stroke-width:3;stroke-linejoin:round}.map-street text{fill:#79887e;font-size:15px;letter-spacing:4px;text-anchor:middle}.map-compass{position:absolute;right:16px;top:12px;display:flex;align-items:center;color:#355347;font-size:12px;z-index:1;pointer-events:none}.map-compass svg{width:35px;height:35px}.map-zoom{position:absolute;right:14px;bottom:14px;display:flex;gap:1px;border:1px solid #d4ddd3;border-radius:12px;overflow:hidden;box-shadow:0 4px 18px #213e3110}.map-zoom button{border:0;background:#fffdf7;color:#294d3c;min-width:38px;height:38px;font:inherit;font-size:19px;cursor:pointer}.map-zoom button:last-child{font-size:12px;padding:0 10px}.map-zoom button:hover{background:#e9f0e6}.map-scale-note{position:absolute;left:14px;bottom:14px;font-size:11px;color:#627668;background:#fffdf5dc;border-radius:6px;padding:4px 7px}.map-compact{border-radius:14px}.map-compact .map-zoom{right:10px;bottom:10px}
 </style>
 <style scoped>

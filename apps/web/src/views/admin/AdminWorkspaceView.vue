@@ -11,9 +11,10 @@
 import {computed,defineAsyncComponent,type Component} from 'vue'
 import {useRoute,useRouter} from 'vue-router'
 import {useAuthStore} from '@/stores/auth'
+import PageLoading from '@/components/PageLoading.vue'
 const props=defineProps<{section:string}>(),route=useRoute(),router=useRouter(),auth=useAuthStore()
 type Tab={id:string;title:string;permission?:string;component:Component}
-const make=(id:string,title:string,load:()=>Promise<{default:Component}>,permission?:string):Tab=>({id,title,permission,component:defineAsyncComponent(load)})
+const make=(id:string,title:string,load:()=>Promise<{default:Component}>,permission?:string):Tab=>({id,title,permission,component:defineAsyncComponent({loader:load,loadingComponent:PageLoading,delay:0})})
 const workspaces:Record<string,Tab[]>={
  dashboard:[make('overview','全站概览',()=>import('@/views/next/WorkbenchNextView.vue'),'dashboard:read'),make('campus','导览统计',()=>import('./CampusStatsView.vue'),'campus:admin'),make('usage','用量统计',()=>import('./UsageAdminView.vue'),'usage:read:all'),make('runs','技能运行',()=>import('./SkillRunsView.vue'),'skill:read')],
  agents:[make('gallery','智能体广场',()=>import('@/views/agents/AgentGalleryView.vue')),make('manage','管理智能体',()=>import('./AgentsAdminView.vue'),'agent:read')],
