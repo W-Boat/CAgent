@@ -1,0 +1,203 @@
+/* Shared workspace surfaces. Stay within the administrative route shell. */
+.nx-content.nx-admin-content {
+  --admin-page-gutter: clamp(16px, 2.6vw, 32px);
+  --admin-section-gap: 20px;
+  --admin-card-gap: 16px;
+  --admin-card-pad: 20px;
+  --admin-card-radius: var(--nx-radius-lg);
+  --admin-title-size: 24px;
+  --admin-section-title-size: 16px;
+  --admin-row-pad: 8px;
+  min-width: 0;
+}
+
+.nx-content.nx-admin-content > :is(.page, .nx-page, .knowledge-admin, .learning-admin, .pg-page, .validation-page),
+.nx-content.nx-admin-content .admin-workspace > :is(.page, .nx-page, .knowledge-admin, .learning-admin, .pg-page, .validation-page) {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 24px var(--admin-page-gutter) 40px;
+}
+
+.nx-admin-content :is(.page > .page-header, .nx-page > .nx-head, .knowledge-admin > .kb-heading,
+  .learning-admin > .page-header, .pg-page > .pg-head, .validation-page > header) {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px var(--admin-card-gap);
+  margin: 0 0 var(--admin-section-gap);
+}
+
+.nx-admin-content :is(.page-header > div, .nx-head-text, .kb-heading > div, .pg-head > div) {
+  min-width: 0;
+}
+
+.nx-admin-content :is(.page-header .page-title, .nx-head .nx-h1, .kb-heading h1, .pg-head h1, .validation-page > header h1) {
+  margin: 0;
+  color: var(--nx-text);
+  font-family: var(--nx-font-sans);
+  font-size: var(--admin-title-size);
+  font-weight: 650;
+  line-height: 1.3;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.nx-admin-content :is(.page-subtitle, .nx-head-text > p, .kb-heading > div > p, .pg-head > div > p, .validation-page > header p) {
+  margin: 6px 0 0;
+  color: var(--nx-text-2);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.nx-admin-content :is(.page-actions, .nx-head-actions, .admin-heading-actions, .entry-toolbar, .filter-bar) {
+  display: flex;
+  align-items: center;
+  gap: 8px 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.nx-admin-content :is(.page-actions, .nx-head-actions, .admin-heading-actions, .entry-toolbar, .filter-bar) .el-button + .el-button {
+  margin-left: 0;
+}
+
+.nx-admin-content :is(.el-card, .table-card, .filter-bar, .base-card, .kb-overview > div, .stat-card,
+  .validation-grid > section, .pg-explorer, .pg-preview, .pg-editor, .pg-registry, .nx-page .nx-card,
+  .display-section) {
+  min-width: 0;
+  border: 1px solid var(--nx-border);
+  border-radius: var(--admin-card-radius);
+  background: var(--nx-surface);
+  box-shadow: none;
+}
+
+.nx-content.nx-admin-content :is(.el-card > .el-card__body, .nx-page .nx-card-pad, .base-card, .kb-overview > div,
+  .stat-card, .validation-grid > section, .display-section) {
+  padding: var(--admin-card-pad);
+}
+
+.nx-admin-content .el-card__header {
+  padding: 14px var(--admin-card-pad);
+  border-bottom-color: var(--nx-border);
+}
+
+.nx-admin-content :is(.el-card__header, .block-title, .nx-block-head .nx-card-title, .nx-board-head .nx-card-title,
+  .nx-page > .nx-group-label, .base-card .base-title h3, .rank-card > h3, .admin-section-title,
+  .pg-explorer-head h2, .pg-bar h2, .pg-current h2, .pg-events h3, .pg-registry > summary,
+  .validation-grid > section > h2, .display-caption > strong, .display-section > h3, .preview-toolbar > strong) {
+  color: var(--nx-text);
+  font-size: var(--admin-section-title-size);
+  font-weight: 650;
+  line-height: 1.45;
+  letter-spacing: 0;
+}
+
+.nx-admin-content .nx-page > .nx-group-label {
+  margin: var(--admin-section-gap) 0 10px;
+  text-transform: none;
+}
+
+.nx-admin-content :is(.base-grid, .kb-overview, .validation-grid, .pg-layout, .pg-workspace, .nx-stats, .nx-boards) {
+  gap: var(--admin-card-gap);
+}
+
+.nx-admin-content :is(.filter-bar, .entry-toolbar) {
+  padding: 12px var(--admin-card-pad);
+  margin: 0 0 var(--admin-card-gap);
+}
+
+.nx-admin-content .entry-toolbar {
+  background: var(--nx-surface);
+  border: 1px solid var(--nx-border);
+  border-radius: var(--admin-card-radius);
+}
+
+.nx-admin-content .table-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.nx-admin-content .el-table {
+  --el-table-bg-color: var(--nx-surface);
+  --el-table-tr-bg-color: var(--nx-surface);
+  --el-table-header-bg-color: var(--nx-bg-soft);
+  --el-table-border-color: var(--nx-border);
+  --el-table-row-hover-bg-color: var(--nx-surface-hover);
+  --el-table-text-color: var(--nx-text);
+  max-width: 100%;
+  font-size: 13px;
+}
+
+.nx-admin-content .el-table :is(th, td).el-table__cell {
+  padding-block: var(--admin-row-pad);
+}
+
+.nx-admin-content .el-table th.el-table__cell {
+  height: 40px;
+  color: var(--nx-text-2);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.nx-admin-content .el-table .cell {
+  padding-inline: 12px;
+  line-height: 1.6;
+}
+
+.nx-admin-content .table-card .el-table__inner-wrapper::before { display: none; }
+
+.nx-admin-content :is(.pager, .pagination-wrap) {
+  box-sizing: border-box;
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px var(--admin-card-pad);
+  margin: 0;
+}
+
+.nx-admin-content .table-card > .pager { border-top: 1px solid var(--nx-border); }
+.nx-admin-content .pager > .el-pagination { flex-wrap: wrap; gap: 4px; }
+.nx-admin-content .rank-card > h3 { margin: 0; padding: 14px var(--admin-card-pad); }
+.nx-admin-content .el-tabs__nav-wrap::after { background-color: var(--nx-border); }
+.nx-admin-content .el-tabs:not(.el-tabs--border-card) { --el-tabs-header-height: 42px; }
+.nx-admin-content .el-tabs:not(.el-tabs--border-card) .el-tabs__item { font-size: 13px; font-weight: 550; transition:color .15s ease; }
+.nx-admin-content .el-tabs:not(.el-tabs--border-card) .el-tabs__item.is-active { color:var(--nx-accent);font-weight:650; }
+.nx-admin-content .el-tabs:not(.el-tabs--border-card) .el-tabs__active-bar { background-color:var(--nx-accent);border-radius:2px; }
+.nx-admin-content .workspace-tabs { box-sizing:border-box;max-width:1440px;margin-inline:auto;padding:8px var(--admin-page-gutter) 0; }
+.nx-admin-content .workspace-tabs > .el-tabs__header { margin-bottom:0; }
+.nx-admin-content .workspace-tabs > .el-tabs__content { display:none; }
+.nx-admin-content .table-card > .el-card__body:has(> .el-table) { padding:0; }
+
+.nx-admin-content .nx-page :is(.nx-stats, .nx-boards, .nx-chart-wrap, .nx-rank-main, .nx-tl-text) {
+  min-width: 0;
+}
+
+.nx-admin-content .nx-page .nx-seg { min-width: 0; flex-wrap: wrap; }
+.nx-admin-content .nx-page .nx-rank-vals { min-width: 0; flex-shrink: 1; }
+.nx-admin-content .nx-page .nx-rank-row { min-width: 0; }
+
+@media (max-width: 720px) {
+  .nx-content.nx-admin-content {
+    --admin-card-pad: 14px;
+    --admin-section-gap: 16px;
+    --admin-card-gap: 12px;
+    --admin-title-size: 21px;
+  }
+
+  .nx-content.nx-admin-content > :is(.page, .nx-page, .knowledge-admin, .learning-admin, .pg-page, .validation-page),
+  .nx-content.nx-admin-content .admin-workspace > :is(.page, .nx-page, .knowledge-admin, .learning-admin, .pg-page, .validation-page) {
+    padding-block: 16px 32px;
+  }
+
+  .nx-admin-content :is(.page > .page-header, .nx-page > .nx-head, .knowledge-admin > .kb-heading,
+    .learning-admin > .page-header, .pg-page > .pg-head, .validation-page > header) { flex-wrap: wrap; }
+
+  .nx-admin-content :is(.pager, .pagination-wrap) { justify-content: flex-start; }
+  .nx-admin-content .pager :is(.el-pagination__sizes,.el-pagination__jump) { margin-inline: 0; }
+  .nx-admin-content .nx-page .nx-block-head { flex-wrap: wrap; }
+  .nx-admin-content .nx-page .nx-chip-row { flex: 0 1 auto; min-width: 0; max-width: 100%; }
+}

@@ -61,6 +61,26 @@ function slugify(input: string): string {
 export class SkillImportService {
   private readonly logger = new Logger(SkillImportService.name)
 
+  parseZipBundle(buffer:Buffer):ParsedSkill[]{
+    if(!buffer.length||buffer.length>10*1024*1024)throw new BadRequestException('技能 ZIP 最大 10 MB')
+    let zip:AdmZip
+    try{zip=new AdmZip(buffer)}catch{throw new BadRequestException('无法读取技能 ZIP')}
+    const files=zip.getEntries().filter(entry=>!entry.isDirectory)
+    if(files.length>MAX_ENTRIES||files.reduce((sum,entry)=>sum+entry.header.size,0)>MAX_TOTAL_SIZE)throw new BadRequestException('技能包解压后超过上限')
+    const paths=files.map(entry=>({entry,name:entry.entryName.replace(/\\/g,'/')})).filter(({name})=>!name.startsWith('/')&&!name.split('/').some(part=>part==='..'||part.startsWith('.')||part==='__MACOSX'))
+    const roots=[...new Set(paths.filter(({name})=>/(^|\/)(?:SKILL\.md|skill\.json)$/i.test(name)).map(({name})=>name.slice(0,name.lastIndexOf('/')+1)))].sort((a,b)=>b.length-a.length)
+    if(!roots.length)return [this.parseZip(buffer)]
+    if(roots.length>24)throw new BadRequestException('一次最多导入 24 个技能')
+    return roots.map(root=>{
+      const part=new AdmZip()
+      for(const {entry,name} of paths){
+        if(roots.find(candidate=>name.startsWith(candidate))!==root||entry.header.size>MAX_ENTRY_SIZE||!/\.(?:md|markdown|txt|json|ya?ml)$/i.test(name))continue
+        try{part.addFile('skill/'+name.slice(root.length),entry.getData())}catch{throw new BadRequestException('技能包中有无法读取的文档')}
+      }
+      return this.parseZip(part.toBuffer(),root.split('/').filter(Boolean).at(-1))
+    })
+  }
+
   parse(raw: string, fallbackName?: string): ParsedSkill {
     const text = (raw ?? "").trim()
     if (!text) throw new BadRequestException("导入内容为空")
@@ -348,12 +368,14 @@ export class SkillImportService {
     const warnings: string[] = []
     const lines = text.split(/\r?\n/)
 
-    let name = ""
+    const header=text.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/)?.[1]||''
+    const headerValue=(key:string)=>header.match(new RegExp(`^${key}:\\s*(.+)$`,'m'))?.[1].trim().replace(/^(["'])([\s\S]*)\1$/,'$2')
+    let name = headerValue('name') || ''
     let nameLine = -1
     for (let i = 0; i < lines.length; i++) {
       const m = lines[i].match(/^#{1,3}\s+(.+?)\s*$/)
       if (m) {
-        name = m[1].trim()
+        name ||= m[1].trim()
         nameLine = i
         break
       }
@@ -369,7 +391,7 @@ export class SkillImportService {
       // 描述取够一两段就停，避免把整篇正文塞进 description
       if (descParts.join(" ").length > 180) break
     }
-    let description = descParts
+    let description = headerValue('description') || descParts
       .join(" ")
       .replace(/[*_`>#]/g, "")
       .replace(/\s+/g, " ")

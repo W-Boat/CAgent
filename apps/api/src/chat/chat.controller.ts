@@ -1,6 +1,8 @@
-import { Body, Controller, Post, Res } from "@nestjs/common"
+import { Body, Controller, Post, Req, Res,UploadedFile,UseInterceptors } from "@nestjs/common"
+import {FileInterceptor} from '@nestjs/platform-express'
+import {ChatFilesService} from './chat-files.service'
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger"
-import type { Response } from "express"
+import type { Response,Request } from "express"
 import { ChatService } from "./chat.service"
 import { RegenerateDto, SendMessageDto, TestModelDto } from "./dto/chat.dto"
 import { RequirePermissions } from "../common/decorators/permissions.decorator"
@@ -13,7 +15,11 @@ import {
 @ApiBearerAuth()
 @Controller("chat")
 export class ChatController {
-  constructor(private readonly chat: ChatService) {}
+  constructor(private readonly chat: ChatService,private readonly files:ChatFilesService) {}
+
+  @Post('files')
+  @UseInterceptors(FileInterceptor('file',{limits:{fileSize:15*1024*1024,files:1,fields:0}}))
+  file(@UploadedFile() file:{buffer:Buffer;originalname:string}|undefined,@CurrentUser() me:AuthUser){return this.files.upload(me.id,file)}
 
   @Post("completions")
   @ApiOperation({
@@ -24,9 +30,10 @@ export class ChatController {
   completions(
     @Body() dto: SendMessageDto,
     @CurrentUser() me: AuthUser,
+    @Req() req:Request,
     @Res() res: Response
   ) {
-    return this.chat.streamChat(me, dto, res)
+    return this.chat.streamChat(me, dto, res,undefined,{clientIp:req.ip||req.socket.remoteAddress})
   }
 
   @Post("regenerate")

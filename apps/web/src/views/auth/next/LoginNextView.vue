@@ -19,15 +19,7 @@ const route = useRoute()
 const errorText = ref("")
 const showPwd = ref(false)
 
-/*
- * 表单初值：开发环境预填管理员账号，省去每次手输；
- * 生产环境必须留空 —— 否则默认管理员密码会被打进线上 JS 包，
- * 任何人查看源码即可拿到后台凭据。
- */
-const form = reactive({
-  email: import.meta.env.DEV ? "admin@cagent.local" : "",
-  password: import.meta.env.DEV ? "CHANGE_ME_SEED_ADMIN_PASSWORD" : ""
-})
+const form = reactive({ email: "", password: "" })
 
 /** 各字段校验错误，空串表示无错 */
 const errors = reactive({ email: "", password: "" })
@@ -61,19 +53,13 @@ function validateAll(): boolean {
   return !errors.email && !errors.password
 }
 
-/**
- * 演示账号：只在开发环境存在。
- *
- * 这里用 `import.meta.env.DEV` 求值而不是仅在模板里 v-if——
- * 后者只是「不渲染」，凭据字符串仍会被打进生产包。加上 DEV
- * 判断后，生产构建时整个字面量会被常量折叠掉。
- */
-const demoAccounts = import.meta.env.DEV
+// These values come from the developer's ignored .env.development.local file.
+const demoAccounts = import.meta.env.DEV && ["127.0.0.1", "localhost", "[::1]"].includes(window.location.hostname)
   ? [
-      { label: "超管", email: "admin@cagent.local", password: "CHANGE_ME_SEED_ADMIN_PASSWORD" },
-      { label: "教师", email: "teacher@cagent.local", password: "User@123456" },
-      { label: "学生", email: "student@cagent.local", password: "User@123456" }
-    ]
+      { label: "超管", email: import.meta.env.VITE_DEV_ADMIN_EMAIL || "admin@cagent.local", password: import.meta.env.VITE_DEV_ADMIN_PASSWORD },
+      { label: "教师", email: "teacher@cagent.local", password: import.meta.env.VITE_DEV_DEMO_PASSWORD },
+      { label: "学生", email: "student@cagent.local", password: import.meta.env.VITE_DEV_DEMO_PASSWORD }
+    ].filter((account): account is { label: string; email: string; password: string } => typeof account.password === "string" && account.password.length >= 12)
   : []
 
 const showDemo = computed(() => import.meta.env.DEV && demoAccounts.length > 0)
@@ -83,6 +69,7 @@ function fillDemo(acc: { email: string; password: string }) {
   form.password = acc.password
   errors.email = ""
   errors.password = ""
+  errorText.value = ""
 }
 
 async function submit() {
@@ -440,4 +427,5 @@ function onEdit(key: "email" | "password") {
 
 <style scoped>
 .auth-shell{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:72px;width:100%;max-width:1060px;margin:auto;align-items:center}.auth-intro{container-type:inline-size;padding:24px 0;color:var(--nx-text)}.auth-intro h2{font-size:clamp(38px,calc(10vw - 47px),72px);font-size:clamp(38px,12cqw,72px);line-height:1.35;font-weight:600;letter-spacing:0;margin:0}.auth-card{background:transparent;border:0;border-radius:0;padding:34px 30px;box-shadow:none}.auth-page{padding:48px 32px}.brand-sub{line-height:1.7}.form-title{font-size:22px}.form-sub{line-height:1.7;font-size:13px}.form .nx-input{min-height:46px}.submit{min-height:46px}.pwd-toggle{min-width:40px;min-height:40px}@media(max-width:850px){.auth-shell{grid-template-columns:1fr;max-width:420px;gap:0}.auth-intro{display:none}.auth-page{padding:24px 16px}.auth-card{padding:28px 24px}}@media(max-width:380px){.auth-card{padding:24px 18px}}
+.auth-intro h2{font-size:clamp(31px,9cqw,54px);line-height:1.38}
 </style>

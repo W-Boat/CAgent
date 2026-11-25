@@ -83,6 +83,10 @@
         </el-card>
       </el-col>
     </el-row>
+    <el-card shadow="never" class="skill-card builtin-catalog">
+      <template #header><h3 class="admin-section-title">内置工具</h3></template>
+      <el-table :data="builtinTools.filter(tool=>!keyword||[tool.name,tool.description,tool.key].join(' ').toLowerCase().includes(keyword.trim().toLowerCase()))" row-key="key"><el-table-column prop="name" label="工具" min-width="115"/><el-table-column prop="category" label="分类" width="92"/><el-table-column prop="description" label="用途" min-width="240"/><el-table-column label="环境" width="105"><template #default="{row}">{{row.needsNetwork?'需要联网':'本地运行'}}</template></el-table-column></el-table>
+    </el-card>
 
     <el-empty v-if="!loading && filtered.length === 0" description="没有匹配的技能" />
 
@@ -312,6 +316,7 @@ const TYPES = [
 
 const skills = ref<SkillItem[]>([])
 const loading = ref(false)
+const builtinTools=ref<Awaited<ReturnType<typeof skillsApi.builtIns>>>([])
 const keyword = ref("")
 const typeFilter = ref("")
 
@@ -441,7 +446,8 @@ async function copyOutput() {
 async function load() {
   loading.value = true
   try {
-    skills.value = await skillsApi.available()
+    const [custom,builtins]=await Promise.all([skillsApi.available(),skillsApi.builtIns().catch(()=>[])])
+    skills.value=custom;builtinTools.value=builtins
   } catch (error) {
     toastError(error, "技能列表加载失败")
   } finally {

@@ -217,6 +217,7 @@ export interface ModelItem {
   maxOutputTokens: number
   supportsVision: boolean
   supportsTools: boolean
+  supportsThinking?: boolean
   supportsStream: boolean
   inputPricePerM: number
   outputPricePerM: number
@@ -287,7 +288,7 @@ export interface MessageItem {
   completionTokens: number
   totalTokens: number
   latencyMs: number
-    attachments?: { images?: string[];knowledgeSources?:import('./chat-stream').KnowledgeSource[];agentRun?:import('./chat-stream').AgentRunMetrics } | null
+    attachments?: { images?: string[];files?:{name:string}[];knowledgeSources?:import('./chat-stream').KnowledgeSource[];agentRun?:import('./chat-stream').AgentRunMetrics } | null
   toolCalls?: { id?:string;name: string; arguments: string; result?: string;status?:string;cached?:boolean;durationMs?:number }[] | null
   error?: string | null
   finishReason?: string | null
@@ -673,6 +674,18 @@ export interface MyDashboard {
 }
 
 export interface PublicSettings extends StudentDisplaySettings {
+  voice_asr_enabled?: boolean
+  voice_asr_max_seconds?: number
+  voice_tts_enabled?: boolean
+  voice_tts_max_chars?: number
+  mascot_enabled?: boolean
+  mascot_name?: string
+  mascot_resident_enabled?:boolean
+  thinking_messages?:string[]
+  student_thinking_enabled?:boolean
+  student_thinking_default?:'default'|'none'|'low'|'high'|'max'
+  student_conversation_export_enabled?:boolean
+  presentation_fallback?: 'fixed' | 'text'
   timetable_enabled?: boolean
   site_name: string
   site_description: string

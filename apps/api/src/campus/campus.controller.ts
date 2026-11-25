@@ -1,7 +1,7 @@
 import {Public} from "../common/decorators/public.decorator"
 import {CampusActivityService} from "./campus-activity.service"
 import {CampusActivityDto,LibraryGuideDto} from "./dto/campus.dto"
-import { Body, Headers, Req, Controller, Get, Param, Post, Query } from "@nestjs/common"
+import { Body, Header, Headers, Req, Controller, Get, NotFoundException, Param, Post, Query, StreamableFile } from "@nestjs/common"
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger"
 import { CampusGuideService } from "./campus-guide.service"
 import { CampusGuideRunService } from "./campus-guide-run.service"
@@ -16,6 +16,8 @@ import {
 import { RequirePermissions } from "../common/decorators/permissions.decorator"
 import { CurrentUser, type AuthUser } from "../common/decorators/current-user.decorator"
 import {KnowledgeStoreService} from '../knowledge/knowledge-store.service'
+import {PrismaService} from '../prisma/prisma.service'
+import {currentCampusMaps,mapImagePrefix} from './campus-map-storage'
 
 /**
  * UCASS 校园门户导览。
@@ -35,7 +37,8 @@ export class CampusController {
     private readonly guide: CampusGuideService,
     private readonly runs: CampusGuideRunService,
     private readonly activity:CampusActivityService,
-    private readonly knowledge:KnowledgeStoreService
+    private readonly knowledge:KnowledgeStoreService,
+    private readonly prisma:PrismaService
   ) {}
 
   @Post('activity') @Public()
@@ -45,6 +48,30 @@ export class CampusController {
   food(@Query() query:Record<string,string>){return this.knowledge.foodDirectory(query)}
   @Get('shortcuts') @Public()
   shortcuts(){return this.knowledge.publicShortcuts()}
+  @Get('selectable-sources') @RequirePermissions('campus:read')
+  async selectableSources(@Query('agentId') agentId:string|undefined,@CurrentUser() me:AuthUser){
+    const selected=agentId?await this.prisma.agent.findFirst({where:{id:agentId,enabled:true,OR:[{visibility:{not:'PRIVATE'}},{ownerId:me.id}]},select:{id:true}}):null
+    return this.knowledge.selectable(selected?.id)
+  }
+  @Get('student-feature/:feature') @RequirePermissions('campus:read')
+  async feature(@Param('feature') feature:string){
+    if(!['dinner','takeout'].includes(feature))throw new NotFoundException()
+    const matched=await this.knowledge.keywordRules(feature==='dinner'?'今天吃什么':'外卖红黑榜')
+    const card=matched.find(({rule})=>rule.card?.type===feature)?.rule.card
+    if(!card&&feature==='dinner')return this.knowledge.diningDefault()
+    if(!card)throw new NotFoundException('该校园服务未启用')
+    return card
+  }
+  @Get('map') @Public() @Header('Cache-Control','no-store')
+  map(){return currentCampusMaps(this.prisma)}
+  @Get('map-images/:id') @Public() @Header('Cache-Control','no-cache') @Header('X-Content-Type-Options','nosniff')
+  async mapImage(@Param('id') id:string){
+    if(!/^[a-z0-9_-]{1,80}$/i.test(id))throw new NotFoundException()
+    const row=await this.prisma.setting.findUnique({where:{key:mapImagePrefix+id}})
+    const image=row?.value as {contentType?:string;data?:string}|undefined
+    if(!image?.data||!/^image\/(png|jpeg|webp)$/.test(image.contentType||''))throw new NotFoundException()
+    return new StreamableFile(Buffer.from(image.data,'base64'),{type:image.contentType})
+  }
   @Get('activities') @RequirePermissions('campus:admin')
   activities(@Query() query:any){return this.activity.list(query)}
   @Get('activity/stats') @RequirePermissions('campus:admin')

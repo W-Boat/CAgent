@@ -107,8 +107,9 @@ export const useAuthStore = defineStore("auth", {
         try{this.settings=await settingsApi.publicSettings()}catch{return}
         const ui=useUiStore(),theme=useThemeStore()
         ui.applyServerAccent(this.settings?.default_accent_color||'',this.settings?.unified_theme_enabled!==false)
-        theme.applyPolicy(this.settings?.student_default_theme||'system',this.settings?.student_allow_theme_toggle!==false)
-        saveDisplayPolicy({accent:ui.serverAccent,unified:ui.managed,theme:theme.defaultMode,allowToggle:theme.allowToggle})
+        const defaultTheme=this.settings?.student_default_theme||'system'
+        theme.applyPolicy(defaultTheme,this.settings?.student_allow_theme_toggle!==false)
+        saveDisplayPolicy({accent:ui.serverAccent,unified:ui.managed,theme:defaultTheme,allowToggle:theme.allowToggle})
       })()
       try{await publicSettingsRequest}finally{publicSettingsRequest=null}
     },

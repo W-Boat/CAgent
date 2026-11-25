@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -10,6 +11,7 @@ import {
 } from "@nestjs/common"
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger"
 import { ConversationsService } from "./conversations.service"
+import { SettingsService } from '../settings/settings.service'
 import {
   CreateConversationDto,
   FlagMessageDto,
@@ -27,7 +29,7 @@ import {
 @ApiBearerAuth()
 @Controller("conversations")
 export class ConversationsController {
-  constructor(private readonly conversations: ConversationsService) {}
+  constructor(private readonly conversations: ConversationsService,private readonly settings:SettingsService) {}
 
   // ---------- 后台审计（必须声明在 :id 路由之前，否则 /admin/messages 会被 :id/messages 截获） ----------
 
@@ -67,6 +69,18 @@ export class ConversationsController {
   }
 
   // ---------- 用户侧 ----------
+  @Get(':id/export')
+  async exportOwn(@Param('id') id:string,@CurrentUser() me:AuthUser){
+    await this.conversations.assertAccess(id,me.id)
+    if (await this.settings.get<boolean>('student_conversation_export_enabled')===false) throw new ForbiddenException('自助会话导出已关闭')
+    return this.conversations.exportConversation(id,true)
+  }
+  @Get(':id/messages/:messageId/request-trace')
+  @RequirePermissions('message:read')
+  async requestTrace(@Param('id') id:string,@Param('messageId') messageId:string,@CurrentUser() me:AuthUser){
+    await this.conversations.assertAccess(id,me.id,true)
+    return this.conversations.requestTrace(id,messageId)
+  }
 
   @Get()
   @ApiOperation({ summary: "我的会话列表" })

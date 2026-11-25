@@ -4,6 +4,7 @@ import { ExtractJwt, Strategy } from "passport-jwt"
 import { ConfigService } from "@nestjs/config"
 import { PrismaService } from "../../prisma/prisma.service"
 import type { AuthUser } from "../../common/decorators/current-user.decorator"
+import { TestAccounts } from '../../experience/test-accounts'
 
 export interface JwtPayload {
   sub: string
@@ -15,7 +16,8 @@ export interface JwtPayload {
 export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
   constructor(
     config: ConfigService,
-    private readonly prisma: PrismaService
+    private readonly prisma: PrismaService,
+    private readonly tests: TestAccounts
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -47,6 +49,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
 
     if (!user) throw new UnauthorizedException("用户不存在")
     if (user.status === "DISABLED") throw new UnauthorizedException("账号已被禁用")
+    await this.tests.check(user)
 
     const roles = user.roles.map((ur) => ur.role.key)
     const permissions = Array.from(

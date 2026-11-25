@@ -1,4 +1,6 @@
 import {removedConfigurationIds,assertConfigurationPresent,removeConfiguration} from '../common/configuration-removal'
+import {supportsDeepSeekThinking} from '../chat/llm/deepseek-model'
+import {providerEndpoint} from '../providers/provider-endpoint'
 import {
   BadRequestException,
   ConflictException,
@@ -45,7 +47,7 @@ export class ModelsService {
       where: { enabled: true, provider: { enabled: true } },
       orderBy: [{ isDefault: "desc" }, { sort: "asc" }],
       include: {
-        provider: { select: { id: true, key: true, name: true, type: true } }
+        provider: { select: { id: true, key: true, name: true, type: true, baseUrl:true } }
       }
     })
     return models.map((m) => ({
@@ -60,6 +62,7 @@ export class ModelsService {
       maxOutputTokens: m.maxOutputTokens,
       supportsVision: m.supportsVision,
       supportsTools: m.supportsTools,
+      supportsThinking: m.provider.type==='OPENAI_COMPATIBLE'&&supportsDeepSeekThinking(m.key,providerEndpoint(m.provider)),
       description: m.description
     }))
   }

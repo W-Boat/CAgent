@@ -2,6 +2,7 @@ import {randomUUID} from 'node:crypto'
 import {abortable,abortScope,checkAbort} from '../../common/abort'
 import type {ChatMessage,LlmToolCall,LlmUsage} from '../llm/types'
 import {addProviderCache} from '../llm/provider-cache'
+import {supportsDeepSeekThinking} from '../llm/deepseek-model'
 import {estimateTokens} from '../llm/types'
 import {fitContext} from './context-budget'
 import {canonicalArguments,parseToolArguments} from './tool-validation'
@@ -16,6 +17,7 @@ class UnparsedToolOutputError extends Error {
 /** Business-free execution core, inspired by Pi's separation of loop, tools and session. */
 export class AgentRuntime {
   async run(options:RunOptions):Promise<RunResult> {
+    const preserveToolReasoning = options.request.thinkingEffort!=='none' && supportsDeepSeekThinking(options.request.model,options.request.baseUrl)
     const started=Date.now(),checkpoint=options.checkpoint,limit=Math.min(20,Math.max(1,options.maxToolRounds||5))
     const fresh:RunResult={text:'',reasoning:'',promptTokens:0,completionTokens:0,aborted:false,tools:[],modelMessages:[],metrics:{modelTurns:0,toolCalls:0,cachedCalls:0,failedTools:0,removedTurns:0,truncatedResults:0,peakInputTokens:0,latencyMs:0,limitReached:false}}
     const state:RuntimeState=checkpoint?.resume?restoreRuntime(options,checkpoint):{version:1,runId:checkpoint?.runId||randomUUID(),scopeKey:checkpoint?.scopeKey||'0'.repeat(64),contract:runtimeContract(options),sequence:0,node:'context',round:0,limit,messages:options.messages.map(m=>({...m})),result:fresh,pendingCalls:[],completed:{},inFlight:{},writeLedger:[],toolCache:[],updatedAt:Date.now()}
@@ -114,6 +116,22 @@ export class AgentRuntime {
           if(textBoundary.removed&&!calls.length&&!result.aborted)throw new UnparsedToolOutputError()
         }catch(error){
           streamFailed=true
+          if (!state.overflowRetried && !rawText && !rawReasoning && !calls.length && !options.signal.aborted &&
+            /context_length_exceeded|context window|maximum context length|input length.*exceed|too many (?:input )?tokens|上下文.{0,8}(?:超出|过长)/i.test(String((error as Error)?.message))) {
+            const fitted = fitContext(working,activeDefs,options.contextWindow,options.request.maxTokens||4096,0.62)
+            if (fitted.budget.removedTurns || fitted.budget.truncatedResults) {
+              state.overflowRetried=true
+              state.modelStart=undefined
+              state.budget=fitted.budget
+              result.providerError=false
+              result.metrics.removedTurns+=fitted.budget.removedTurns
+              result.metrics.truncatedResults+=fitted.budget.truncatedResults
+              working.splice(0,working.length,...fitted.messages)
+              progress('retrying',round+1,state.budget)
+              await persist()
+              continue
+            }
+          }
           // Retry only the uncommitted model turn. Serialized text never becomes an executable call.
           // Existing tool results and write ledgers stay in the graph; no prior operation is replayed.
           retryProtocol=error instanceof UnparsedToolOutputError&&!visibleTextEmitted&&!calls.length&&!options.signal.aborted&&(result.metrics.automaticRetries||0)<1
@@ -142,7 +160,7 @@ export class AgentRuntime {
         // Invalid calls still receive an error reply. Provider envelopes require object arguments;
         // this normalization is for the transcript only and never permits executing invalid input.
         const protocolCalls=calls.map(call=>{try{const args=JSON.parse(call.arguments||'{}');if(args&&typeof args==='object'&&!Array.isArray(args))return call}catch{};return {...call,arguments:JSON.stringify({invalidArguments:call.arguments.slice(0,1000)})}})
-        const assistant:ChatMessage={role:'assistant',content:text,...(calls.length?{toolCalls:protocolCalls}:{})}
+        const assistant:ChatMessage={role:'assistant',content:text,...(calls.length?{toolCalls:protocolCalls,...(preserveToolReasoning&&rawReasoning?{reasoning:rawReasoning}:{})}:{})}
         working.push(assistant);result.modelMessages.push(assistant)
         state.modelStart=undefined;state.pendingCalls=calls;state.completed={};for(const [id,flight] of Object.entries(state.inFlight))if(flight.readOnly)delete state.inFlight[id]
         if(!calls.length){state.node='finalize';await persist();continue}

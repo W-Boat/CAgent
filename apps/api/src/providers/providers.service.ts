@@ -11,10 +11,45 @@ import { AuditService } from "../common/services/audit.service"
 import { ProviderKeyService } from "./provider-key.service"
 import { CreateProviderDto, UpdateProviderDto } from "./dto/provider.dto"
 import {discoverProviderModels,type DiscoveredModel} from './model-discovery'
+import {providerEndpoint} from './provider-endpoint'
 
 @Injectable()
 export class ProvidersService {
   private discovered=new Map<string,{until:number;models:DiscoveredModel[]}>()
+  private providerMetadata=new Map<string,{until:number;models:DiscoveredModel[]}>()
+  private metadataRefresh = new Map<string, Promise<DiscoveredModel[]>>()
+  private metadataRetryAt = new Map<string, number>()
+
+  async modelLimits(id: string, key: string) {
+    const cached = this.providerMetadata.get(id) || this.discovered.get(id)
+    if (cached && cached.until > Date.now()) return cached.models.find(model => model.key === key)
+    let pending = this.metadataRefresh.get(id)
+    if (!pending && (this.metadataRetryAt.get(id) || 0) > Date.now()) return cached?.models.find(model => model.key === key)
+    if (!pending) {
+      pending = this.resolveCredentials(id)
+        .then(({ provider, baseUrl, apiKey }) => discoverProviderModels(provider.type, baseUrl, apiKey, 5000))
+        .then(({models}) => {
+          if (this.providerMetadata.size >= 100) this.providerMetadata.delete(this.providerMetadata.keys().next().value!)
+          this.providerMetadata.set(id,{until:Date.now()+600000,models})
+          this.metadataRetryAt.delete(id)
+          return models
+        })
+        .catch(() => {
+          if (this.metadataRetryAt.size >= 100) this.metadataRetryAt.delete(this.metadataRetryAt.keys().next().value!)
+          this.metadataRetryAt.set(id, Date.now() + 60000)
+          return cached && cached.until > Date.now() - 3600000 ? cached.models : []
+        })
+        .finally(() => this.metadataRefresh.delete(id))
+      this.metadataRefresh.set(id, pending)
+    }
+    let timer: ReturnType<typeof setTimeout> | undefined
+    try {
+      const result = await Promise.race([pending, new Promise<DiscoveredModel[]>(resolve => {
+        timer = setTimeout(() => resolve(cached?.models || []), 750)
+      })])
+      return result.find(model => model.key === key)
+    } finally { if (timer) clearTimeout(timer) }
+  }
   async discoverModels(id:string){
     const {provider,baseUrl,apiKey}=await this.resolveCredentials(id)
     const result=await discoverProviderModels(provider.type,baseUrl,apiKey)
@@ -101,7 +136,7 @@ export class ProvidersService {
     if (!provider) throw new NotFoundException("供应商不存在")
     if (!provider.enabled) throw new BadRequestException("该供应商已被禁用")
 
-    const baseUrl = provider.baseUrl || this.fallbackEnvBaseUrl(provider.key)
+    const baseUrl = providerEndpoint(provider)
 
     // 1) Key 池
     const picked = await this.keyPool.pick(providerId)
@@ -168,18 +203,6 @@ export class ProvidersService {
     }
     const envName = map[key]
     return envName ? process.env[envName] || "" : ""
-  }
-
-  private fallbackEnvBaseUrl(key: string): string | null {
-    const map: Record<string, string> = {
-      openai: "OPENAI_BASE_URL",
-      deepseek: "DEEPSEEK_BASE_URL",
-      moonshot: "MOONSHOT_BASE_URL",
-      dashscope: "DASHSCOPE_BASE_URL",
-      ollama: "OLLAMA_BASE_URL"
-    }
-    const envName = map[key]
-    return envName ? process.env[envName] || null : null
   }
 
   async detail(id: string) {

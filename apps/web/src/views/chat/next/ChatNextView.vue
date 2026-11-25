@@ -1,4 +1,13 @@
 <script setup lang="ts">
+import ConversationSearch from '@/components/ConversationSearch.vue'
+import ConversationHistoryRow from '@/components/ConversationHistoryRow.vue'
+import {useComposerHeight} from '@/composables/useComposerHeight'
+import {groupConversations} from '@/utils/conversation-groups'
+import '@/styles/chat-workspace.css'
+import StudentTopbar from '@/components/student/StudentTopbar.vue'
+import {featureFromCard} from '@/utils/campus-features'
+import {useResizablePanel} from '@/composables/useResizablePanel'
+import {get as getTrace,errorMessage as traceErrorMessage} from '@/api/client'
 import AnswerLoading from '@/components/presentation/AnswerLoading.vue'
 import {retainCardReadingPosition} from "@/utils/chat-follow"
 import AnswerVersions from '@/components/AnswerVersions.vue'
@@ -6,10 +15,12 @@ import ImageTransferProgress from '@/components/ImageTransferProgress.vue'
 import {useImageAttachments} from '@/composables/useImageAttachments'
 import {regenerateChat,type ChatStreamHandlers} from '@/api/chat-stream'
 import {stripToolMarkup} from '@/utils/output-boundary'
-import OutputPreferenceSelect from "@/components/OutputPreferenceSelect.vue"
+import OutputPreferenceSegment from "@/components/OutputPreferenceSegment.vue"
 import {useOutputPreference} from "@/composables/useOutputPreference"
 const {outputPreference}=useOutputPreference()
 import { composerKeys } from '@/utils/composer'
+import VoiceInput from '@/components/experience/VoiceInput.vue'
+import VoicePlayback from '@/components/experience/VoicePlayback.vue'
 import { useConversationHistory } from '@/composables/useConversationHistory'
 import { useConversationDraft } from '@/composables/useConversationDraft' 
 import AgentRunDetails from '@/components/AgentRunDetails.vue'
@@ -17,7 +28,6 @@ import type {AgentRunProgress,AgentRunMetrics} from '@/api/chat-stream'
 
 import {cleanAnswerReferences} from '@/utils/answer-references'
 import KnowledgeSources from '@/components/KnowledgeSources.vue'
-import KnowledgeShortcuts from '@/components/KnowledgeShortcuts.vue'
 import {normalizeKnowledgeSources} from '@/utils/knowledge-sources'
 import type {KnowledgeSource} from '@/api/chat-stream'
 
@@ -35,6 +45,7 @@ import type {KnowledgeSource} from '@/api/chat-stream'
 defineOptions({ name: "chat" })
 
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
+import {FullScreen, ScaleToOriginal} from '@element-plus/icons-vue'
 import { useRoute, useRouter } from "vue-router"
 import { agentsApi, conversationsApi, modelsApi, skillsApi } from "@/api"
 import { streamChat } from "@/api/chat-stream"
@@ -91,6 +102,7 @@ interface ChatMessage {
   error?: string
   flagged?: boolean
   streaming?: boolean
+  liveEffect?: boolean
   kbHits?: KnowledgeSource[]
   runProgress?:AgentRunProgress
   runMetrics?:AgentRunMetrics
@@ -121,8 +133,11 @@ const auth = useAuthStore()
 const campusNet = useCampusNetStore()
 const route = useRoute()
 const router = useRouter()
+const campusMenu=ref<InstanceType<typeof StudentTopbar>>()
+function openCampusFeature(card:Record<string,unknown>){const id=featureFromCard(card);if(id)void campusMenu.value?.showFeature(id,card)}
 
 const conversations = ref<ConversationItem[]>([])
+const conversationGroups=computed(()=>groupConversations(conversations.value))
 const messages = ref<ChatMessage[]>([])
 const models = ref<ModelItem[]>([])
 const agents = ref<AgentItem[]>([])
@@ -148,9 +163,15 @@ const streaming = ref(false)
 const loadingConversations = ref(false)
 /** 侧栏显隐：桌面常驻，≤860px 转抽屉后才生效 */
 const sidebarHidden = ref(false)
+const {width:conversationWidth,resize:resizeConversations,keyResize:keyResizeConversations}=useResizablePanel('cagent.admin-chat-sidebar-width',280)
+type Trace={request:string;mode:string;provider:string;model:string;contextWindow:number|null;input:number;output:number;peak?:number;latencyMs:number;transcript:string[]}
+const traceOpen=ref(false),traceBusy=ref(false),traceFailure=ref(''),trace=ref<Trace>()
+async function openTrace(id:string){traceOpen.value=true;traceBusy.value=true;trace.value=undefined;traceFailure.value='';try{trace.value=await getTrace<Trace>(`/conversations/${activeId.value}/messages/${id}/request-trace`)}catch(e){traceFailure.value=traceErrorMessage(e)}finally{traceBusy.value=false}}
+const modelWindow=computed(()=>models.value.find(model=>model.id===selectedModelId.value)?.contextWindow)
 
 const scrollEl = ref<HTMLElement>()
 const inputEl = ref<HTMLTextAreaElement>()
+const composerHeight=useComposerHeight(inputEl,'cagent.admin-composer-height')
 const fileInput = ref<HTMLInputElement>()
 const composer = composerKeys(send)
 useConversationDraft(activeId, draft, pendingImages)
@@ -376,7 +397,7 @@ async function loadConversations() {
   try {
     const page = await conversationsApi.mine({
       page: 1,
-      pageSize: 50,
+      pageSize: 100,
       keyword: keyword.value || undefined
     })
     if (request === listRequest) conversations.value = page.items
@@ -647,12 +668,7 @@ function toggleSkill(key: string) {
 }
 
 /** 自适应高度：先归零再读 scrollHeight，否则高度只会增不会减 */
-function autoGrow() {
-  const el = inputEl.value
-  if (!el) return
-  el.style.height = "auto"
-  el.style.height = `${Math.min(el.scrollHeight, 190)}px`
-}
+function autoGrow() {composerHeight.grow()}
 
 function pickImage() {
   // 双保险：入口已隐藏，但仍防键盘/插件触发（当前模型无视觉时直接忽略）
@@ -697,6 +713,7 @@ async function runSend(bypassCache=false,revision?:ChatMessage) {
     content: "",
     createdAt: new Date().toISOString(),
     streaming: true,
+    liveEffect: true,
     toolEvents: []
   }
   if(!revision)messages.value.push(userMsg)
@@ -844,6 +861,41 @@ function onHeadCommand(command: string) {
 
 // ---------------- 生命周期 ----------------
 
+const chatFullscreen = ref(false)
+let ownsBrowserFullscreen = false
+
+function exitChatFullscreen() {
+  chatFullscreen.value = false
+  if (!ownsBrowserFullscreen) return
+  ownsBrowserFullscreen = false
+  if (document.fullscreenElement === document.documentElement) {
+    void document.exitFullscreen().catch(() => undefined)
+  }
+}
+
+async function toggleChatFullscreen() {
+  if (chatFullscreen.value) return exitChatFullscreen()
+  chatFullscreen.value = true
+  if (!document.fullscreenEnabled || document.fullscreenElement) return
+  try {
+    await document.documentElement.requestFullscreen()
+    ownsBrowserFullscreen = true
+    if (!chatFullscreen.value) exitChatFullscreen()
+  } catch {
+    // The chat can fill the viewport even when the browser denies fullscreen.
+  }
+}
+
+function onFullscreenChange() {
+  if (ownsBrowserFullscreen && !document.fullscreenElement) exitChatFullscreen()
+}
+
+function escapeFullscreen(event: KeyboardEvent) {
+  if (event.defaultPrevented || event.key !== 'Escape' || !chatFullscreen.value || document.fullscreenElement) return
+  const modalOpen = [...document.querySelectorAll<HTMLElement>('[role="dialog"][aria-modal="true"]')].some(dialog => dialog.offsetWidth > 0)
+  if (!modalOpen) exitChatFullscreen()
+}
+
 /**
  * 窄屏会话列表是浮层抽屉，接住返回键。
  *
@@ -859,6 +911,8 @@ const unregisterSidebar = registerClosable({
 })
 
 onMounted(async () => {
+  document.addEventListener('fullscreenchange',onFullscreenChange)
+  window.addEventListener('keydown',escapeFullscreen)
   // 窄屏进来先收起会话列表，把宽度让给消息
   if (isNarrow.value) sidebarHidden.value = true
   const onNarrowChange = (e: MediaQueryListEvent) => {
@@ -917,6 +971,9 @@ watch(
 )
 
 onBeforeUnmount(() => {
+  document.removeEventListener('fullscreenchange',onFullscreenChange)
+  window.removeEventListener('keydown',escapeFullscreen)
+  exitChatFullscreen()
   window.clearTimeout(searchTimer)
   typer.dispose()
   unregisterSidebar()
@@ -931,22 +988,19 @@ onBeforeUnmount(() => {
     暗色由 html.dark 自动生效。页面在 AppLayoutNext 的 fullscreen 内容区里，
     高度吃满内容区（外壳顶栏仍可见）。
   -->
-  <div class="nx-root nx-admin-chat">
+  <div class="nx-root nx-admin-chat" :class="{'is-chat-fullscreen':chatFullscreen}" :style="{'--admin-conversation-width':`${conversationWidth}px`}">
     <!-- 窄屏抽屉遮罩：点击收起会话列表 -->
-    <div v-if="isNarrow && !sidebarHidden" class="ac-backdrop" @click="sidebarHidden = true"></div>
+    <Transition name="chat-mask"><div v-if="isNarrow && !sidebarHidden" class="ac-backdrop" @click="sidebarHidden = true"></div></Transition>
 
     <!-- ============ 侧栏：新建 / 搜索 / 会话列表 ============ -->
-    <aside class="ac-side" :class="{ 'is-hidden': sidebarHidden }">
-      <div class="ac-side-actions">
-        <button type="button" class="nx-btn nx-btn-primary ac-new-btn" @click="newConversation">
+    <aside class="ac-side chat-sidebar" :class="{ 'is-hidden': sidebarHidden }" :inert="sidebarHidden">
+      <div class="chat-history-toolbar">
+        <button type="button" class="nx-btn nx-btn-primary chat-history-new" @click="newConversation">
           <el-icon><Plus /></el-icon>
           新建对话
         </button>
-        <!-- 管理模式切换：批量勾选/删除会话 -->
-        <button type="button" class="nx-btn nx-btn-secondary" @click="toggleManageMode">
-          {{ manageMode ? "完成" : "管理" }}
-        </button>
       </div>
+      <ConversationSearch v-model="keyword" :editing="manageMode" @search="onSearch" @edit="toggleManageMode"/>
 
       <!-- 管理模式操作条：全选 / 批量删除 / 全部删除 -->
       <div v-if="manageMode" class="ac-manage-bar">
@@ -973,20 +1027,6 @@ onBeforeUnmount(() => {
         </button>
       </div>
 
-      <OutputPreferenceSelect/>
-      <div class="ac-side-search">
-        <div class="nx-search">
-          <el-icon><Search /></el-icon>
-          <input
-            v-model="keyword"
-            type="search"
-            class="nx-input"
-            placeholder="搜索会话标题"
-            aria-label="搜索会话标题"
-            @input="onSearch"
-          />
-        </div>
-      </div>
 
       <div class="ac-convs">
         <!-- 首次加载用骨架屏占位，避免列表轮廓跳动 -->
@@ -999,82 +1039,43 @@ onBeforeUnmount(() => {
             {{ keyword ? "没有匹配的会话" : "还没有会话" }}
           </div>
 
-          <div
-            v-for="conv in conversations"
-            :key="conv.id"
-            class="ac-conv"
-            :class="{ 'is-active': conv.id === activeId }"
-            role="button"
-            tabindex="0"
-            @click="onConvClick(conv)"
-            @keydown.enter.prevent="onConvClick(conv)"
-          >
-            <!-- 管理模式：自绘勾选框（next.css 无 checkbox 原语）；点击行也只切换勾选 -->
-            <span
-              v-if="manageMode"
-              class="ac-check"
-              :class="{ 'is-checked': checkedConvIds.includes(conv.id) }"
-              aria-hidden="true"
-              @click.stop="toggleChecked(conv.id)"
-            >
-              <el-icon v-if="checkedConvIds.includes(conv.id)"><Check /></el-icon>
-            </span>
-            <div class="ac-conv-body">
-              <div class="ac-conv-title">
-                <el-icon v-if="conv.pinned" class="ac-pin"><Star /></el-icon>
-                {{ conv.title }}
-              </div>
-              <div class="ac-conv-meta">
-                {{ conv.messageCount }} 条 · {{ fromNow(conv.lastMessageAt || conv.updatedAt) }}
-              </div>
-            </div>
-            <el-dropdown v-if="!manageMode" trigger="click" @command="(c: string) => onConvCommand(c, conv)">
-              <button
-                type="button"
-                class="nx-icon-btn ac-conv-more"
-                aria-label="会话操作"
-                @click.stop
-              >
-                <el-icon><MoreFilled /></el-icon>
-              </button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="rename">
-                    <el-icon><EditPen /></el-icon>重命名
-                  </el-dropdown-item>
-                  <el-dropdown-item command="pin">
-                    <el-icon><Star /></el-icon>{{ conv.pinned ? "取消置顶" : "置顶" }}
-                  </el-dropdown-item>
-                  <el-dropdown-item command="export">
-                    <el-icon><Download /></el-icon>导出 JSON
-                  </el-dropdown-item>
-                  <el-dropdown-item command="delete" divided>
-                    <el-icon><Delete /></el-icon>删除
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </div>
+          <section v-for="group in conversationGroups" :key="group.key" class="conversation-day">
+            <h3>{{group.label}}</h3>
+            <ConversationHistoryRow v-for="conv in group.items" :key="conv.id"
+              :title="conv.title" :active="conv.id===activeId" :pinned="conv.pinned"
+              :editing="manageMode" :selected="manageMode&&checkedConvIds.includes(conv.id)"
+              @select="onConvClick(conv)" @command="onConvCommand($event,conv)">
+              <el-dropdown-item command="rename"><el-icon><EditPen/></el-icon>重命名</el-dropdown-item>
+              <el-dropdown-item command="pin"><el-icon><Star/></el-icon>{{ conv.pinned ? "取消置顶" : "置顶" }}</el-dropdown-item>
+              <el-dropdown-item command="export"><el-icon><Download/></el-icon>导出 JSON</el-dropdown-item>
+              <el-dropdown-item command="delete" divided><el-icon><Delete/></el-icon>删除</el-dropdown-item>
+            </ConversationHistoryRow>
+          </section>
         </template>
       </div>
     </aside>
+    <div v-if="!isNarrow&&!sidebarHidden" class="ac-resize" role="separator" aria-label="调整会话栏宽度" aria-orientation="vertical" :aria-valuenow="conversationWidth" :aria-valuemin="200" :aria-valuemax="420" tabindex="0" @pointerdown="resizeConversations" @keydown="keyResizeConversations"/>
 
     <!-- ============ 主区 ============ -->
     <section class="ac-main">
       <header class="ac-top">
         <button
-          v-if="isNarrow"
           type="button"
           class="nx-icon-btn"
-          aria-label="打开会话列表"
-          @click="sidebarHidden = false"
+          :aria-label="sidebarHidden?'打开会话列表':'收起会话列表'"
+          @click="sidebarHidden = !sidebarHidden"
         >
           <el-icon><Expand /></el-icon>
         </button>
 
-        <div class="ac-title">{{ activeConversation?.title || "新对话" }}</div>
+        <div class="ac-title"><span :title="activeConversation?.title || '新对话'">{{ activeConversation?.title || "新对话" }}</span> <small v-if="modelWindow" class="nx-muted">· {{formatTokens(modelWindow)}} 上下文</small></div>
+
+        <button class="nx-icon-btn ac-fullscreen" type="button" :aria-label="chatFullscreen?'退出全屏':'全屏对话'" :title="chatFullscreen?'退出全屏':'全屏对话'" :aria-pressed="chatFullscreen" @click="toggleChatFullscreen">
+          <el-icon><ScaleToOriginal v-if="chatFullscreen"/><FullScreen v-else/></el-icon>
+        </button>
 
         <div class="ac-top-tools">
+          <StudentTopbar ref="campusMenu" menu-only @ask="draft=$event"/>
           <el-select
             v-model="selectedModelId"
             placeholder="选择模型"
@@ -1253,10 +1254,11 @@ onBeforeUnmount(() => {
                 </div>
 
                 <AgentRunDetails :progress="msg.runProgress" :has-content="!!msg.content" :metrics="msg.runMetrics" :tools="msg.toolEvents" :status="msg.streaming ? 'STREAMING' : msg.status" detailed/>
+                <el-button v-if="!msg.streaming&&auth.can('message:read')&&!msg.id.startsWith('local-')" size="small" text @click="openTrace(msg.id)">请求详情</el-button>
 
                 <KnowledgeSources :sources="msg.kbHits"/>
                 <div class="nx-msg-body">
-                  <CardMessage :effect-key="msg.id" :content="msg.content" :streaming="!!msg.streaming" :has-knowledge-sources="!!msg.kbHits?.length" :knowledge-sources="msg.kbHits" @ask="draft=$event" :progress="msg.runProgress"/>
+                  <CardMessage panel-features :auto-play="!!msg.liveEffect" :effect-key="msg.id" :content="msg.content" :streaming="!!msg.streaming" :has-knowledge-sources="!!msg.kbHits?.length" :knowledge-sources="msg.kbHits" @ask="draft=$event" @feature="openCampusFeature" :progress="msg.runProgress"/>
                   <span v-if="msg.streaming" class="nx-caret" aria-hidden="true"></span>
                 </div>
 
@@ -1273,6 +1275,7 @@ onBeforeUnmount(() => {
 
                 <!-- 消息操作：悬停才出现，不干扰阅读 -->
                 <div v-if="!msg.streaming && msg.content" class="ac-msg-actions">
+                  <VoicePlayback v-if="auth.settings?.voice_tts_enabled" :content="msg.content" :max-chars="auth.settings.voice_tts_max_chars || 2500"/>
                   <button
                     type="button"
                     class="nx-icon-btn"
@@ -1324,8 +1327,9 @@ onBeforeUnmount(() => {
       <!-- 输入区 -->
       <footer class="ac-composer">
         <div class="ac-composer-inner">
-          <div class="ac-composer-box">
-            <KnowledgeShortcuts :disabled="streaming" @ask="draft=$event"/>
+          <div class="ac-composer-box chat-composer-box">
+            <button type="button" class="composer-height-handle" aria-label="调整输入框高度" title="向上拖动调高输入框，方向键调整，Home 恢复默认" @pointerdown="composerHeight.start" @pointermove="composerHeight.move" @pointerup="composerHeight.finish" @pointercancel="composerHeight.finish" @keydown="composerHeight.resize"></button>
+
             <!-- 已选技能 chips：点击摘除 -->
             <div v-if="pickedSkillItems.length" class="ac-skills">
               <span class="ac-skills-label">本次启用</span>
@@ -1361,7 +1365,7 @@ onBeforeUnmount(() => {
             <textarea
               ref="inputEl"
               v-model="draft"
-              class="ac-textarea"
+              class="ac-textarea chat-composer-input"
               rows="1"
               placeholder="输入问题，Enter 发送，Shift + Enter 换行"
               aria-label="输入消息"
@@ -1370,8 +1374,11 @@ onBeforeUnmount(() => {
               @keydown="composer.keydown" @compositionstart="composer.start" @compositionend="composer.end"
             ></textarea>
 
+            <div class="admin-composer-options"><OutputPreferenceSegment/></div>
+
             <div class="ac-composer-foot">
               <div class="ac-composer-left">
+                <VoiceInput v-if="auth.settings?.voice_asr_enabled" :max-seconds="auth.settings.voice_asr_max_seconds || 60" :disabled="streaming" @transcript="draft = draft ? draft + ' ' + $event : $event"/>
                 <button
                   v-if="visionSupported"
                   type="button"
@@ -1421,6 +1428,15 @@ onBeforeUnmount(() => {
         />
       </footer>
     </section>
+    <el-drawer v-model="traceOpen" title="本轮请求详情" :size="isNarrow?'100%':'520px'" destroy-on-close>
+      <el-skeleton v-if="traceBusy" :rows="6" animated/>
+      <el-alert v-else-if="traceFailure" type="error" :title="traceFailure" :closable="false"/>
+      <template v-else-if="trace">
+        <el-descriptions :column="1" border size="small"><el-descriptions-item label="请求模式">{{trace.mode}}</el-descriptions-item><el-descriptions-item label="供应商 / 模型">{{trace.provider}} / {{trace.model}}</el-descriptions-item><el-descriptions-item label="上下文">{{trace.peak??trace.input}} / {{trace.contextWindow??'未知'}} token</el-descriptions-item><el-descriptions-item label="输入 / 输出">{{trace.input}} / {{trace.output}} token</el-descriptions-item><el-descriptions-item label="响应耗时">{{formatDuration(trace.latencyMs)}}</el-descriptions-item></el-descriptions>
+        <h4>发送内容</h4><pre class="ac-trace-code">{{trace.request}}</pre>
+        <details v-if="trace.transcript.length"><summary>部分工具返回值</summary><pre v-for="(content,i) in trace.transcript" :key="i" class="ac-trace-code">{{content}}</pre></details>
+      </template>
+    </el-drawer>
 
     <!-- 反馈对话框 -->
     <FeedbackDialog
@@ -1433,6 +1449,7 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.ac-resize{margin-inline:-4px;position:relative;width:8px;align-self:stretch;flex:none;cursor:col-resize;touch-action:none;z-index:3}.ac-resize::after{content:'';position:absolute;top:47%;left:3px;width:2px;height:32px;background:var(--nx-border);border-radius:3px}.ac-resize:is(:hover,:focus-visible)::after{background:var(--nx-accent);width:3px}.ac-trace-code{white-space:pre-wrap;overflow-wrap:anywhere;max-height:42vh;overflow:auto;padding:12px;background:var(--el-fill-color-light);border-radius:8px}.ac-title small{font-size:11px;font-weight:400;white-space:nowrap}
 /*
  * 专属样式只写本视图的布局与细节；原语（按钮 / 输入 / chip / 消息骨架 /
  * 工具行 / starters / 过渡）全部来自 styles/next.css，此处不重复定义。
@@ -1440,7 +1457,7 @@ onBeforeUnmount(() => {
 
 .nx-root.nx-admin-chat {
   /* 任务规格：管理端聊天侧栏 280px（覆盖共享默认 248px，只影响本视图） */
-  --nx-sidebar-width: 280px;
+  --nx-sidebar-width: var(--admin-conversation-width,280px);
 
   position: relative;
   display: flex;
@@ -1451,6 +1468,19 @@ onBeforeUnmount(() => {
   isolation: isolate;
   background: var(--nx-bg);
 }
+
+.nx-root.nx-admin-chat.is-chat-fullscreen{
+  position:fixed;
+  inset:0;
+  z-index:1500;
+  width:100%;
+  height:100dvh;
+}
+:global(.nx-shell:has(.is-chat-fullscreen) > #nx-sidebar),
+:global(.nx-shell:has(.is-chat-fullscreen) > .nx-main > .nx-topbar){
+  visibility:hidden;
+}
+.ac-fullscreen{flex:none}
 
 /* ═══════════ 侧栏 ═══════════ */
 
@@ -1464,19 +1494,7 @@ onBeforeUnmount(() => {
   border-right: 1px solid var(--nx-border);
 }
 
-.ac-side-actions {
-  display: flex;
-  gap: 6px;
-  padding: 14px 12px 6px;
-}
-
-/* 新建对话占满主列，管理切换保持内容宽度 */
-.ac-new-btn {
-  flex: 1;
-}
-
-.ac-side-actions .nx-btn svg,
-.ac-side-actions .nx-btn .el-icon {
+.chat-history-toolbar .nx-btn .el-icon {
   font-size: 15px;
 }
 

@@ -1,8 +1,7 @@
 import { get, post, patch, put } from './client'
-export interface KnowledgeBase {id:string;name:string;description:string;kind:'LOCAL'|'POSTGRES'|'MYSQL'|'WECHAT'|'EMBEDDED';readOnly?:boolean;mounted:boolean;agentId?:string;connection?:any;hasPassword:boolean;syncStatus:string;syncError?:string;lastSyncAt?:string;lastSyncSummary?:{articles:number;created:number;changed:number;unchanged:number;skipped:number;limited:boolean;warnings:string[]};aiReviewEnabled?:boolean;aiSummaryEnabled?:boolean;automationModelId?:string;_count?:{entries:number}}
+export interface KnowledgeBase {id:string;name:string;description:string;kind:'LOCAL'|'POSTGRES'|'MYSQL'|'WECHAT'|'EMBEDDED';readOnly?:boolean;mounted:boolean;agentId?:string;connection?:any;hasPassword:boolean;syncStatus:string;syncError?:string;lastSyncAt?:string;lastSyncSummary?:{articles?:number;created?:number;changed?:number;unchanged?:number;skipped?:number;limited?:boolean;warnings?:string[];read?:number;added?:number;newDrafts?:number};aiReviewEnabled?:boolean;aiSummaryEnabled?:boolean;automationModelId?:string;_count?:{entries:number}}
 export interface KnowledgeEntry {readOnly?:boolean;simulation?:boolean;locator?:string;id?:string;baseId:string;title:string;question:string;answer:string;aliases:string[];url:string;mode:'RAG'|'FIXED'|'CORRECTION'|'TRIGGER';status:'DRAFT'|'APPROVED'|'ARCHIVED';source:string;priority?:number;hitCount?:number;base?:{name:string};summary?:string;aiReviewStatus?:string;aiReview?:{reason?:string;issues?:string[];method?:string};automationUpdatedAt?:string}
 export interface AutomationPolicy {reviewEnabled:boolean;summaryEnabled:boolean;modelId:string;batchSize:number}
-export interface KnowledgeShortcut {label:string;question:string;enabled:boolean;dependencies:string[]}
 export interface WechatCollection {id:string;name?:string;status:string;message:string;collected:number;retryAfter?:number;autoCollect?:boolean;intervalMinutes?:number;nextCollectAt?:number}
 export interface WechatBatch {id:string;status:string;total:number;items:{index:number;id?:string;name:string;status:string;message:string}[]}
 export interface WechatTestResult {connected:boolean;mode:string;totalAccounts:number;testedAccounts:number;ready:number;elapsedMs:number;checkedAt:string;tip:string;accounts:{id:string;name:string;status:'READY'|'NO_BODY'|'EMPTY'|'FAILED';message:string;sample?:{title:string;url:string;published:string;excerpt:string}}[]}
@@ -28,8 +27,6 @@ export const knowledgeApi = {
   wechatCollection:(id:string)=>get<WechatCollection>('/knowledge/wechat/collector/collection/'+encodeURIComponent(id)),
   probe:(q:string,agentId?:string)=>get<any>('/knowledge/probe',{q,agentId}),
   bases:()=>get<KnowledgeBase[]>('/knowledge/bases'),
-  shortcuts:(id:string)=>get<KnowledgeShortcut[]>(`/knowledge/bases/${id}/shortcuts`),
-  saveShortcuts:(id:string,data:KnowledgeShortcut[])=>put<KnowledgeShortcut[]>(`/knowledge/bases/${id}/shortcuts`,data),
   saveBase:(data:Partial<KnowledgeBase> & {password?:string},id?:string)=>id?patch<KnowledgeBase>(`/knowledge/bases/${id}`,data):post<KnowledgeBase>('/knowledge/bases',data),
   mount:(id:string,mounted:boolean)=>post(`/knowledge/bases/${id}/mount`,{mounted}),
   removeBase:(id:string,name:string)=>post<{removed:boolean;tip:string}>(`/knowledge/bases/${id}/remove`,{name}),

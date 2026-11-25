@@ -4,7 +4,7 @@ import {archiveVersion} from './answer-versions'
 import {estimateTokens} from './llm/types'
 
 /** Reserve a whole user/assistant pair under a short PostgreSQL row lock. No model call holds a DB transaction. */
-export async function reserveTurn(prisma:PrismaService,params:{conversationId:string;userId:string;content:string;images?:string[];modelId?:string;providerKey?:string;modelKey?:string;agentId?:string|null;revisionMessageId?:string}){
+export async function reserveTurn(prisma:PrismaService,params:{conversationId:string;userId:string;content:string;images?:string[];files?:{id:string;name:string;expires:number}[];modelId?:string;providerKey?:string;modelKey?:string;agentId?:string|null;revisionMessageId?:string}){
   return prisma.$transaction(async tx=>{
     const row=await tx.$queryRaw<{id:string}[]>`SELECT id FROM conversations WHERE id=${params.conversationId} AND user_id=${params.userId} AND status <> 'DELETED' FOR UPDATE`
     if(!row.length)throw new NotFoundException('会话不存在')
@@ -21,7 +21,7 @@ export async function reserveTurn(prisma:PrismaService,params:{conversationId:st
      return {user,assistant:updated}
     }
     const last=await tx.message.aggregate({where:{conversationId:params.conversationId},_max:{seq:true}}),seq=(last._max.seq||0)+1
-    const user=await tx.message.create({data:{conversationId:params.conversationId,userId:params.userId,role:'user',content:params.content,seq,promptTokens:estimateTokens(params.content),...(params.images?.length?{attachments:{images:params.images}}:{})}})
+    const user=await tx.message.create({data:{conversationId:params.conversationId,userId:params.userId,role:'user',content:params.content,seq,promptTokens:estimateTokens(params.content),...(params.images?.length||params.files?.length?{attachments:{images:params.images||[],files:params.files||[]}}:{})}})
     const assistant=await tx.message.create({data:{conversationId:params.conversationId,userId:params.userId,role:'assistant',content:'',seq:seq+1,status:'STREAMING',modelId:params.modelId,providerKey:params.providerKey,modelKey:params.modelKey}})
     await tx.conversation.update({where:{id:params.conversationId},data:{messageCount:{increment:2},lastMessageAt:new Date(),modelId:params.modelId,agentId:params.agentId}})
     return {user,assistant}

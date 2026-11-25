@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable } from "@nestjs/com
 import { PrismaService } from "../prisma/prisma.service"
 import { AuditService } from "../common/services/audit.service"
 import { SETTING_DEFS, SETTING_MAP } from "./setting-defs"
+import { validateRecipes } from '../presentation/presentation-policy'
 
 @Injectable()
 export class SettingsService {
@@ -21,7 +22,7 @@ export class SettingsService {
   async grouped(grantedPermissions: string[] = [], roles: string[] = []) {
     const granted = new Set(grantedPermissions)
     const isSuper = roles.includes('super_admin') || granted.has("*") || granted.has("feature:toggle")
-    const rows = await this.prisma.setting.findMany()
+    const rows = await this.prisma.setting.findMany({ where: { key: { in: SETTING_DEFS.map(def => def.key) } } })
     const rowMap = new Map(rows.map((r) => [r.key, r]))
 
     const result: Record<
@@ -59,7 +60,7 @@ export class SettingsService {
 
   /** 扁平键值，供前端一次性读取 */
   async all(): Promise<Record<string, unknown>> {
-    const rows = await this.prisma.setting.findMany()
+    const rows = await this.prisma.setting.findMany({ where: { key: { in: SETTING_DEFS.map(def => def.key) } } })
     const valueMap = new Map(rows.map((r) => [r.key, r.value as unknown]))
     const result: Record<string, unknown> = {}
     for (const def of SETTING_DEFS) {
@@ -124,6 +125,18 @@ export class SettingsService {
     for (const [key,value] of Object.entries(payload)) {
       const def=SETTING_MAP.get(key)!
       this.validate(def.type,key,value)
+      const ranges: Record<string, [number, number]> = {
+        official_news_interval_hours: [6,168],
+        voice_timeout_seconds: [15, 90], voice_asr_max_seconds: [5, 120],
+        voice_tts_max_chars: [100, 5000], presentation_max_cards: [1, 12],
+      }
+      const range = ranges[key]
+      if (range && (!Number.isInteger(value) || Number(value) < range[0] || Number(value) > range[1]))
+        throw new BadRequestException(`${def.label}需为 ${range[0]}–${range[1]} 的整数`)
+      if (key === 'presentation_recipes') validateRecipes(value)
+      if (key === 'mascot_name' && String(value).length > 30) throw new BadRequestException('吉祥物名称最多 30 字')
+      if(key==='sensitive_words'&&(!Array.isArray(value)||value.length>2000||value.some(item=>typeof item!=='string'||!item.trim()||item.length>100))) throw new BadRequestException('最多 2000 个词，每个词须为 1–100 字')
+      if (key==='thinking_messages'&&(!Array.isArray(value)||value.length>20||value.some(item=>typeof item!=='string'||!item.trim()||item.length>80))) throw new BadRequestException('等待文案最多 20 条，每条 1–80 字')
       if(key==='web_search_count'&&(!Number.isInteger(value)||Number(value)<1||Number(value)>8))throw new BadRequestException('搜索结果数量须为1–8的整数')
       if(key==='knowledge_retrieval_depth'&&(!Number.isInteger(value)||Number(value)<1||Number(value)>8))throw new BadRequestException('知识库检索深度须为 1–8 的整数')
       if(key==='answer_cache_days'&&(!Number.isInteger(value)||Number(value)<1||Number(value)>30))throw new BadRequestException('回答缓存保留天数须为 1–30 的整数')

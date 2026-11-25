@@ -31,99 +31,102 @@
       <el-button @click="reload">查询</el-button>
     </div>
 
-    <el-table :data="rows" v-loading="loading" stripe size="small">
-      <el-table-column label="用户" min-width="210">
-        <template #default="{ row }">
-          <div class="user-cell">
-            <span class="name">{{ row.name }}</span>
-            <span class="muted small">{{ row.email }}</span>
-          </div>
-        </template>
-      </el-table-column>
+    <div class="table-card">
+      <el-table :data="rows" v-loading="loading" stripe size="small">
+        <el-table-column label="用户" min-width="210">
+          <template #default="{ row }">
+            <div class="user-cell">
+              <span class="name">{{ row.name }}</span>
+              <span class="muted small">{{ row.email }}</span>
+            </div>
+          </template>
+        </el-table-column>
 
-      <el-table-column label="院系 / 学号" min-width="150">
-        <template #default="{ row }">
-          <div class="user-cell">
-            <span>{{ row.department || "-" }}</span>
-            <span v-if="row.studentNo" class="muted small mono">{{ row.studentNo }}</span>
-          </div>
-        </template>
-      </el-table-column>
+        <el-table-column label="院系 / 学号" min-width="150">
+          <template #default="{ row }">
+            <div class="user-cell">
+              <span>{{ row.department || "-" }}</span>
+              <span v-if="row.studentNo" class="muted small mono">{{ row.studentNo }}</span>
+            </div>
+          </template>
+        </el-table-column>
 
-      <el-table-column label="角色" width="150">
-        <template #default="{ row }">
-          <el-tag v-for="r in row.roles" :key="r.key" size="small" effect="plain" class="role-tag">
-            {{ r.name }}
-          </el-tag>
-          <span v-if="!row.roles?.length" class="muted">-</span>
-        </template>
-      </el-table-column>
+        <el-table-column label="角色" width="150">
+          <template #default="{ row }">
+            <el-tag v-for="r in row.roles" :key="r.key" size="small" effect="plain" class="role-tag">
+              {{ r.name }}
+            </el-tag>
+            <span v-if="!row.roles?.length" class="muted">-</span>
+          </template>
+        </el-table-column>
 
-      <el-table-column label="配额状态" width="100">
-        <template #default="{ row }">
-          <el-tag v-if="row.quota?.enabled" type="success" size="small" effect="plain">已启用</el-tag>
-          <el-tag v-else-if="row.quota" type="info" size="small" effect="plain">已停用</el-tag>
-          <el-tag v-else size="small" type="warning" effect="plain">默认</el-tag>
-        </template>
-      </el-table-column>
+        <el-table-column label="配额状态" width="100">
+          <template #default="{ row }">
+            <el-tag v-if="row.quota?.enabled" type="success" size="small" effect="plain">已启用</el-tag>
+            <el-tag v-else-if="row.quota" type="info" size="small" effect="plain">已停用</el-tag>
+            <el-tag v-else size="small" type="warning" effect="plain">默认</el-tag>
+          </template>
+        </el-table-column>
 
-      <el-table-column label="今日 Token / 上限" min-width="180">
-        <template #default="{ row }">
-          <div class="limit-cell">
-            <el-progress
-              :percentage="percent(row.usage.dailyTokens, row.quota?.dailyTokenLimit)"
-              :stroke-width="6"
-              :show-text="false"
-              :color="progressColor(percent(row.usage.dailyTokens, row.quota?.dailyTokenLimit))"
-            />
+        <el-table-column label="今日 Token / 上限" min-width="180">
+          <template #default="{ row }">
+            <div class="limit-cell">
+              <el-progress
+                :percentage="percent(row.usage.dailyTokens, row.quota?.dailyTokenLimit)"
+                :stroke-width="6"
+                :show-text="false"
+                :color="progressColor(percent(row.usage.dailyTokens, row.quota?.dailyTokenLimit))"
+              />
+              <span class="muted small">
+                {{ formatTokens(row.usage.dailyTokens) }} /
+                {{ limitText(row.quota?.dailyTokenLimit) }}
+              </span>
+            </div>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="今日请求 / 上限" min-width="150">
+          <template #default="{ row }">
             <span class="muted small">
-              {{ formatTokens(row.usage.dailyTokens) }} /
-              {{ limitText(row.quota?.dailyTokenLimit) }}
+              {{ row.usage.dailyRequests }} / {{ limitText(row.quota?.dailyRequestLimit) }}
             </span>
-          </div>
-        </template>
-      </el-table-column>
+          </template>
+        </el-table-column>
 
-      <el-table-column label="今日请求 / 上限" min-width="150">
-        <template #default="{ row }">
-          <span class="muted small">
-            {{ row.usage.dailyRequests }} / {{ limitText(row.quota?.dailyRequestLimit) }}
-          </span>
-        </template>
-      </el-table-column>
+        <el-table-column label="本月 Token" width="120">
+          <template #default="{ row }">{{ formatTokens(row.usage.monthlyTokens) }}</template>
+        </el-table-column>
 
-      <el-table-column label="本月 Token" width="120">
-        <template #default="{ row }">{{ formatTokens(row.usage.monthlyTokens) }}</template>
-      </el-table-column>
+        <el-table-column label="操作" width="150" fixed="right">
+          <template #default="{ row }">
+            <el-button text type="primary" size="small" @click="openDetail(row)">消耗</el-button>
+            <el-button
+              text
+              type="primary"
+              size="small"
+              :disabled="!auth.can('quota:write')"
+              @click="openEdit(row)"
+            >
+              设置配额
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
 
-      <el-table-column label="操作" width="150" fixed="right">
-        <template #default="{ row }">
-          <el-button text type="primary" size="small" @click="openDetail(row)">消耗</el-button>
-          <el-button
-            text
-            type="primary"
-            size="small"
-            :disabled="!auth.can('quota:write')"
-            @click="openEdit(row)"
-          >
-            设置配额
-          </el-button>
-        </template>
-      </el-table-column>
-    </el-table>
-
-    <el-pagination
-      v-if="total > 0"
-      v-model:current-page="page"
-      v-model:page-size="pageSize"
-      :total="total"
-      :page-sizes="[20, 50, 100]"
-      layout="total, sizes, prev, pager, next"
-      background
-      class="pager"
-      @current-change="load"
-      @size-change="reload"
-    />
+      <div class="pager">
+        <el-pagination
+          v-if="total > 0"
+          v-model:current-page="page"
+          v-model:page-size="pageSize"
+          :total="total"
+          :page-sizes="[20, 50, 100]"
+          layout="total, sizes, prev, pager, next"
+          background
+          @current-change="load"
+          @size-change="reload"
+        />
+      </div>
+    </div>
 
     <!-- 单用户配额设置 -->
     <el-dialog v-model="editVisible" :title="`设置配额 · ${editing?.name || ''}`" width="580px" destroy-on-close>

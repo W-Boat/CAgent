@@ -470,7 +470,7 @@ export class LearningService {
       where: { agentId, status: "APPROVED", instruction: { not: "" } },
       orderBy: [{ supportCount: "desc" }, { updatedAt: "desc" }],
       take: 100,
-      select: { id: true, instruction: true,kind:true,sampleQuestion:true }
+      select: { id: true, instruction: true,kind:true,sampleQuestion:true,evidence:true }
     })
     const qt = terms(query)
     const selected:typeof approved = []; let cost = 0
@@ -489,11 +489,16 @@ export class LearningService {
       })
       .catch((err) => this.logger.warn(`注入计数失败：${(err as Error).message}`))
 
-    const lines = selected.map((a, i) => `${i + 1}. ${a.instruction}`)
+    const examples=selected.flatMap(a=>{
+      const correction=(a.evidence as {correction?:unknown}|null)?.correction
+      if(typeof correction!=='string'||!a.sampleQuestion)return []
+      return [{relatedQuestion:a.sampleQuestion.slice(0,180),reviewedAnswer:correction.slice(0,380)}]
+    })
+    const guidance=selected.filter(a=>{const correction=(a.evidence as {correction?:unknown}|null)?.correction;return typeof correction!=='string'}).map(a=>a.instruction)
     return [
-      "【从真实用户反馈中沉淀的经验】",
-      "以下要求来自实际使用中暴露的问题，优先级高于你的默认习惯：",
-      ...lines
+      '【已审核的回答经验】',
+      guidance.length?'回答方式建议：'+JSON.stringify(guidance):'',
+      examples.length?'相关纠错示例（仅当涉及同一办理对象、条件和时效时使用；冲突时核对当前来源）：'+JSON.stringify(examples):'',
     ].join("\n")
   }
 }

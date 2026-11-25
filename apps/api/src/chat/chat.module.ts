@@ -11,6 +11,7 @@ import { SkillsModule } from "../skills/skills.module"
 import { AgentsModule } from "../agents/agents.module"
 import { BrowserModule } from "../browser/browser.module"
 import { LearningModule } from "../learning/learning.module"
+import {ChatFilesService} from './chat-files.service'
 import { MemoryModule } from "../memory/memory.module"
 import { CampusModule } from "../campus/campus.module"
 import { KnowledgeStoreModule } from '../knowledge/knowledge-store.module'
@@ -34,7 +35,7 @@ import {EvaluationService} from '../evaluation/evaluation.service'
     CampusModule, KnowledgeStoreModule, LecturesModule, SearchModule
   ],
   controllers: [ChatController,EvaluationController],
-  providers: [ChatService,ResponseCacheService,RuntimeCheckpointService,EvaluationService],
+  providers: [ChatService,ChatFilesService,ResponseCacheService,RuntimeCheckpointService,EvaluationService],
   exports: [ChatService]
 })
 export class ChatModule {}

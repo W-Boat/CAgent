@@ -14,6 +14,7 @@
         <el-button :disabled="!auth.can('skill:create')" @click="importVisible = true">
           <el-icon><UploadFilled /></el-icon> 导入技能
         </el-button>
+        <el-button :disabled="!auth.can('skill:create')" @click="bundleVisible=true"><el-icon><UploadFilled/></el-icon> 安装技能包</el-button>
         <el-button type="primary" :disabled="!auth.can('skill:create')" @click="openCreate">
           <el-icon><Plus /></el-icon> 新建技能
         </el-button>
@@ -21,6 +22,13 @@
     </div>
 
     <SkillImportDialog v-model="importVisible" @imported="load" />
+    <el-dialog v-model="bundleVisible" title="安装技能包" width="min(650px,94vw)">
+      <p class="nx-muted">上传含一个或多个 SKILL.md 的 ZIP。先预览，再安装；新增技能默认停用，同标识条目保留。</p>
+      <input ref="bundlePicker" type="file" accept=".zip" hidden @change="pickBundle"/>
+      <el-button :loading="bundleBusy" @click="bundlePicker?.click()">选择并预览 ZIP</el-button>
+      <el-table v-if="bundleItems.length" :data="bundleItems" row-key="key"><el-table-column prop="name" label="技能" min-width="120"/><el-table-column prop="description" label="内容" min-width="200"/><el-table-column label="状态" width="90"><template #default="{row}">{{row.exists?'已有':'可安装'}}</template></el-table-column></el-table>
+      <template #footer><el-button @click="bundleVisible=false">关闭</el-button><el-button type="primary" :loading="bundleBusy" :disabled="!bundleItems.some(item=>!item.exists)" @click="applyBundle">确认安装</el-button></template>
+    </el-dialog>
 
     <div class="filter-bar">
       <el-input v-model="query.keyword" placeholder="搜索名称 / 标识 / 描述" clearable style="width: 220px" @change="load">
@@ -36,82 +44,84 @@
       </el-select>
     </div>
 
-    <el-table :data="skills" v-loading="loading" stripe>
-      <el-table-column label="技能" min-width="230">
-        <template #default="{ row }">
-          <div class="skill-cell">
-            <SkillAvatar :icon="row.icon" :name="row.name" :seed="row.key" :size="36" />
-            <div class="skill-main">
-              <div class="skill-name">
-                {{ row.name }}
-                <el-tag v-if="row.isSystem" size="small" type="warning" effect="plain">内置</el-tag>
+    <div class="table-card">
+      <el-table :data="skills" v-loading="loading" stripe>
+        <el-table-column label="技能" min-width="230">
+          <template #default="{ row }">
+            <div class="skill-cell">
+              <SkillAvatar :icon="row.icon" :name="row.name" :seed="row.key" :size="36" />
+              <div class="skill-main">
+                <div class="skill-name">
+                  {{ row.name }}
+                  <el-tag v-if="row.isSystem" size="small" type="warning" effect="plain">内置</el-tag>
+                </div>
+                <div class="skill-key mono">{{ row.key }}</div>
               </div>
-              <div class="skill-key mono">{{ row.key }}</div>
             </div>
-          </div>
-        </template>
-      </el-table-column>
+          </template>
+        </el-table-column>
 
-      <el-table-column label="类型" width="110">
-        <template #default="{ row }">
-          <el-tag size="small" effect="plain" :type="typeTag(row.type)">{{ typeText(row.type) }}</el-tag>
-        </template>
-      </el-table-column>
+        <el-table-column label="类型" width="110">
+          <template #default="{ row }">
+            <el-tag size="small" effect="plain" :type="typeTag(row.type)">{{ typeText(row.type) }}</el-tag>
+          </template>
+        </el-table-column>
 
-      <el-table-column label="分类" width="110" prop="category" />
+        <el-table-column label="分类" width="110" prop="category" />
 
-      <el-table-column label="描述" min-width="200">
-        <template #default="{ row }">
-          <span class="muted">{{ truncate(row.description, 60) }}</span>
-        </template>
-      </el-table-column>
+        <el-table-column label="描述" min-width="200">
+          <template #default="{ row }">
+            <span class="muted">{{ truncate(row.description, 60) }}</span>
+          </template>
+        </el-table-column>
 
-      <el-table-column label="权限码" width="150">
-        <template #default="{ row }">
-          <span v-if="row.permissionCode" class="mono small">{{ row.permissionCode }}</span>
-          <span v-else class="muted">不限制</span>
-        </template>
-      </el-table-column>
+        <el-table-column label="权限码" width="150">
+          <template #default="{ row }">
+            <span v-if="row.permissionCode" class="mono small">{{ row.permissionCode }}</span>
+            <span v-else class="muted">不限制</span>
+          </template>
+        </el-table-column>
 
-      <el-table-column label="绑定智能体" width="100">
-        <template #default="{ row }">{{ row.agentCount ?? 0 }}</template>
-      </el-table-column>
+        <el-table-column label="绑定智能体" width="100">
+          <template #default="{ row }">{{ row.agentCount ?? 0 }}</template>
+        </el-table-column>
 
-      <el-table-column label="运行次数" width="100">
-        <template #default="{ row }">{{ formatNumber(row.runCount ?? 0) }}</template>
-      </el-table-column>
+        <el-table-column label="运行次数" width="100">
+          <template #default="{ row }">{{ formatNumber(row.runCount ?? 0) }}</template>
+        </el-table-column>
 
-      <el-table-column label="状态" width="90">
-        <template #default="{ row }">
-          <el-switch
-            :model-value="row.enabled"
-            :disabled="!auth.can('skill:update')"
-            @change="(v: boolean) => toggleSkill(row, v)"
-          />
-        </template>
-      </el-table-column>
+        <el-table-column label="状态" width="90">
+          <template #default="{ row }">
+            <el-switch
+              :model-value="row.enabled"
+              :disabled="!auth.can('skill:update')"
+              @change="(v: boolean) => toggleSkill(row, v)"
+            />
+          </template>
+        </el-table-column>
 
-      <el-table-column label="操作" width="230" fixed="right">
-        <template #default="{ row }">
-          <el-button text type="primary" size="small" @click="openRun(row)">测试</el-button>
-          <el-button text type="primary" size="small" :disabled="!auth.can('skill:update')" @click="openEdit(row)">
-            编辑
-          </el-button>
-          <el-button text type="primary" size="small" :disabled="!auth.can('skill:update')" @click="openBind(row)">
-            绑定
-          </el-button>
-          <el-button
-            text
-            type="danger"
-            size="small"
-            :disabled="!auth.can('skill:delete')"
-            @click="removeSkill(row)"
-          >
-            删除
-          </el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+        <el-table-column label="操作" width="230" fixed="right">
+          <template #default="{ row }">
+            <el-button text type="primary" size="small" @click="openRun(row)">测试</el-button>
+            <el-button text type="primary" size="small" :disabled="!auth.can('skill:update')" @click="openEdit(row)">
+              编辑
+            </el-button>
+            <el-button text type="primary" size="small" :disabled="!auth.can('skill:update')" @click="openBind(row)">
+              绑定
+            </el-button>
+            <el-button
+              text
+              type="danger"
+              size="small"
+              :disabled="!auth.can('skill:delete')"
+              @click="removeSkill(row)"
+            >
+              删除
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </div>
 
     <!-- 新建 / 编辑 -->
     <el-dialog
@@ -473,7 +483,7 @@
 import { computed, onMounted, reactive, ref } from "vue"
 import type { FormInstance, FormRules } from "element-plus"
 import { agentsApi, rolesApi, skillsApi } from "@/api"
-import { toastError, toastOk } from "@/api/client"
+import { request,toastError, toastOk } from "@/api/client"
 import { useAuthStore } from "@/stores/auth"
 import SkillAvatar from "@/components/SkillAvatar.vue"
 import SkillImportDialog from "@/components/SkillImportDialog.vue"
@@ -518,6 +528,10 @@ const ICON_OPTIONS = [
 ]
 
 const importVisible = ref(false)
+const bundleVisible=ref(false),bundleBusy=ref(false),bundlePicker=ref<HTMLInputElement>(),bundleFile=ref<File>(),bundleItems=ref<{key:string;name:string;description:string;exists:boolean}[]>([])
+function sendBundle<T>(apply=false){const data=new FormData();data.append('file',bundleFile.value!);if(apply)data.append('apply','true');return request<T>({method:'POST',url:'/skills/import-bundle',data})}
+async function pickBundle(event:Event){const input=event.target as HTMLInputElement;bundleFile.value=input.files?.[0];input.value='';bundleItems.value=[];if(!bundleFile.value)return;bundleBusy.value=true;try{bundleItems.value=(await sendBundle<{items:typeof bundleItems.value}>()).items}catch(e){toastError(e)}finally{bundleBusy.value=false}}
+async function applyBundle(){bundleBusy.value=true;try{const result=await sendBundle<{created:number;skipped:number}>(true);toastOk(`已安装 ${result.created} 个技能，保留 ${result.skipped} 个同名技能`);bundleVisible.value=false;bundleItems.value=[];await load()}catch(e){toastError(e)}finally{bundleBusy.value=false}}
 
 const skills = ref<SkillItem[]>([])
 const agents = ref<AgentItem[]>([])

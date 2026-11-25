@@ -1,6 +1,7 @@
 <template>
   <main class="nx-root campus-map-page">
-    <header class="atlas-header"><div class="atlas-heading"><RouterLink :to="chatPath" class="nx-icon-btn atlas-back" aria-label="返回对话" title="返回对话"><el-icon><Back/></el-icon></RouterLink><h1><el-icon><MapLocation/></el-icon>校园地图</h1></div><div class="atlas-campus-tabs" aria-label="校区选择"><button v-for="c in campuses" :key="c.id" type="button" :class="{'is-active':campus.id===c.id}" :aria-pressed="campus.id===c.id" @click="switchCampus(c.id)">{{c.name}}</button></div><span class="atlas-map-note">原图标注 · 示意位置</span></header>
+    <StudentTopbar v-if="route.query.embed!=='1'&&(!auth.user||auth.isStudent)" title="校园地图"/>
+    <header class="atlas-header"><div class="atlas-heading"><RouterLink v-if="route.query.embed!=='1'" :to="chatPath" class="nx-icon-btn atlas-back" aria-label="返回对话" title="返回对话"><el-icon><Back/></el-icon></RouterLink><h1><el-icon><MapLocation/></el-icon>校园地图</h1></div><div class="atlas-campus-tabs" aria-label="校区选择"><button v-for="c in campuses" :key="c.id" type="button" :class="{'is-active':campus.id===c.id}" :aria-pressed="campus.id===c.id" @click="switchCampus(c.id)">{{c.name}}</button></div><span class="atlas-map-note">原图标注 · 示意位置</span></header>
     <div class="atlas-layout">
       <aside class="atlas-sidebar"><label class="atlas-search"><span aria-hidden="true">⌕</span><input v-model="search" aria-label="搜索建筑或地点" placeholder="搜索建筑、食堂、宿舍…"/><button v-if="search" type="button" aria-label="清空搜索" @click="search=''">×</button></label><div class="atlas-filters" aria-label="地点分类"><button type="button" :class="{'is-active':!kind}" @click="kind=''">全部</button><button v-for="(label,key) in kinds" :key="key" type="button" :class="{'is-active':kind===key}" @click="kind=key">{{label}}</button></div><div class="atlas-results-heading"><strong>{{filteredPlaces.length}} 个位置</strong><span>点击定位</span></div><div class="atlas-results"><button v-for="p in filteredPlaces" :key="p.id" type="button" class="atlas-place-row" :class="{'is-active':p.id===selectedId}" :data-result="p.id" @click="select(p.id)"><span class="atlas-place-dot" :class="p.kind"></span><span><strong>{{p.name}}</strong><small>{{kinds[p.kind]}}</small></span><span class="atlas-place-arrow">↗</span></button><p v-if="!filteredPlaces.length" class="atlas-empty">原图未标出这个地点，可换名称或切换校区查找。</p></div></aside>
       <section class="atlas-stage"><CampusMapCanvas :campus="campus" :focus-ids="selectedId?[selectedId]:[]" @select="select"/><div class="atlas-selection"><div><span class="atlas-eyebrow">{{selectedPlace?kinds[selectedPlace.kind]:'校园一览'}}</span><h2>{{selectedPlace?.name || '从地图或列表选择一个地点'}}</h2><p>{{selectedPlace?.description || '点击建筑高亮位置，拖动探索周边；支持滚轮缩放和双指缩放。'}}</p></div><button v-if="selectedPlace" type="button" class="atlas-copy" @click="copyLink">{{copied?'已复制 ✓':'复制位置链接 ↗'}}</button></div><div class="atlas-legend"><span v-for="(label,key) in kinds" :key="key"><i :class="key"></i>{{label}}</span></div></section>
@@ -9,21 +10,24 @@
   </main>
 </template>
 <script setup lang="ts">
-import {computed,ref,watch} from 'vue'
+import {computed,onMounted,ref,watch} from 'vue'
 import {useAuthStore} from '@/stores/auth'
 import {trackCampus} from '@/utils/campus-activity'
 import {useRoute,useRouter} from 'vue-router'
 import CampusMapCanvas from '@/components/maps/CampusMapCanvas.vue'
-import {campuses,kinds,campusById} from '@/components/maps/map-data'
+import StudentTopbar from '@/components/student/StudentTopbar.vue'
+import {campuses,kinds,campusById,loadCampusMaps} from '@/components/maps/map-data'
 const route=useRoute(),router=useRouter(),search=ref(''),kind=ref(''),copied=ref(false)
 const auth=useAuthStore(),chatPath=computed(()=>auth.user?(auth.isStudent?'/student':'/chat'):'/login')
-const campus=computed(()=>campusById(route.query.campus)||campuses[0])
+const campus=computed(()=>campusById(route.query.campus)||campuses.value[0])
+onMounted(loadCampusMaps)
 const selectedId=computed(()=>campus.value.places.some(p=>p.id===route.query.place)?String(route.query.place):'')
 const selectedPlace=computed(()=>campus.value.places.find(p=>p.id===selectedId.value))
 const normalized=(s:string)=>s.normalize('NFKC').toLowerCase().replace(/\s/g,'').replace(/([一二三四五六七八])号/g,(_,n)=>'一二三四五六七八'.indexOf(n)+1+'号')
 const filteredPlaces=computed(()=>campus.value.places.filter(p=>(!kind.value||kind.value===p.kind)&&(!search.value||normalized([p.name,...p.aliases,p.description].join(' ')).includes(normalized(search.value)))))
-function switchCampus(id:string){search.value='';kind.value='';void router.replace({path:'/map',query:{campus:id}})}
-function select(id:string){if(campus.value.places.some(p=>p.id===id))void router.replace({path:'/map',query:{campus:campus.value.id,place:id}})}
+function mapQuery(campus:string,place?:string){return {campus,place,embed:route.query.embed==='1'?'1':undefined,back:route.query.back}}
+function switchCampus(id:string){search.value='';kind.value='';void router.replace({path:'/map',query:mapQuery(id)})}
+function select(id:string){if(campus.value.places.some(p=>p.id===id))void router.replace({path:'/map',query:mapQuery(campus.value.id,id)})}
 watch(()=>[campus.value.id,selectedId.value].join(':'),()=>trackCampus('MAP_VIEW',{entryId:'map:'+campus.value.id+':'+(selectedId.value||'all'),collection:'maps',title:campus.value.name+' · '+(selectedPlace.value?.name||'全校地图')}),{immediate:true})
 watch(()=>route.query,()=>copied.value=false)
 async function copyLink(){try{await navigator.clipboard.writeText(new URL(router.resolve({path:'/map',query:{campus:campus.value.id,place:selectedId.value}}).href,window.location.origin).href);copied.value=true}catch{copied.value=false}}

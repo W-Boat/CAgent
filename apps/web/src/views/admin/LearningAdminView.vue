@@ -1,6 +1,9 @@
 <template>
   <div class="learning-admin">
-    <el-card shadow="never" style="margin-bottom:24px"><FeedbackQueue/></el-card>
+    <header class="page-header">
+      <div><h2 class="page-title">反馈与学习</h2><p class="page-subtitle">查看用户反馈，审核学习条目和修正建议</p></div>
+    </header>
+    <el-card shadow="never" class="feedback-queue-card"><FeedbackQueue/></el-card>
     <!-- 概览卡片 -->
     <el-row :gutter="16" class="overview-row">
       <el-col :xs="12" :sm="8" :md="4">
@@ -425,6 +428,10 @@ function statusTagType(status: string): "" | "success" | "warning" | "danger" | 
 <style scoped>
 .learning-admin {
   padding: 0;
+}
+
+.feedback-queue-card {
+  margin-bottom: var(--admin-card-gap);
 }
 
 .overview-row {

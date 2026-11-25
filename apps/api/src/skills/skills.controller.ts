@@ -60,6 +60,16 @@ export class SkillsController {
     return this.skills.available(me.permissions)
   }
 
+  @Get('built-ins')
+  builtIns(){return ToolRegistry.all().filter(tool=>tool.key!=='campus_guide').map(({key,name,description,category,icon,needsNetwork,requiresKey,parameters,required})=>({key,name,description,category,icon,needsNetwork,requiresKey,parameters,required}))}
+
+  @Post('built-ins/:key/run')
+  @RequirePermissions('skill:run')
+  runBuiltin(@Param('key') key:string,@Body() body:RunSkillDto,@CurrentUser() me:AuthUser){
+    if(key==='campus_guide'||!ToolRegistry.has(key))throw new BadRequestException('工具不可用')
+    return ToolRegistry.run(key,{userId:me.id,input:body.input||{}})
+  }
+
   @Post(":id/run")
   @RequirePermissions("skill:run")
   @ApiOperation({ summary: "执行技能" })
@@ -226,6 +236,25 @@ export class SkillsController {
     )
 
     return { created: true, ...parsed, skill }
+  }
+
+  @Post('import-bundle')
+  @RequirePermissions('skill:create')
+  @UseInterceptors(FileInterceptor('file',{limits:{fileSize:10*1024*1024,files:1,fields:1}}))
+  async importBundle(@UploadedFile() file:{buffer:Buffer;originalname:string}|undefined,@Body('apply') apply:string|undefined,@CurrentUser() me:AuthUser){
+    if(!file||!/\.zip$/i.test(file.originalname))throw new BadRequestException('请选择技能 ZIP')
+    const items=this.skillImport.parseZipBundle(file.buffer)
+    const unique=new Set<string>()
+    for(const item of items){assertVisibleCapability(item);if(unique.has(item.key))throw new BadRequestException(`技能包内标识重复：${item.key}`);unique.add(item.key)}
+    const existing=await this.prisma.skill.findMany({where:{key:{in:[...unique]}},select:{key:true}})
+    const skipped=new Set(existing.map(item=>item.key))
+    if(apply!=='true')return {items:items.map(({key,name,description,format,warnings})=>({key,name,description,format,warnings,exists:skipped.has(key)}))}
+    const created=await this.prisma.$transaction(async tx=>{
+      const count=await tx.skill.createMany({data:items.filter(item=>!skipped.has(item.key)).map(item=>({key:item.key,name:item.name,description:item.description,type:'PROMPT',category:item.category,icon:item.icon,systemPrompt:item.systemPrompt,enabled:false,createdById:me.id})),skipDuplicates:true})
+      await tx.auditLog.create({data:{userId:me.id,actor:me.email,action:'skill.bundle.import',resource:'skill',detail:{created:count.count},success:true}})
+      return count.count
+    })
+    return {created,skipped:items.length-created}
   }
 
   @Post("import-zip")

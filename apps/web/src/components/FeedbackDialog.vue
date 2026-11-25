@@ -15,7 +15,7 @@
 
       <template v-else>
         <p class="feedback-intro">
-          请告诉我们哪里不满意，帮助改进回答质量。你的反馈会经过管理员审核后用于优化智能体。
+          {{hasExisting?'已记录这次评价。你可以补充原因或正确答案，供管理员审核。':'可以补充原因或正确答案，供管理员审核。'}}
         </p>
 
         <!-- 原因选择 -->
@@ -36,7 +36,7 @@
         <!-- 纠正答案 -->
         <div class="feedback-correction">
           <div class="correction-label">
-            如果你知道正确答案，请填写（最有价值的反馈）：
+            补充正确答案或官方依据（选填）
           </div>
           <el-input
             v-model="correction"

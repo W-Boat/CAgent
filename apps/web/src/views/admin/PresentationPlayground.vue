@@ -2,7 +2,6 @@
   <div class="pg-page">
     <header class="pg-head">
       <div>
-        <span class="pg-kicker">AGENT UI / 0.1</span>
         <h1>界面实验室</h1>
         <p>浏览组件示例，检查回答结构与交互。编辑内容仅用于本地预览。</p>
       </div>

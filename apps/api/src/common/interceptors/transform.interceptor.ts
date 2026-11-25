@@ -2,7 +2,8 @@ import {
   CallHandler,
   ExecutionContext,
   Injectable,
-  NestInterceptor
+  NestInterceptor,
+  StreamableFile
 } from "@nestjs/common"
 import { Observable, map } from "rxjs"
 import {stripRetiredCapabilities} from '../retired-capabilities'
@@ -27,6 +28,7 @@ export class TransformInterceptor<T>
   ): Observable<ApiResponse<T> | T> {
     return next.handle().pipe(
       map((data) => {
+        if (data instanceof StreamableFile) return data
         const path=context.switchToHttp().getRequest().path||''
         if(/\/(agents|skills|dashboard|learning|conversations|audit-logs)(\/|$)/.test(path))data=stripRetiredCapabilities(data)
         if (

@@ -20,7 +20,7 @@
     </div>
 
     <CampusUsageStats :days="days" :refresh-key="refreshKey"/>
-    <h3>办理导览会话</h3>
+    <h3 class="admin-section-title">办理导览会话</h3>
     <el-row :gutter="14" class="tiles">
       <el-col :xs="24" :sm="8">
         <StatTile label="导览次数" :value="stats?.total ?? 0" icon="Compass" hint="打开页面的次数" />

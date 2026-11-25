@@ -1,6 +1,6 @@
 <template>
   <section class="feedback-queue">
-    <div class="queue-toolbar"><div><h3>回答纠错</h3><p>核对原始问题，注入正确答案。同一问题再次出现时直接返回固定答案。</p></div>
+    <div class="queue-toolbar"><div><h3 class="admin-section-title">回答纠错</h3><p>核对原始问题，注入正确答案。同一问题再次出现时直接返回固定答案。</p></div>
       <el-select v-model="resolution" @change="reload"><el-option label="待处理" value="OPEN"/><el-option label="已解决" value="RESOLVED"/><el-option label="不采纳" value="DISMISSED"/><el-option label="全部" value=""/></el-select>
     </div>
     <el-table :data="items" v-loading="loading" stripe>

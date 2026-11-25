@@ -1,0 +1,30 @@
+.chat-sidebar {
+  --history-control-radius: 10px;
+  --history-control-height: 34px;
+  --history-control-inset: 12px;
+  box-sizing: border-box;
+}
+.chat-sidebar .chat-history-toolbar {
+  padding: 10px var(--history-control-inset) 5px;
+}
+.nx-root .chat-sidebar .chat-history-new {
+  width: 100%;
+  height: var(--history-control-height);
+  min-height: var(--history-control-height);
+  border-radius: var(--history-control-radius);
+}
+@media(min-width:861px){
+  .nx-root:is(.nx-student,.nx-admin-chat) .chat-sidebar{flex:0 0 auto;overflow:hidden;transition:width .25s cubic-bezier(.23,.82,.25,1),opacity .2s ease,border-color .2s ease}
+  .nx-root:is(.nx-student,.nx-admin-chat) .chat-sidebar.is-hidden{width:0;opacity:0;border-color:transparent;pointer-events:none}
+  .chat-sidebar>*{min-width:calc(var(--nx-sidebar-width) - 1px);box-sizing:border-box}
+}
+.chat-mask-enter-active,.chat-mask-leave-active{transition:opacity .2s ease}.chat-mask-enter-from,.chat-mask-leave-to{opacity:0}
+.conversation-day{margin:3px 0 9px}.conversation-day h3{margin:0;padding:3px 8px;color:var(--nx-text-2);font-size:11px;font-weight:650;line-height:1.4}
+.nx-root .chat-composer-box{position:relative;padding:11px 12px 6px}
+.composer-height-handle{position:absolute;z-index:1;top:-6px;left:50%;width:68px;height:16px;border:0;border-radius:999px;background:none;cursor:ns-resize;touch-action:none;transform:translateX(-50%);display:grid;place-items:center}
+.composer-height-handle::before{content:'';width:25px;height:3px;background:var(--nx-border-strong);border-radius:999px;transition:width .16s ease,background .16s ease}.composer-height-handle:is(:hover,:focus-visible)::before{width:34px;background:var(--nx-accent)}
+.nx-root .chat-composer-input{box-sizing:border-box;max-height:none;min-height:0;overflow:auto;padding:7px 4px;line-height:1.55}
+.admin-composer-options{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-height:30px}.admin-composer-options>.output-segment{height:28px}
+.nx-root .ac-title{display:flex;gap:6px;align-items:baseline;min-width:0}.ac-title>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:720px){.nx-root .chat-composer-box{padding-inline:8px}.composer-height-handle{width:76px;height:22px;top:-8px}.ac-title>small{display:none}}
+@media(prefers-reduced-motion:reduce){.nx-root:is(.nx-student,.nx-admin-chat) .chat-sidebar,.chat-mask-enter-active,.chat-mask-leave-active{transition:none}}

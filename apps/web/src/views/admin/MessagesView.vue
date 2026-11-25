@@ -59,78 +59,81 @@
       <el-button @click="reset">重置</el-button>
     </div>
 
-    <el-table :data="items" v-loading="loading" stripe size="small">
-      <el-table-column label="时间" width="168">
-        <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
-      </el-table-column>
+    <div class="table-card">
+      <el-table :data="items" v-loading="loading" stripe size="small">
+        <el-table-column label="时间" width="168">
+          <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
+        </el-table-column>
 
-      <el-table-column label="角色" width="90">
-        <template #default="{ row }">
-          <el-tag :type="roleTag(row.role)" size="small" effect="plain">{{ roleText(row.role) }}</el-tag>
-        </template>
-      </el-table-column>
+        <el-table-column label="角色" width="90">
+          <template #default="{ row }">
+            <el-tag :type="roleTag(row.role)" size="small" effect="plain">{{ roleText(row.role) }}</el-tag>
+          </template>
+        </el-table-column>
 
-      <el-table-column label="内容" min-width="320">
-        <template #default="{ row }">
-          <div class="content-cell" @click="showDetail(row)">
-            {{ truncate(row.content, 120) }}
-          </div>
-        </template>
-      </el-table-column>
+        <el-table-column label="内容" min-width="320">
+          <template #default="{ row }">
+            <div class="content-cell" @click="showDetail(row)">
+              {{ truncate(row.content, 120) }}
+            </div>
+          </template>
+        </el-table-column>
 
-      <el-table-column label="模型" width="150">
-        <template #default="{ row }">
-          <span class="mono small">{{ row.modelKey || "-" }}</span>
-        </template>
-      </el-table-column>
+        <el-table-column label="模型" width="150">
+          <template #default="{ row }">
+            <span class="mono small">{{ row.modelKey || "-" }}</span>
+          </template>
+        </el-table-column>
 
-      <el-table-column label="Token" width="100">
-        <template #default="{ row }">{{ formatNumber(row.totalTokens) }}</template>
-      </el-table-column>
+        <el-table-column label="Token" width="100">
+          <template #default="{ row }">{{ formatNumber(row.totalTokens) }}</template>
+        </el-table-column>
 
-      <el-table-column label="状态" width="95">
-        <template #default="{ row }">
-          <el-tag :type="statusType(row.status)" size="small" effect="plain">
-            {{ statusText(row.status) }}
-          </el-tag>
-        </template>
-      </el-table-column>
+        <el-table-column label="状态" width="95">
+          <template #default="{ row }">
+            <el-tag :type="statusType(row.status)" size="small" effect="plain">
+              {{ statusText(row.status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
 
-      <el-table-column label="标记" width="90">
-        <template #default="{ row }">
-          <el-tag v-if="row.flagged" type="danger" size="small" effect="plain">已标记</el-tag>
-          <span v-else class="muted">-</span>
-        </template>
-      </el-table-column>
+        <el-table-column label="标记" width="90">
+          <template #default="{ row }">
+            <el-tag v-if="row.flagged" type="danger" size="small" effect="plain">已标记</el-tag>
+            <span v-else class="muted">-</span>
+          </template>
+        </el-table-column>
 
-      <el-table-column label="操作" width="140" fixed="right">
-        <template #default="{ row }">
-          <el-button text type="primary" size="small" @click="showDetail(row)">详情</el-button>
-          <el-button
-            text
-            :type="row.flagged ? 'info' : 'danger'"
-            size="small"
-            :disabled="!auth.can('message:flag')"
-            @click="toggleFlag(row)"
-          >
-            {{ row.flagged ? "取消标记" : "标记" }}
-          </el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+        <el-table-column label="操作" width="140" fixed="right">
+          <template #default="{ row }">
+            <el-button text type="primary" size="small" @click="showDetail(row)">详情</el-button>
+            <el-button
+              text
+              :type="row.flagged ? 'info' : 'danger'"
+              size="small"
+              :disabled="!auth.can('message:flag')"
+              @click="toggleFlag(row)"
+            >
+              {{ row.flagged ? "取消标记" : "标记" }}
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
 
-    <el-pagination
-      v-if="total > 0"
-      v-model:current-page="query.page"
-      v-model:page-size="query.pageSize"
-      :total="total"
-      :page-sizes="[20, 50, 100]"
-      layout="total, sizes, prev, pager, next"
-      background
-      class="pager"
-      @current-change="load"
-      @size-change="reload"
-    />
+      <div class="pager">
+        <el-pagination
+          v-if="total > 0"
+          v-model:current-page="query.page"
+          v-model:page-size="query.pageSize"
+          :total="total"
+          :page-sizes="[20, 50, 100]"
+          layout="total, sizes, prev, pager, next"
+          background
+          @current-change="load"
+          @size-change="reload"
+        />
+      </div>
+    </div>
 
     <el-drawer v-model="detailVisible" title="消息详情" size="620px">
       <div v-if="current">

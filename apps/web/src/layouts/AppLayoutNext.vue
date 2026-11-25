@@ -17,7 +17,7 @@
       <div class="nx-brand" @click="router.push(auth.homePath)">
         <!-- CAgentMark 继承 currentColor：新版用主文字色做单色品牌印，扁平克制 -->
         <CAgentMark :size="26" class="nx-brand-logo" />
-        <span v-if="showText" class="nx-brand-text">
+        <span class="nx-brand-text nx-nav-reveal" :class="{'is-folded':!showText}" :aria-hidden="!showText">
           <span class="nx-brand-name">{{ auth.siteName }}</span>
           <span class="nx-brand-sub">校园智能体平台</span>
         </span>
@@ -33,7 +33,7 @@
         </button>
       </div>
 
-      <nav ref="navRef" class="nx-nav">
+      <nav ref="navRef" class="nx-nav" aria-label="管理导航">
         <template v-for="group in visibleGroups" :key="group.id">
           <button
             type="button"
@@ -46,9 +46,7 @@
             :aria-current="group.id === activeGroupId ? 'true' : undefined"
             @click="toggleGroup(group.id)"
           >
-            <span v-if="showText" class="nx-nav-group-title">{{ group.title }}</span>
-            <span v-else class="nx-sr-only">{{ group.title }}</span>
-            <span v-if="showText && group.id === activeGroupId" class="nx-nav-current">当前</span>
+            <span class="nx-nav-group-title nx-nav-reveal" :class="{'is-folded':!showText}">{{ group.title }}</span>
             <span class="nx-nav-group-chevron" :class="{ collapsed: isGroupCollapsed(group.id) }" aria-hidden="true"></span>
           </button>
 
@@ -56,48 +54,41 @@
             图标栏（折叠 / ≤1024px）下文字被隐藏，靠原生 title 提示目标；
             展开态文字可见，再加 title 只会和文本重复。
           -->
+          <Transition name="nav-items">
           <div
             :id="`nx-nav-items-${group.id}`"
             v-show="!isGroupCollapsed(group.id)"
             class="nx-nav-items"
           >
+            <div class="nx-nav-links">
             <router-link
               v-for="item in group.items"
               :key="item.path"
               :to="item.path"
               class="nx-nav-item"
               :class="{ active: isActive(item.path) }"
-              :title="showText ? undefined : itemTooltip(group, item)"
+                :title="showText ? undefined : itemTooltip(group, item)"
+                :aria-label="item.title"
               :aria-current="isActive(item.path) ? 'page' : undefined"
               @mouseenter="warm(item.path)"
               @focus="warm(item.path)"
               @touchstart.passive="warm(item.path)"
             >
               <el-icon class="nx-nav-icon"><component :is="item.icon" /></el-icon>
-              <span v-if="showText" class="nx-nav-text">{{ item.title }}</span>
+              <span class="nx-nav-text nx-nav-reveal" :class="{'is-folded':!showText}">{{ item.title }}</span>
               <span v-if="showText && item.badge" class="nx-nav-badge">{{ item.badge }}</span>
             </router-link>
+            </div>
           </div>
+          </Transition>
         </template>
       </nav>
 
-      <div class="nx-sidebar-foot">
-        <!-- 文案随折叠状态切换；图标栏下由样式转纵向排布，保证 64px 宽度装得下 -->
-        <button
-          v-if="!isMobile"
-          type="button"
-          class="nx-btn nx-btn-ghost nx-collapse"
-          :title="collapsed ? '展开菜单' : '收起菜单'"
-          @click="collapsed = !collapsed"
-        >
-          <el-icon><component :is="collapsed ? 'Expand' : 'Fold'" /></el-icon>
-          <span>{{ collapsed ? "展开菜单" : "收起菜单" }}</span>
-        </button>
-      </div>
     </aside>
 
     <div class="nx-main">
       <header class="nx-topbar">
+        <button v-if="!isMobile" type="button" class="nx-icon-btn" :title="collapsed?'展开菜单':'收起菜单'" :aria-label="collapsed?'展开菜单':'收起菜单'" aria-controls="nx-sidebar" :aria-expanded="!collapsed" @click="collapsed=!collapsed"><el-icon><component :is="collapsed?'Expand':'Fold'"/></el-icon></button>
         <button
           v-if="isMobile"
           ref="drawerTrigger"
@@ -118,11 +109,16 @@
         <h1 class="nx-topbar-title">{{ currentTitle }}</h1>
 
         <div class="nx-topbar-right">
-          <el-tooltip v-if="theme.allowToggle" :content="theme.isDark ? '切换到浅色模式' : '切换到深色模式'" placement="bottom">
-            <button type="button" class="nx-icon-btn" @click="theme.toggle()">
-              <el-icon :size="17"><component :is="theme.isDark ? 'Sunny' : 'Moon'" /></el-icon>
+          <el-dropdown v-if="theme.allowToggle" trigger="click" placement="bottom-end" @command="theme.set">
+            <button type="button" class="nx-icon-btn" aria-label="外观设置" title="外观设置">
+              <el-icon :size="17"><component :is="theme.isDark ? 'Moon' : 'Sunny'" /></el-icon>
             </button>
-          </el-tooltip>
+            <template #dropdown><el-dropdown-menu>
+              <el-dropdown-item command="system" :class="{active:theme.preference==='system'}">自动（跟随系统）</el-dropdown-item>
+              <el-dropdown-item command="light" :class="{active:theme.preference==='light'}">浅色</el-dropdown-item>
+              <el-dropdown-item command="dark" :class="{active:theme.preference==='dark'}">深色</el-dropdown-item>
+            </el-dropdown-menu></template>
+          </el-dropdown>
 
           <!--
             强调色设置：setAccent 同步写 localStorage 并落到 <html> 的
@@ -184,6 +180,7 @@
                 <el-dropdown-item command="usage">
                   <el-icon><DataLine /></el-icon>我的用量
                 </el-dropdown-item>
+                <el-dropdown-item v-if="auth.settings?.memory_enabled!==false" command="memory"><el-icon><Memo/></el-icon>我的记忆</el-dropdown-item>
                 <el-dropdown-item command="logout" divided>
                   <el-icon><SwitchButton /></el-icon>退出登录
                 </el-dropdown-item>
@@ -195,7 +192,7 @@
 
       <main
         class="nx-content"
-        :class="{ 'nx-content-full': isFullscreen }"
+        :class="{ 'nx-content-full': isFullscreen, 'nx-admin-content': isAdminContent }"
         :inert="isMobile && mobileOpen"
         :aria-hidden="isMobile && mobileOpen ? 'true' : undefined"
       >
@@ -221,7 +218,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
-import { menuGroups, collectKeepAliveNames, verifyKeepAliveComponents } from "@/router/routes"
+import { adminMenuItem,menuGroups, collectKeepAliveNames, verifyKeepAliveComponents } from "@/router/routes"
 import { useAuthStore } from "@/stores/auth"
 import { useThemeStore } from "@/stores/theme"
 import { ACCENT_PRESETS, useUiStore } from "@/stores/ui"
@@ -500,9 +497,7 @@ watch(
 const showText = computed(() => isMobile.value || (!collapsed.value && !isRail.value))
 
 function isActive(path: string): boolean {
-  // /chat 带 id 参数（/chat/:id?），必须按前缀匹配才算激活
-  if (path === "/chat") return route.path.startsWith("/chat")
-  return route.path === path || route.path.startsWith(`${path}/`)
+  return adminMenuItem(route.path)?.path===path
 }
 
 /**
@@ -514,8 +509,9 @@ function warm(path: string) {
   prefetchByPath(path)
 }
 
-const currentTitle = computed(() => (route.meta.title as string) || "工作台")
+const currentTitle = computed(() => adminMenuItem(route.path)?.title || (route.meta.title as string) || "工作台")
 const isFullscreen = computed(() => Boolean(route.meta.fullscreen))
+const isAdminContent = computed(() => route.path.startsWith('/admin/') || ['/dashboard','/agents','/skills','/lectures'].includes(route.path))
 
 const roleLabel = computed(() => {
   const keys = auth.roles || []
@@ -528,6 +524,8 @@ async function onUserCommand(command: string) {
     router.push("/profile")
   } else if (command === "usage") {
     router.push("/usage")
+  } else if (command === 'memory') {
+    router.push('/memory')
   } else if (command === "logout") {
     try {
       await ElMessageBox.confirm("确定要退出登录吗？", "提示", {
@@ -543,6 +541,8 @@ async function onUserCommand(command: string) {
   }
 }
 </script>
+
+<style src="@/styles/admin.css"></style>
 
 <style scoped>
 /* ---------- 整页骨架 ---------- */
@@ -562,8 +562,12 @@ async function onUserCommand(command: string) {
   background: var(--nx-bg);
   /* 与内容区只用一条发丝线分隔，不投影 —— 扁平设计的核心语言 */
   border-right: 1px solid var(--nx-border);
-  transition: width 0.22s ease, flex-basis 0.22s ease;
+  overflow:hidden;
+  transition: width .26s cubic-bezier(.23,.82,.25,1), flex-basis .26s cubic-bezier(.23,.82,.25,1);
 }
+.nx-nav-reveal{opacity:1;transition:opacity .16s ease,transform .22s cubic-bezier(.23,.82,.25,1)}
+.nx-nav-reveal.is-folded{opacity:0;transform:translateX(-4px);width:0;min-width:0;flex:0;overflow:hidden;pointer-events:none}
+@media(prefers-reduced-motion:reduce){.nx-sidebar,.nx-nav-reveal{transition:none!important}}
 
 .nx-brand {
   display: flex;
@@ -694,7 +698,14 @@ async function onUserCommand(command: string) {
 
 .nx-nav-items {
   min-width: 0;
+  display:grid;
+  grid-template-rows:1fr;
 }
+.nx-nav-links{min-height:0;min-width:0}
+.nav-items-enter-active,.nav-items-leave-active{transition:grid-template-rows .2s cubic-bezier(.2,.7,.25,1),opacity .16s ease}
+.nav-items-enter-active .nx-nav-links,.nav-items-leave-active .nx-nav-links{overflow:hidden}
+.nav-items-enter-from,.nav-items-leave-to{grid-template-rows:0fr;opacity:0}
+@media(prefers-reduced-motion:reduce){.nav-items-enter-active,.nav-items-leave-active{transition:none}}
 
 .nx-nav-badge {
   flex: 0 0 auto;

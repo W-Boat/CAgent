@@ -92,6 +92,7 @@ export function isCompatibleCard(value:Record<string,unknown>):boolean{
   if(type==='agents')return Array.isArray(value.agents)||Array.isArray(value.skills)
   if(type==='map')return ['liangxiang','wangjing'].includes(String(value.campus))
   if(type==='takeout')return typeof value.title==='string'
+  if(type==='campus-feature')return typeof value.feature==='string'&&typeof value.title==='string'
   if(type==='effect')return ['tiger','melon','cat'].includes(String(value.effect))
   if(type==='dinner')return Array.isArray(value.restaurants)&&value.restaurants.length>0&&value.restaurants.length<=500&&value.restaurants.every(name=>typeof name==='string'&&name.trim().length>0&&name.length<=80)
   return false

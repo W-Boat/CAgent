@@ -6,14 +6,15 @@ export interface RuntimeState {
  version:1;runId:string;scopeKey:string;contract:string;sequence:number;node:RuntimeNode;round:number;limit:number;
  messages:ChatMessage[];result:RunResult;pendingCalls:LlmToolCall[];completed:Record<string,ChatMessage>;
  inFlight:Record<string,{name:string;readOnly:boolean}>;writeLedger:string[];toolCache:{key:string;outcome:ToolOutcome}[];
- modelStart?:{text:number;reasoning:number};protocolRecoveryPending?:boolean;budget?:{inputTokens:number;removedTurns:number;truncatedResults:number};updatedAt:number
+ modelStart?:{text:number;reasoning:number};protocolRecoveryPending?:boolean;overflowRetried?:boolean;budget?:{inputTokens:number;removedTurns:number;truncatedResults:number;compactedTurns?:number};updatedAt:number
 }
 export interface RuntimeCheckpointOptions {runId:string;scopeKey:string;save:(state:RuntimeState)=>Promise<boolean|void>;resume?:RuntimeState}
 export const runtimeGraph={version:1,nodes:['context','model','tools','finalize','end'],edges:[['context','model'],['model','tools'],['model','context'],['model','finalize'],['tools','context'],['finalize','end']]} as const
-export function runtimeContract(options:RunOptions){return createHash('sha256').update(JSON.stringify({version:1,protocolRetryLimit:1,model:options.request.model,temperature:options.request.temperature,maxTokens:options.request.maxTokens,contextWindow:options.contextWindow,maxToolRounds:options.maxToolRounds,tools:options.tools.map(t=>({name:t.name,parameters:t.parameters,readOnly:t.readOnly===true}))})).digest('hex')}
+export function runtimeContract(options:RunOptions){return createHash('sha256').update(JSON.stringify({version:1,protocolRetryLimit:1,model:options.request.model,temperature:options.request.temperature,thinkingEffort:options.request.thinkingEffort,maxTokens:options.request.maxTokens,contextWindow:options.contextWindow,maxToolRounds:options.maxToolRounds,tools:options.tools.map(t=>({name:t.name,parameters:t.parameters,readOnly:t.readOnly===true}))})).digest('hex')}
 export function copyState(state:RuntimeState):RuntimeState{return JSON.parse(JSON.stringify(state))}
 export function validRuntimeState(value:any):value is RuntimeState {
  if(value?.protocolRecoveryPending!==undefined&&typeof value.protocolRecoveryPending!=='boolean')return false
+ if(value?.overflowRetried!==undefined&&typeof value.overflowRetried!=='boolean')return false
  const retries=value?.result?.metrics?.automaticRetries
  if(retries!==undefined&&(!Number.isSafeInteger(retries)||retries<0||retries>1))return false
  const message=(m:any)=>m&&['system','user','assistant','tool'].includes(m.role)&&typeof m.content==='string'&&(!m.toolCalls||Array.isArray(m.toolCalls)&&m.toolCalls.every(call))

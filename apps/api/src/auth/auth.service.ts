@@ -18,6 +18,7 @@ import {
   UpdateProfileDto
 } from "./dto/auth.dto"
 import type { AuthUser } from "../common/decorators/current-user.decorator"
+import { isTestEmail, TestAccounts } from '../experience/test-accounts'
 
 @Injectable()
 export class AuthService {
@@ -27,7 +28,8 @@ export class AuthService {
     private readonly config: ConfigService,
     private readonly crypto: CryptoService,
     private readonly audit: AuditService,
-    private readonly quota: QuotaService
+    private readonly quota: QuotaService,
+    private readonly tests: TestAccounts
   ) {}
 
   private async loadAuthUser(userId: string): Promise<AuthUser> {
@@ -121,6 +123,7 @@ export class AuthService {
     if (user.status === "DISABLED") {
       throw new UnauthorizedException("账号已被禁用，请联系管理员")
     }
+    await this.tests.check(user)
 
     await this.prisma.user.update({
       where: { id: user.id },
@@ -147,6 +150,7 @@ export class AuthService {
 
   async register(dto: RegisterDto, ip?: string, userAgent?: string) {
     const email = dto.email.toLowerCase().trim()
+    if (isTestEmail(email)) throw new BadRequestException('测试邮箱由管理员分配')
 
     const exists = await this.prisma.user.findUnique({ where: { email } })
     if (exists) throw new ConflictException("该邮箱已被注册")
@@ -214,6 +218,7 @@ export class AuthService {
     if (record.user.status === "DISABLED") {
       throw new UnauthorizedException("账号已被禁用")
     }
+    await this.tests.check(record.user)
 
     // 轮换：旧 refresh token 立即失效
     await this.prisma.refreshToken.update({

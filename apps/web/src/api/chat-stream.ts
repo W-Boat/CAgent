@@ -60,6 +60,8 @@ export interface ChatStreamHandlers {
 }
 
 export interface SendMessagePayload {
+  webSearch?: 'auto' | 'on' | 'off'
+  thinkingEffort?: 'none' | 'low' | 'high' | 'max'
   outputPreference?:'cards'|'adaptive'|'text'
   bypassCache?:boolean
   conversationId?: string
@@ -68,6 +70,9 @@ export interface SendMessagePayload {
   agentId?: string
   images?: string[]
   skills?: string[]
+  knowledgeBaseIds?:string[]
+  restrictSkills?:boolean
+  fileTokens?:string[]
   enableTools?: boolean
   temperature?: number
 }
@@ -97,4 +102,4 @@ function chatRequest(path:string,payload:unknown,handlers:ChatStreamHandlers){
  }})
 }
 /** Regeneration targets the actual endpoint and preserves historical answers. */
-export function regenerateChat(payload:{conversationId:string;messageId?:string;modelId?:string;outputPreference?:'cards'|'adaptive'|'text'},handlers:ChatStreamHandlers){return chatRequest('/chat/regenerate',{...payload,origin:campusOrigin()},handlers)}
+export function regenerateChat(payload:Pick<SendMessagePayload,'modelId'|'outputPreference'|'knowledgeBaseIds'|'skills'|'restrictSkills'|'webSearch'|'thinkingEffort'>&{conversationId:string;messageId?:string},handlers:ChatStreamHandlers){return chatRequest('/chat/regenerate',{...payload,origin:campusOrigin()},handlers)}

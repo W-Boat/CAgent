@@ -36,6 +36,7 @@ export interface SkillExecContext {
   userPermissions?: string[]
   signal?: AbortSignal
   beforeKnowledgeRetrieval?: ()=>void
+  knowledgeScope?: { baseIds?: readonly string[]; sourceKeys?: readonly string[]; managedOnly?: boolean }
   onKnowledgeEvidence?: (sources:KnowledgeSource[])=>void
 }
 
@@ -691,7 +692,7 @@ export class SkillsEngineService {
       if (!query) throw new BadRequestException('请提供 query')
       const conversation = ctx.conversationId ? await this.prisma.conversation.findFirst({where:{id:ctx.conversationId,userId:ctx.userId},select:{agentId:true}}) : null
       ctx.beforeKnowledgeRetrieval?.()
-      const evidence=await this.campusGuide.answerEvidence(query, 'guide', 3, {collection:config.collection,agentId:conversation?.agentId,budgetTokens:1200})
+      const evidence=await this.campusGuide.answerEvidence(query, 'guide', 3, {collection:config.collection,agentId:conversation?.agentId,...ctx.knowledgeScope,budgetTokens:1200})
       checkAbort(ctx.signal);ctx.onKnowledgeEvidence?.(evidence.sources)
       return evidence.text
     }
@@ -767,7 +768,7 @@ export class SkillsEngineService {
 
     const conversation = ctx.conversationId ? await this.prisma.conversation.findFirst({where:{id:ctx.conversationId,userId:ctx.userId},select:{agentId:true}}) : null
     ctx.beforeKnowledgeRetrieval?.()
-    const structured = await this.campusGuide.search(query, mode, limit,{agentId:conversation?.agentId})
+    const structured = await this.campusGuide.search(query, mode, limit,{agentId:conversation?.agentId,...ctx.knowledgeScope})
     const text = this.campusGuide.renderAnswer(structured)
     checkAbort(ctx.signal)
     ctx.onKnowledgeEvidence?.(sourcesFromEvidence(structured.hits,text,structured.meta.resolvedQuery||query))

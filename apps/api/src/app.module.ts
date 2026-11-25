@@ -26,6 +26,7 @@ import { MemoryModule } from "./memory/memory.module"
 import { ToolsModule } from "./tools/tools.module"
 import { KnowledgeAdminModule } from './knowledge/knowledge-admin.module'
 import {LecturesModule} from './lectures/lectures.module'
+import { ExperienceModule } from './experience/experience.module'
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import {LecturesModule} from './lectures/lectures.module'
     CommonModule,
     PrismaModule,
     AuthModule,
+    ExperienceModule,
     UsersModule,
     RolesModule,
     ProvidersModule,

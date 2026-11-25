@@ -16,6 +16,7 @@
     <CampusMapCard v-else-if="type==='map'" :card="card"/>
     <DinnerCard v-else-if="type==='dinner'" :card="card" :disabled="disabled" @ask="ask"/>
     <TakeoutCard v-else-if="type==='takeout'" :card="card" :disabled="disabled" @ask="ask"/>
+    <RouterLink v-else-if="type==='lecture-calendar'" class="nx-btn nx-btn-secondary" to="/lectures">打开讲座日历</RouterLink>
     <CareCard v-else-if="type==='care' || type==='comfort'" :card="card" :disabled="disabled" @ask="ask"/>
     <PlaceCard v-else-if="type==='places'" :card="card" :disabled="disabled" @ask="ask"/>
     <AnswerLayoutCard v-else-if="['sections','reading','faq','notice'].includes(type)" :card="card"/>

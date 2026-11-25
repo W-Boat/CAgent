@@ -258,6 +258,16 @@ function nowInTimezone(timezone: string): Record<string, unknown> {
 // ============================================================
 
 const TOOLS: ToolMeta[] = [
+  {
+    key:'cycling_estimate',name:'骑行用时估算',description:'按已知骑行距离和平均速度估算骑行时间，可加红绿灯等待。',category:'出行',icon:'Bicycle',readOnly:true,
+    parameters:{distanceKm:{type:'number',description:'已知路线距离（公里）'},speedKmh:{type:'number',description:'平均速度（公里/小时），默认 15'},stopsMinutes:{type:'number',description:'额外等待分钟数，默认 0'}},required:['distanceKm'],
+    handler:async ctx=>{const distance=num(ctx,'distanceKm'),speed=num(ctx,'speedKmh',15),stops=num(ctx,'stopsMinutes',0);if(distance<0||distance>1000||speed<=0||speed>70||stops<0||stops>600)throw new BadRequestException('请检查骑行距离、速度和等待时间');return {minutes:Math.ceil(distance/speed*60+stops),distanceKm:distance,speedKmh:speed,stopsMinutes:stops}}
+  },
+  {
+    key:'code_inspect',name:'静态代码检查',description:'快速检查简短源码中的可维护性与安全风险提示。仅分析文本。',category:'开发',icon:'Document',readOnly:true,
+    parameters:{code:{type:'string',description:'要检查的一小段代码'}},required:['code'],
+    handler:async ctx=>{const code=str(ctx,'code').slice(0,15000);const checks=[[/\beval\s*\(|new\s+Function\s*\(/,'动态执行用户输入，改用限定语法或数据解析'],[/\binnerHTML\s*=/,'动态 HTML 赋值，确认使用安全文本或经过净化的数据'],[/\b(?:api[_-]?key|password|secret)\s*[:=]\s*['"][^'"\n]{8,}/i,'可能存在硬编码凭据，迁移到受保护的配置'] ] as const;return {lines:code.split(/\r?\n/).length,findings:checks.flatMap(([pattern,hint])=>pattern.test(code)?[hint]:[]),scope:'仅做规则提示，未执行代码'}}
+  },
   // ---------- 本地计算 ----------
   {
     key: "calculator",

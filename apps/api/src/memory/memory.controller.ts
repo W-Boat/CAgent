@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  ForbiddenException,
   Param,
   Patch,
   Post,
@@ -12,6 +13,7 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger"
 import { MemoryService } from "./memory.service"
 import { CurrentUser } from "../common/decorators/current-user.decorator"
+import type {AuthUser} from '../common/decorators/current-user.decorator'
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard"
 import {
   CreateMemoryDto,
@@ -25,6 +27,12 @@ import {
 @Controller("memory")
 export class MemoryController {
   constructor(private readonly memoryService: MemoryService) {}
+
+  @Get('admin/overview')
+  overview(@CurrentUser() user:AuthUser,@Query('page') page?:string){
+    if(!user.roles.includes('super_admin'))throw new ForbiddenException('仅超级管理员可查看全站记忆摘要')
+    return this.memoryService.platformOverview(Number(page))
+  }
 
   @Get("stats")
   @ApiOperation({ summary: "获取记忆统计" })

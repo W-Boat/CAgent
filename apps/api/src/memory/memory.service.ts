@@ -12,6 +12,16 @@ export class MemoryService {
   async enabled(){return !this.settings || await this.settings.get('memory_enabled')!==false}
   private async assertEnabled(){if(!await this.enabled())throw new ForbiddenException('全站记忆功能已关闭')}
 
+  async platformOverview(requestedPage:number){
+    await this.assertEnabled()
+    const size=20,page=Math.max(1,Math.min(500,Math.trunc(requestedPage)||1))
+    const where={status:MemoryStatus.ACTIVE,OR:[{expiresAt:null},{expiresAt:{gt:new Date()}}]}
+    const [total,groups]=await Promise.all([this.prisma.userMemory.count({where}),this.prisma.userMemory.groupBy({by:['userId'],where,_count:{userId:true},orderBy:[{_count:{userId:'desc'}},{userId:'asc'}],skip:(page-1)*size,take:size})])
+    const users=await this.prisma.user.findMany({where:{id:{in:groups.map(g=>g.userId)}},select:{id:true,name:true,memories:{where,orderBy:[{updatedAt:'desc'},{id:'asc'}],take:2,select:{category:true,content:true}}}})
+    const safe=(value:string)=>value.replace(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/g,'[邮箱]').replace(/(?<!\d)\d{7,}(?!\d)/g,'[号码]').slice(0,110)
+    return {total,page,hasNext:groups.length===size,users:groups.flatMap(group=>{const user=users.find(item=>item.id===group.userId);return user?[{id:user.id,name:user.name,count:group._count.userId,summaries:user.memories.map(m=>({category:m.category,text:safe(m.content)}))}]:[]})}
+  }
+
   /**
    * 为用户创建或更新记忆
    */

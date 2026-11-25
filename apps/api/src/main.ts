@@ -16,6 +16,7 @@ async function bootstrap() {
 
   const config = app.get(ConfigService)
   const port = Number(config.get("API_PORT") || 3001)
+  const host = config.get<string>("API_HOST") || "0.0.0.0"
   const prefix = config.get("API_PREFIX") || "api"
   const webOrigin = config.get("WEB_ORIGIN") || "http://localhost:5173"
 
@@ -64,7 +65,7 @@ async function bootstrap() {
     SwaggerModule.setup(`${prefix}/docs`, app, document)
   }
 
-  await app.listen(port, "0.0.0.0")
+  await app.listen(port, host)
 
   const logger = new Logger("Bootstrap")
   logger.log(`CAgent API 已启动: http://localhost:${port}/${prefix}`)

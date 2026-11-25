@@ -1,4 +1,5 @@
 import type { ProviderType } from "@prisma/client"
+import type { DeepSeekThinkingEffort } from './deepseek-model'
 
 export type ChatRole = "system" | "user" | "assistant" | "tool"
 
@@ -9,7 +10,9 @@ export interface ChatMessage {
   toolCallId?: string
   /** 多模态图片（data URL 或公网地址） */
   images?: string[]
+  files?: string[]
   toolCalls?: LlmToolCall[]
+  reasoning?: string
 }
 
 export interface LlmToolCall {
@@ -52,6 +55,7 @@ export interface LlmChatOptions {
   baseUrl?: string | null
   temperature?: number
   maxTokens?: number
+  thinkingEffort?: DeepSeekThinkingEffort
   tools?: LlmToolDef[]
   signal?: AbortSignal
   extra?: Record<string, unknown> | null

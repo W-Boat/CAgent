@@ -116,3 +116,15 @@ backups/
 
 apps/web/public/maps/*
 !apps/web/public/maps/example.svg
+
+# Private release inputs and outputs
+/deliveries/
+/work/
+/payload/
+/knowledge/src/
+/knowledge/dist/
+**/provider.cagent-keys
+**/*.cagent-backup
+**/initial-login.txt
+**/release-pack-knowledge.json
+**/release-live-knowledge.json

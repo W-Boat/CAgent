@@ -1,0 +1,6 @@
+{
+  "providers": [
+    { "providerKey": "deepseek", "apiKey": "", "label": "main", "enabled": true }
+  ],
+  "environment": {}
+}

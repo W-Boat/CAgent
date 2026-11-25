@@ -1,4 +1,6 @@
 import OpenAI from "openai"
+import {deepSeekFilesModel} from '../chat-files.service'
+import {supportsDeepSeekThinking} from './deepseek-model'
 import {providerCacheUsage} from './provider-cache'
 import {
   estimateTokens,
@@ -17,6 +19,7 @@ export class OpenAiCompatibleProvider implements LlmProvider {
   readonly type = "OPENAI_COMPATIBLE" as const
 
   async *stream(options: LlmChatOptions): AsyncGenerator<LlmStreamEvent> {
+    const deepSeekThinking = supportsDeepSeekThinking(options.model, options.baseUrl)
     const client = new OpenAI({
       apiKey: options.apiKey,
       baseURL: options.baseUrl || undefined,
@@ -25,12 +28,14 @@ export class OpenAiCompatibleProvider implements LlmProvider {
     })
 
     const messages = options.messages.map((m) => {
-      if (m.images && m.images.length > 0) {
+      const files=m.role==='user'&&deepSeekFilesModel(options.model,options.baseUrl)?m.files||[]:[]
+      if (files.length||m.images?.length) {
         return {
           role: m.role,
           content: [
             { type: "text", text: m.content },
-            ...m.images.map((url) => ({
+            ...files.map(file_id=>({type:'file',file_id})),
+            ...(m.images||[]).map((url) => ({
               type: "image_url" as const,
               image_url: { url }
             }))
@@ -48,6 +53,7 @@ export class OpenAiCompatibleProvider implements LlmProvider {
         return {
           role: "assistant" as const,
           content: m.content || null,
+          ...(deepSeekThinking && options.thinkingEffort !== 'none' ? { reasoning_content: m.reasoning || '' } : {}),
           tool_calls: m.toolCalls.map((c) => ({
             id: c.id,
             type: "function" as const,
@@ -66,6 +72,10 @@ export class OpenAiCompatibleProvider implements LlmProvider {
     }
     if (options.temperature !== undefined) payload.temperature = options.temperature
     if (options.maxTokens) payload.max_tokens = options.maxTokens
+    if (deepSeekThinking && options.thinkingEffort) {
+      payload.thinking = { type: options.thinkingEffort === 'none' ? 'disabled' : 'enabled' }
+      if (options.thinkingEffort !== 'none') payload.reasoning_effort = options.thinkingEffort
+    }
     if (options.tools && options.tools.length > 0) {
       payload.tools = options.tools.map((t) => ({
         type: "function",

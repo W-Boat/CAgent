@@ -1,11 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
-import { createHash } from 'node:crypto'
+import { createHash,randomUUID } from 'node:crypto'
+import {portalNavigationBase,portalNewsBase} from '../campus/portal-navigation'
 import {Prisma} from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import { AuditService } from '../common/services/audit.service'
 import { type KnowledgeRow } from '../campus/knowledge-retriever'
 import {parseKeywordRule,matchesKeywordRule,isSupportUrgent} from './keyword-rule'
-import {embeddedSourceWhere,sourceDefinition,CONTEST_SQLITE,CONTEST_MARKDOWN,LEGACY_SOURCE} from './embedded-knowledge'
+import {embeddedSourceWhere,sourceDefinition,CONTEST_SQLITE,CONTEST_MARKDOWN,LEGACY_SOURCE,FRESHMAN_HANDBOOK,STUDENT_HANDBOOK,isFreshmanPageSource} from './embedded-knowledge'
 import {foodSource,foodItem,dinnerEligible,mealName,type FoodItem} from './food-catalog'
 import {defaultShortcuts,shortcutBindingsSchema,shortcutSettingPrefix} from './knowledge-shortcuts'
 import {managedTaxonomy} from './managed-taxonomy'
@@ -87,8 +88,29 @@ export class KnowledgeStoreService {
     const page=Math.max(1,Math.min(100,Math.trunc(Number(query.page)||1))),pageSize=20
     return {items:filtered.slice((page-1)*pageSize,page*pageSize),total:filtered.length,page,pageSize,enabled:items.length>0,counts:{all:items.length,good:items.filter(i=>i.verdict==='good').length,mixed:items.filter(i=>i.verdict==='mixed').length,bad:items.filter(i=>i.verdict==='bad').length},categories:[...new Set(items.map(i=>i.category))],places:[...new Set(items.map(i=>i.pgroup))]}
   }
+  async diningDefault(){
+    const eligible=(await this.foodItems()).filter(dinnerEligible)
+    const redNames=[...new Set(eligible.map(mealName).filter(name=>name!=='麦当劳'&&name!=='三食堂（麦当劳）'))]
+    return {type:'dinner',title:'今天吃什么',restaurants:['一食堂','二食堂','三食堂（麦当劳）',...redNames].slice(0,500),
+      foodItems:eligible.slice(0,500).map(({id,name,category,price,place,pgroup})=>({id,name:name==='麦当劳'?'三食堂（麦当劳）':mealName({pgroup,name} as FoodItem),category,price,place,pgroup})),
+      sourceCount:eligible.length,redNameCount:redNames.length,note:eligible.length?'候选来自已启用的外卖红榜和校园食堂。营业与配送以商家为准。':'当前可从校园食堂里挑选。'}
+  }
   async embeddedCounts(){
-    return this.prisma.$queryRaw<{sourceKey:string;collections:string[];count:bigint}[]>`SELECT CASE WHEN extra #>> '{kb,collection}' = 'campus-v2-contest' THEN CASE WHEN extra #>> '{kb,file}' = 'database/campus.sqlite' THEN 'campus-v2-contest/database/campus.sqlite' ELSE 'campus-v2-contest/knowledge' END ELSE COALESCE(NULLIF(extra #>> '{kb,file}', ''), 'legacy/guide_v4.json') END AS "sourceKey", array_agg(DISTINCT COALESCE(NULLIF(extra #>> '{kb,collection}', ''), 'legacy')) AS collections, count(*) AS count FROM campus_guide_items WHERE (external_id < 2000000 OR external_id >= 3000000 OR NOT EXISTS(SELECT 1 FROM campus_guide_items WHERE external_id >= 500000000 AND external_id < 900000000)) AND (extra #>> '{kb,superseded}') IS DISTINCT FROM 'true' GROUP BY 1`
+    return this.prisma.$queryRaw<{sourceKey:string;collections:string[];count:bigint}[]>`
+      SELECT CASE
+        WHEN extra #>> '{kb,collection}' = 'freshman' THEN ${FRESHMAN_HANDBOOK}
+        WHEN extra #>> '{kb,collection}' = 'campus-v2-contest' THEN
+          CASE WHEN extra #>> '{kb,file}' = 'database/campus.sqlite'
+            THEN ${CONTEST_SQLITE} ELSE ${CONTEST_MARKDOWN} END
+        ELSE COALESCE(NULLIF(extra #>> '{kb,file}', ''), ${LEGACY_SOURCE})
+      END AS "sourceKey",
+      array_agg(DISTINCT COALESCE(NULLIF(extra #>> '{kb,collection}', ''), 'legacy')) AS collections,
+      count(*) AS count
+      FROM campus_guide_items
+      WHERE (external_id < 2000000 OR external_id >= 3000000 OR NOT EXISTS(
+        SELECT 1 FROM campus_guide_items WHERE external_id >= 500000000 AND external_id < 900000000
+      )) AND (extra #>> '{kb,superseded}') IS DISTINCT FROM 'true'
+      GROUP BY 1`
   }
   private embeddedSnapshot?:{revision:unknown;expires:number;counts:Awaited<ReturnType<KnowledgeStoreService['embeddedCounts']>>}
   private embeddedRequest:Promise<Awaited<ReturnType<KnowledgeStoreService['embeddedCounts']>>>|null=null
@@ -101,9 +123,27 @@ export class KnowledgeStoreService {
     try{const counts=await request;this.embeddedSnapshot={revision:await this.revision(),expires:Date.now()+30000,counts};return counts}finally{if(this.embeddedRequest===request)this.embeddedRequest=null}
   }
   private async refreshEmbedded(){
-    const counts=await this.embeddedCounts(),existing=await this.prisma.knowledgeBase.findMany({where:{kind:{in:['EMBEDDED','EMBEDDED_GROUP','REMOVED']}}}),sources=new Set(existing.filter(b=>(b.connection as any)?.sourceKey).map(b=>b.id)),groups=existing.filter(b=>b.kind!=='REMOVED'&&!(b.connection as any)?.sourceKey),missing=counts.filter(c=>!sources.has(sourceDefinition(c.sourceKey,c.collections).id))
-    const retiring=groups.filter(b=>b.kind==='EMBEDDED')
-    if(missing.length||retiring.length)await this.prisma.$transaction(async tx=>{for(const c of missing){const data=sourceDefinition(c.sourceKey,c.collections),parents=groups.filter(b=>c.collections.includes((b.connection as any)?.collection));if(parents.length)data.mounted=data.mounted&&parents.every(b=>b.mounted);await tx.knowledgeBase.upsert({where:{id:data.id},create:data,update:{}})}if(retiring.length)await tx.knowledgeBase.updateMany({where:{id:{in:retiring.map(b=>b.id)}},data:{kind:'EMBEDDED_GROUP'}});await this.bump(tx)})
+    const counts=await this.embeddedCounts()
+    const existing=await this.prisma.knowledgeBase.findMany({where:{kind:{in:['EMBEDDED','EMBEDDED_GROUP','REMOVED']}}})
+    const sourceKey=(base:typeof existing[number])=>String((base.connection as any)?.sourceKey||'')
+    const sources=new Set(existing.filter(sourceKey).map(b=>b.id))
+    const groups=existing.filter(b=>b.kind!=='REMOVED'&&!sourceKey(b))
+    const oldPages=existing.filter(b=>b.kind==='EMBEDDED'&&isFreshmanPageSource(sourceKey(b)))
+    const retiring=[...groups.filter(b=>b.kind==='EMBEDDED'),...oldPages]
+    const missing=counts.filter(c=>!sources.has(sourceDefinition(c.sourceKey,c.collections).id))
+    const oldHandbook=existing.find(b=>sourceKey(b)===STUDENT_HANDBOOK&&b.name===STUDENT_HANDBOOK&&b.kind==='EMBEDDED')
+    if(missing.length||retiring.length||oldHandbook)await this.prisma.$transaction(async tx=>{
+      for(const c of missing){
+        const data=sourceDefinition(c.sourceKey,c.collections)
+        const parents=groups.filter(b=>c.collections.includes((b.connection as any)?.collection))
+        data.mounted=data.mounted&&parents.every(b=>b.mounted)
+        if(c.sourceKey===FRESHMAN_HANDBOOK)data.mounted=data.mounted&&oldPages.every(b=>b.mounted)
+        await tx.knowledgeBase.upsert({where:{id:data.id},create:data,update:{}})
+      }
+      if(retiring.length)await tx.knowledgeBase.updateMany({where:{id:{in:retiring.map(b=>b.id)},kind:'EMBEDDED'},data:{kind:'EMBEDDED_GROUP'}})
+      if(oldHandbook)await tx.knowledgeBase.updateMany({where:{id:oldHandbook.id,name:STUDENT_HANDBOOK,kind:'EMBEDDED'},data:{name:'学生生活手册'}})
+      await this.bump(tx)
+    })
     return counts
   }
   async embeddedWhere():Promise<Prisma.CampusGuideItemWhereInput>{
@@ -113,7 +153,11 @@ export class KnowledgeStoreService {
     const rejected=sources.map(embeddedSourceWhere)
     return sources.includes(LEGACY_SOURCE)?{NOT:{OR:rejected}}:{OR:[embeddedSourceWhere(LEGACY_SOURCE),{NOT:{OR:rejected}}]}
   }
-  async embeddedEnabled(collection:string,agentId?:string|null){await this.ensureEmbedded();const bases=await this.prisma.knowledgeBase.findMany({where:{OR:[{kind:'EMBEDDED'},{kind:'REMOVED',connection:{path:['removedKind'],equals:'EMBEDDED'}}]},select:{mounted:true,agentId:true,connection:true}}),matching=bases.filter(b=>((b.connection as any)?.collections||[]).includes(collection));return !matching.length||matching.some(b=>b.mounted&&(!b.agentId||b.agentId===agentId))}
+  async selectable(agentId?:string|null){
+    await this.ensureEmbedded()
+    return this.prisma.knowledgeBase.findMany({where:{mounted:true,kind:{notIn:['REMOVED','EMBEDDED_GROUP']},OR:[{agentId:null},...(agentId?[{agentId}]:[])]},select:{id:true,name:true,kind:true},orderBy:[{name:'asc'},{id:'asc'}]})
+  }
+  async embeddedEnabled(collection:string,agentId?:string|null,baseIds?:readonly string[]){await this.ensureEmbedded();const bases=await this.prisma.knowledgeBase.findMany({where:{OR:[{kind:'EMBEDDED'},{kind:'REMOVED',connection:{path:['removedKind'],equals:'EMBEDDED'}}]},select:{id:true,mounted:true,agentId:true,connection:true}}),matching=bases.filter(b=>((b.connection as any)?.collections||[]).includes(collection));return (!baseIds&&!matching.length)||matching.some(b=>b.mounted&&(!b.agentId||b.agentId===agentId)&&(!baseIds||baseIds.includes(b.id)))}
   async embeddedEntries(base:any,keyword='',status='',page=1,section=''){
     const sourceKey=base.connection?.sourceKey
     if(typeof sourceKey!=='string')throw new BadRequestException('内嵌知识库配置无效')
@@ -143,9 +187,9 @@ export class KnowledgeStoreService {
           entryKind:e.url ? 'source' : 'none', mode:e.mode, relations:[]}}}))
     })
   }
-  async fixed(query:string,agentId?:string|null,countHit=true) {
+  async fixed(query:string,agentId?:string|null,countHit=true,baseIds?:readonly string[]) {
     const entries = await this.prisma.knowledgeEntry.findMany({where:{status:'APPROVED',mode:{in:['FIXED','CORRECTION']},
-      base:{mounted:true,OR:[{agentId:null},...(agentId ? [{agentId}] : [])]}},include:{base:true},orderBy:[{priority:'desc'},{updatedAt:'desc'},{id:'asc'}]})
+      base:{mounted:true,...(baseIds?{id:{in:[...baseIds]}}:{}),OR:[{agentId:null},...(agentId ? [{agentId}] : [])]}},include:{base:true},orderBy:[{priority:'desc'},{updatedAt:'desc'},{id:'asc'}]})
     const key = normalizeQuestion(query)
     if (!key) return null
     const scoped = (e:typeof entries[number]) => e.base.agentId ? 1 : 0
@@ -160,13 +204,13 @@ export class KnowledgeStoreService {
   async hasMountedBase(agentId:string) {
     return (await this.prisma.knowledgeBase.count({where:{mounted:true,agentId,entries:{some:{status:'APPROVED'}}}})) > 0
   }
-  async keywordRules(query:string,agentId?:string|null){
+  async keywordRules(query:string,agentId?:string|null,baseIds?:readonly string[]){
     if(isSupportUrgent(query))return []
-    const entries=await this.prisma.knowledgeEntry.findMany({where:{mode:'TRIGGER',status:'APPROVED',base:{mounted:true,OR:[{agentId:null},...(agentId?[{agentId}]:[])]}},orderBy:[{priority:'desc'},{id:'asc'}]})
+    const entries=await this.prisma.knowledgeEntry.findMany({where:{mode:'TRIGGER',status:'APPROVED',base:{mounted:true,...(baseIds?{id:{in:[...baseIds]}}:{}),OR:[{agentId:null},...(agentId?[{agentId}]:[])]}},orderBy:[{priority:'desc'},{id:'asc'}]})
     const matched=entries.flatMap(entry=>{try{const rule=parseKeywordRule(entry.answer);return matchesKeywordRule(rule,query)?[{entry,rule}]:[]}catch{return []}}).slice(0,6)
     // Read only red-list rows from an enabled source. No black-list rows enter a dinner card.
     if(matched.some(({rule})=>rule.card?.type==='dinner'&&rule.card.sourceCollection==='takeout')){
-      const enabled=await this.embeddedEnabled('takeout',agentId)
+      const enabled=await this.embeddedEnabled('takeout',agentId,baseIds)
       const rows=enabled?await this.prisma.campusGuideItem.findMany({where:{AND:[await this.embeddedWhere(),{extra:{path:['kb','file'],equals:'社科大外卖红黑榜_RAG.json'}},{extra:{path:['kb','collection'],equals:'takeout'}},{extra:{path:['kb','audience'],equals:'红榜'}}]},select:{title:true},orderBy:{externalId:'asc'}}):[]
       const catalog=enabled?await this.foodItems(agentId):[],eligible=catalog.filter(dinnerEligible),redNames=catalog.length?[...new Set(eligible.map(mealName).filter(n=>n!=='麦当劳'))]:[...new Set(rows.map(row=>row.title.trim()).filter(name=>!!name&&name.length<=80&&name!=='麦当劳'))]
       for(const {rule} of matched)if(rule.card?.type==='dinner'&&rule.card.sourceCollection==='takeout')rule.card={...rule.card,restaurants:[...new Set([...rule.card.restaurants,...redNames,...(enabled&&!catalog.length?rule.card.additionalRestaurants||[]:[])])].slice(0,500),foodItems:eligible.map(({id,name,category,price,place,pgroup})=>({id,name:name==='麦当劳'?'三食堂（麦当劳）':mealName({pgroup,name} as FoodItem),category,price,place,pgroup})),sourceCount:eligible.length,redNameCount:redNames.length,note:enabled?'与红榜使用同一份完整名单；同名条目合并为一个选餐候选，麦当劳归入三食堂，另保留一、二食堂入口。可按类别或地点筛选。价格、营业及配送未实时核验。':'外卖红榜已停用，目前仅展示管理员配置的食堂候选；三食堂是麦当劳的称呼。'}
@@ -178,6 +222,7 @@ export class KnowledgeStoreService {
     if (!base||base.kind==='REMOVED') throw new NotFoundException('知识库不存在或已移除')
     if(base.kind==='EMBEDDED')throw new BadRequestException('内嵌资料只读，请通过管理员纠错库补充正确答案')
     const data = entryData(input)
+    const portalPrefix=input.baseId===portalNavigationBase?'ucass-portal-nav:az:manual:':input.baseId===portalNewsBase?'ucass-public-news:manual:':null
     const result = await this.prisma.$transaction(async tx => {
       await tx.$queryRaw`SELECT id FROM knowledge_bases WHERE id=${input.baseId} FOR UPDATE`
       const currentBase=await tx.knowledgeBase.findUnique({where:{id:input.baseId}})
@@ -194,7 +239,7 @@ export class KnowledgeStoreService {
       const duplicate = await tx.knowledgeEntry.findUnique({where:{baseId_questionKey:{baseId:input.baseId,questionKey:data.questionKey}}})
       if (duplicate && duplicate.id !== id) throw new BadRequestException('此库已有相同问题，请编辑原条目')
       const saved = id ? await tx.knowledgeEntry.update({where:{id},data:{...data,baseId:input.baseId,...(moved?{externalKey:null}:{}),...(resetAutomation?{summary:'',aiReviewStatus:'IDLE',aiReview:Prisma.DbNull,automationFingerprint:null,automationUpdatedAt:null}:{}),reviewedById:data.status==='APPROVED' ? operator.id : null}})
-        : await tx.knowledgeEntry.create({data:{...data,baseId:input.baseId,reviewedById:data.status==='APPROVED' ? operator.id : null}})
+        : await tx.knowledgeEntry.create({data:{...data,baseId:input.baseId,...(portalPrefix ? {externalKey:portalPrefix+randomUUID()} : {}),reviewedById:data.status==='APPROVED' ? operator.id : null}})
       await this.bump(tx)
       return saved
     })

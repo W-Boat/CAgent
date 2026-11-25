@@ -13,7 +13,7 @@ async function save(){if(busy.value||!data.value)return;busy.value=true;error.va
   <p>将全校课表建立为独立知识库。无需教务账号或浏览器操控，按学期、院系、课程与时间查询。</p>
   <label class="catalog-file">选择 JSON 文件<input type="file" accept=".json,application/json" :disabled="busy" @change="choose"/></label>
   <div v-if="data" class="catalog-summary"><strong>{{data.semester}}</strong><p>{{filename}} · {{data.records.length}} 条课程安排</p><p>采集时间：{{data.capturedAt}}</p><p>来源：{{data.sourcePage}}</p></div>
-  <p class="catalog-note">已有同学期资料将更新，保留知识库开关和自定义快捷按钮。集体课表不代表任何用户的个人选课；老师工号和学生名单不进入知识库。</p>
+  <p class="catalog-note">已有同学期资料将更新，保留知识库开关。集体课表不代表任何用户的个人选课；老师工号和学生名单不进入知识库。</p>
   <el-alert v-if="error" :title="error" type="error" :closable="false"/>
   <template #footer><el-button :disabled="busy" @click="visible=false">取消</el-button><el-button type="primary" :loading="busy" :disabled="!data" @click="save">确认导入知识库</el-button></template>
  </el-dialog>

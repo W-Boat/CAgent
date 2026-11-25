@@ -3,7 +3,7 @@ import {Interval} from '@nestjs/schedule'
 import {PrismaService} from '../prisma/prisma.service'
 import {KnowledgeStoreService} from '../knowledge/knowledge-store.service'
 import {sourceDefinition} from '../knowledge/embedded-knowledge'
-import {collectorSchema,defaultCollectorConfig,filterLectures,LECTURE_FILE,LECTURE_COLLECTION,lectureRow,normalizeLecture,shanghaiToday,type Lecture} from './lecture-data'
+import {collectorSchema,defaultCollectorConfig,filterLectures,LECTURE_FILE,LECTURE_COLLECTION,lectureRow,lectureUrl,normalizeLecture,shanghaiToday,type Lecture} from './lecture-data'
 import {crawlLectures} from './lecture-crawler'
 
 export const LECTURE_BASE=sourceDefinition(LECTURE_FILE,[LECTURE_COLLECTION]).id
@@ -34,14 +34,21 @@ export class LecturesService {
    const base=await tx.knowledgeBase.upsert({where:{id:LECTURE_BASE},create:{...sourceDefinition(LECTURE_FILE,[LECTURE_COLLECTION]),name:'校园讲座聚合库',description:'公开讲座、学术沙龙与活动回顾；支持日历和按校区、日期、来源检索。',lastSyncAt:captured},update:{}})
    let created=0,changed=0,skipped=0
    for(let lecture of normalized){
-    const old=await tx.campusGuideItem.findUnique({where:{id:lecture.id}}),previous=(old?.extra as any)?.lecture as Lecture|undefined
+    const candidate=lectureRow(lecture,captured.toISOString())
+    const matchingId=await tx.campusGuideItem.findUnique({where:{id:lecture.id}})
+    const indexed=await tx.campusGuideItem.findUnique({where:{externalId:candidate.externalId}})
+    const indexedExtra=indexed?.extra as {kb?:{file?:string};lecture?:Lecture}|undefined
+    // Portable profiles can restore lecture rows with historical primary IDs.
+    // Preserve the row when the source URL identifies the same lecture.
+    const sameLecture=indexed&&indexedExtra?.kb?.file===LECTURE_FILE&&indexedExtra.lecture&&lectureUrl(indexed.url||'')===lecture.url
+    if(indexed&&indexed.id!==(matchingId?.id||candidate.id)&&(!sameLecture||matchingId))throw new BadRequestException('讲座索引冲突，本批未写入，请联系管理员')
+    const old=matchingId||(sameLecture?indexed:null),previous=(old?.extra as any)?.lecture as Lecture|undefined
     if(previous){
      // A partially fetched page cannot erase previously captured facts.
      lecture={...previous,...Object.fromEntries(Object.entries(lecture).filter(([key,value])=>value!==''&&!(key==='campus'&&value==='未注明'&&previous.campus)))}
      if(JSON.stringify(lecture)===JSON.stringify(previous)){skipped++;continue}
     }
-    const row=lectureRow(lecture,captured.toISOString()),collision=await tx.campusGuideItem.findUnique({where:{externalId:row.externalId},select:{id:true}})
-    if(collision&&collision.id!==row.id)throw new BadRequestException('讲座索引冲突，本批未写入，请联系管理员')
+    const row={...lectureRow(lecture,captured.toISOString()),id:old?.id||candidate.id}
     await tx.campusGuideItem.upsert({where:{id:row.id},create:row,update:row});old?changed++:created++
    }
    if(created||changed){await this.store.bump(tx);this.cache=undefined}

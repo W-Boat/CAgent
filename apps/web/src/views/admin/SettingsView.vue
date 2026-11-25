@@ -1,9 +1,9 @@
 <template>
-  <div class="page">
+  <div class="page admin-settings-page">
     <div class="page-header">
       <div>
-        <h2 class="page-title">系统设置</h2><p class="page-subtitle">前端构建 {{buildInfo.version}} · {{buildInfo.builtAt}}<br/>服务端构建 {{serverBuild?.version||'读取中'}} · {{serverBuild?.builtAt||''}}</p>
-        <p class="page-subtitle">站点品牌、对话默认参数、内容安全、技能与浏览器操控开关</p>
+        <h2 class="page-title">平台设置</h2>
+        <p class="page-subtitle">管理站点外观、对话行为、知识检索和运维配置。</p>
       </div>
       <div class="page-actions">
         <el-button v-permission="'setting:write'" type="primary" :loading="saving" @click="save">
@@ -31,34 +31,41 @@
       </template>
     </el-alert>
 
-    <el-tabs v-model="activeGroup" class="setting-tabs" v-loading="loading">
-      <el-tab-pane
-        v-for="group in GROUP_ORDER"
-        :key="group.key"
-        :name="group.key"
-        :label="group.label"
-      >
-        <el-card shadow="never" class="block">
-          <div v-if="group.key==='search'" style="margin-bottom:20px">
-            <h3>搜索接口配置</h3>
+    <div class="settings-layout" v-loading="loading">
+      <nav class="settings-nav" aria-label="设置分类">
+        <section v-for="section in sections" :key="section.label" class="settings-nav-section" :aria-label="section.label">
+          <h3>{{section.label}}</h3>
+          <button v-for="group in section.groups" :key="group.key" type="button"
+            :aria-current="activeGroup === group.key ? 'true' : undefined" @click="activeGroup = group.key">{{group.label}}</button>
+        </section>
+      </nav>
+      <div class="settings-panels">
+        <el-card v-for="group in GROUP_ORDER" v-show="activeGroup === group.key" :key="group.key" shadow="never" class="settings-card">
+          <template #header><h3 class="admin-section-title settings-panel-title">{{ group.label }}</h3></template>
+          <RouterLink v-if="group.key==='security'" to="/admin/sensitive-words" class="nx-btn nx-btn-secondary settings-words">打开敏感词管理</RouterLink>
+          <div v-if="group.key==='search'" class="settings-search">
+            <h4 class="admin-section-title">搜索接口配置</h4>
             <p>下方可设置搜索开关、搜索引擎、校外范围、结果数量和正文。密钥通过服务器环境变量或模型供应商后台配置。</p>
             <el-button type="primary" :loading="saving" :disabled="!auth.can('setting:write')||!groups.search?.length" @click="save('search')">保存搜索配置</el-button>
             <el-alert v-if="!groups.search?.length" title="当前账号未取得搜索配置项，请重新载入；仍不可见时请管理员检查设置权限。" type="warning" :closable="false" show-icon/>
             <p>保存后可测试接口。默认覆盖 ucass.edu.cn 及全部子域名，仅搜索已收录的公开网页。</p>
-            <el-input v-model="searchQuery" placeholder="例如：中国社会科学院大学 学术新闻" maxlength="100" style="max-width:460px" />
-            <el-select v-model="searchScope" style="width:130px;margin:8px"><el-option label="校内子域名" value="campus"/><el-option label="校外新闻" value="external"/><el-option label="全网" value="all"/></el-select>
-            <el-button :loading="searchBusy" :disabled="dirtyKeys.length>0||!auth.can('setting:write')||!groups.search?.length" @click="testSearch">测试搜索</el-button>
+            <div class="settings-search-controls">
+              <el-input v-model="searchQuery" aria-label="测试搜索词" placeholder="例如：中国社会科学院大学 学术新闻" maxlength="100" />
+              <el-select v-model="searchScope" aria-label="测试搜索范围"><el-option label="校内子域名" value="campus"/><el-option label="校外新闻" value="external"/><el-option label="全网" value="all"/></el-select>
+              <el-button :loading="searchBusy" :disabled="dirtyKeys.some(key=>groups.search?.some(item=>item.key===key))||!auth.can('setting:write')||!groups.search?.length" @click="testSearch">测试搜索</el-button>
+            </div>
             <p v-if="searchReport">{{searchReport}}</p>
             <p v-for="item in searchResults" :key="item.url"><a :href="item.url" target="_blank" rel="noopener noreferrer">{{item.title}}</a> · {{item.published||'日期未提供'}}</p>
           </div>
-          <div v-if="!groups[group.key]" class="empty-block">该分组暂无设置项</div>
+          <PlatformBackupPanel v-if="group.key==='backup'&&activeGroup==='backup'" @imported="reload"/>
+          <div v-else-if="group.key==='backup'"></div>
+          <div v-else-if="!groups[group.key]" class="empty-block">该分组暂无设置项</div>
           <StudentDisplayPanel v-else-if="group.key==='student'" :values="model" :models="availableModels" :disabled="!auth.can('setting:write')" @change="setValue"/>
-          <el-form v-else label-width="200px" label-position="right" class="setting-form" @submit.prevent>
+          <el-form v-else label-position="top" class="setting-form" @submit.prevent>
             <el-form-item v-for="item in groups[group.key]" :key="item.key">
               <template #label>
                 <div class="label-box">
                   <span class="label-text">{{ item.label }}</span>
-                  <span class="label-key mono">{{ item.key }}</span>
                 </div>
               </template>
 
@@ -93,7 +100,6 @@
                   v-else-if="item.options?.length"
                   :model-value="model[item.key]"
                   :disabled="!auth.can('setting:write')"
-                  style="width: 280px"
                   @update:model-value="(v: any) => setValue(item.key, v)"
                 >
                   <el-option
@@ -105,7 +111,7 @@
                 </el-select>
 
                 <el-input
-                  v-else
+                  v-else-if="item.type !== 'json'"
                   :model-value="String(model[item.key] ?? '')"
                   :disabled="!auth.can('setting:write')"
                   @update:model-value="(v: string) => setValue(item.key, v)"
@@ -139,9 +145,17 @@
               </div>
             </el-form-item>
           </el-form>
+          <ExperienceSettingsPanel v-if="group.key === 'test' || group.key === 'presentation'" :group="group.key"
+            :enabled="snapshot[group.key === 'test' ? 'test_accounts_enabled' : 'mascot_enabled'] === true"
+            :disabled="!auth.can('setting:write')"/>
         </el-card>
-      </el-tab-pane>
-    </el-tabs>
+      </div>
+    </div>
+    <details class="settings-build">
+      <summary>构建版本</summary>
+      <p>前端 · {{ buildInfo.version }} · {{ buildInfo.builtAt }}</p>
+      <p>服务端 · {{ serverBuild?.version || '读取中' }} · {{ serverBuild?.builtAt || '' }}</p>
+    </details>
   </div>
 </template>
 
@@ -150,6 +164,8 @@ import {get} from '@/api/client'
 import buildInfo from '../../data/build-info.json'
 import { computed, onMounted, reactive, ref } from "vue"
 import StudentDisplayPanel from "@/components/admin/StudentDisplayPanel.vue"
+import ExperienceSettingsPanel from '@/components/admin/ExperienceSettingsPanel.vue'
+import PlatformBackupPanel from '@/components/admin/PlatformBackupPanel.vue'
 import { settingsApi,modelsApi } from "@/api"
 import { toastError, toastOk,request } from "@/api/client"
 import { useAuthStore } from "@/stores/auth"
@@ -166,16 +182,13 @@ const auth = useAuthStore()
 const searchQuery=ref('中国社会科学院大学 学术新闻'),searchScope=ref('campus'),searchBusy=ref(false),searchReport=ref(''),searchResults=ref<{title:string;url:string;published:string}[]>([])
 async function testSearch(){searchBusy.value=true;searchResults.value=[];try{const result=await request<any>({method:'POST',url:'/search/test',data:{query:searchQuery.value,scope:searchScope.value}});searchResults.value=result.results;searchReport.value=`返回 ${result.results.length} 条${result.cached?'（缓存）':''}；${result.notice}`}catch(e){searchReport.value='测试未通过，请检查开关、密钥、权限或网络';toastError(e)}finally{searchBusy.value=false}}
 
-const GROUP_ORDER = [
-  { key: "general", label: "通用" },
-  { key: "student", label: "学生端与主题" },
-  { key: "chat", label: "对话" },
-  { key: "knowledge", label: "知识库与检索" },
-  { key: "search", label: "联网搜索" },
-  { key: "security", label: "内容安全" },
-  { key: "skill", label: "技能系统" },
-  { key: "browser", label: "浏览器操控" }
-]
+const sections = computed(() => [
+  {label:'站点与外观',groups:[{key:'general',label:'站点与注册'},{key:'student',label:'学生界面与主题'},{key:'presentation',label:'回答排版与吉祥物'}]},
+  {label:'对话与交互',groups:[{key:'chat',label:'对话与记忆'},{key:'voice',label:'语音输入与播报'},{key:'skill',label:'工具与技能'},{key:'browser',label:'浏览器能力'}]},
+  {label:'检索与更新',groups:[{key:'knowledge',label:'知识库与检索'},{key:'search',label:'联网搜索'},{key:'officialNews',label:'官网资讯采集'}]},
+  {label:'安全与运维',groups:[{key:'security',label:'内容审计'},{key:'test',label:'测试账号'},...(auth.roles.includes('super_admin')?[{key:'backup',label:'备份与迁移'}]:[])]}
+])
+const GROUP_ORDER=computed(()=>sections.value.flatMap(section=>section.groups))
 
 const activeGroup = ref("general")
 const groups = ref<Record<string, SettingItem[]>>({})
@@ -357,15 +370,44 @@ onMounted(()=>{void get<{version:string;builtAt:string}>('/settings/version').th
   justify-content: space-between;
   gap: 12px;
 }
-.setting-tabs :deep(.el-tabs__header) {
-  margin-bottom: 14px;
+.settings-layout { display: grid; grid-template-columns: minmax(176px, 204px) minmax(0, 1fr); gap: var(--admin-card-gap); align-items: start; }
+.settings-nav {
+  display: flex; flex-direction: column; gap: 4px; padding: 6px;
+  border: 1px solid var(--nx-border); border-radius: var(--admin-card-radius); background: var(--nx-surface);
+  position: sticky; top: 12px;
 }
-.block {
-  border-radius: var(--cg-radius);
+.settings-nav button {
+  appearance: none; background: transparent; border: 0; border-radius: var(--nx-radius);
+  padding: 8px 11px; min-height: 36px; text-align: start; font: inherit; color: var(--nx-text-2); cursor: pointer;
 }
+.settings-nav button:hover { background: var(--nx-surface-hover); }
+.settings-nav button[aria-current] { background: var(--nx-accent-soft); color: var(--nx-accent); font-weight: 650; }
+.settings-nav button:focus-visible { outline: 2px solid var(--nx-accent); outline-offset: -2px; }
+.settings-nav-section{display:flex;flex-direction:column;gap:2px}.settings-nav-section + .settings-nav-section{border-top:1px solid var(--nx-border);padding-top:5px;margin-top:4px}.settings-nav-section h3{margin:5px 11px;color:var(--nx-text-2);font-size:11px;font-weight:650}.settings-words{margin-bottom:var(--admin-card-gap)}
+.settings-panels { min-width: 0; }
+.settings-panel-title { margin: 0; }
 .setting-form {
-  max-width: 860px;
+  width: 100%;
 }
+.setting-form :deep(.el-form-item) {
+  display: grid; grid-template-columns: minmax(130px, 200px) minmax(0, 1fr);
+  gap: 8px 16px; align-items: start; margin: 0; padding: 14px 0;
+  border-bottom: 1px solid var(--nx-border);
+}
+.setting-form :deep(.el-form-item:first-child) { padding-top: 0; }
+.setting-form :deep(.el-form-item:last-child) { border-bottom: 0; padding-bottom: 0; }
+.setting-form :deep(.el-form-item__label) { margin: 0; height: auto; padding: 5px 0 0; justify-content: start; }
+.setting-form :deep(.el-form-item__content) { min-width: 0; }
+.field > :deep(.el-input), .field > :deep(.el-select) { width: min(100%, 35rem); }
+.settings-build { margin: var(--admin-card-gap) 0 0; color: var(--nx-text-2); font-size: 12px; overflow-wrap: anywhere; }
+.settings-build summary { cursor: pointer; width: fit-content; }
+.settings-build p { margin: 4px 0; }
+.settings-search { padding-bottom: var(--admin-card-pad); margin-bottom: var(--admin-card-pad); border-bottom: 1px solid var(--nx-border); }
+.settings-search h4 { margin: 0; }
+.settings-search p { color: var(--nx-text-2); line-height: 1.6; }
+.settings-search-controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.settings-search-controls :deep(.el-input) { flex: 1 1 225px; max-width: 27rem; }
+.settings-search-controls :deep(.el-select) { width: 132px; }
 .label-box {
   display: flex;
   flex-direction: column;
@@ -373,11 +415,13 @@ onMounted(()=>{void get<{version:string;builtAt:string}>('/settings/version').th
 }
 .label-text {
   font-size: 13.5px;
-  color: var(--cg-text);
+  font-weight: 600;
+  color: var(--nx-text);
 }
 .label-key {
-  font-size: 11.5px;
-  color: #a6b0c3;
+  font-size: 11px;
+  color: var(--nx-text-2);
+  overflow-wrap: anywhere;
 }
 .field {
   width: 100%;
@@ -390,7 +434,6 @@ onMounted(()=>{void get<{version:string;builtAt:string}>('/settings/version').th
 }
 .json-editor {
   width: 100%;
-  margin-top: 6px;
 }
 .json-hint {
   display: flex;
@@ -401,5 +444,16 @@ onMounted(()=>{void get<{version:string;builtAt:string}>('/settings/version').th
 }
 .json-error {
   color: var(--el-color-danger);
+}
+@media (max-width: 960px) {
+  .settings-layout { grid-template-columns: minmax(0, 1fr); }
+  .settings-nav { position: static; flex-direction: row; overflow-x: auto; scrollbar-width: thin; scrollbar-color: var(--nx-border-strong) transparent; }
+  .settings-nav button { flex: none; white-space: nowrap; }
+  .settings-nav-section{flex-direction:row;align-items:center;flex:none}.settings-nav-section + .settings-nav-section{border-top:0;border-left:1px solid var(--nx-border);padding:0 0 0 6px;margin:0 0 0 2px}.settings-nav-section h3{white-space:nowrap}
+}
+@media (max-width: 620px) {
+  .setting-form :deep(.el-form-item) { grid-template-columns: minmax(0, 1fr); }
+  .setting-form :deep(.el-form-item__label) { padding-top: 0; }
+  .dirty-body { flex-wrap: wrap; }
 }
 </style>

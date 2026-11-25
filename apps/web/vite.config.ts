@@ -4,6 +4,7 @@ import AutoImport from "unplugin-auto-import/vite"
 import Components from "unplugin-vue-components/vite"
 import { ElementPlusResolver } from "unplugin-vue-components/resolvers"
 import { fileURLToPath, URL } from "node:url"
+import { resolve } from "node:path"
 
 export default defineConfig(({ mode }) => {
   // 环境变量统一放在仓库根目录的 .env 里
@@ -25,6 +26,7 @@ export default defineConfig(({ mode }) => {
 
   const apiTarget = env.VITE_API_TARGET || "http://127.0.0.1:3001"
   const port = Number(env.WEB_PORT || 5173)
+  const campusMapData = process.env.CAGENT_BUILD_CAMPUS_MAP_DATA
 
   return {
     define,
@@ -63,9 +65,10 @@ export default defineConfig(({ mode }) => {
       })
     ],
     resolve: {
-      alias: {
-        "@": fileURLToPath(new URL("./src", import.meta.url))
-      }
+      alias: [
+        ...(campusMapData ? [{ find: /^@\/data\/campus-maps\.json$/, replacement: resolve(campusMapData) }] : []),
+        { find: "@", replacement: fileURLToPath(new URL("./src", import.meta.url)) }
+      ]
     },
     server: {
       host: "0.0.0.0",

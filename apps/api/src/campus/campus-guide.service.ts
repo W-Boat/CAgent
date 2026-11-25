@@ -1,6 +1,6 @@
 import {contentFormat,managedContent} from "./knowledge-content"
 import { BadRequestException, Injectable, NotFoundException, type OnApplicationBootstrap } from "@nestjs/common"
-import {CONTEST_SQLITE,CONTEST_MARKDOWN,embeddedSourceId,embeddedSourceWhere} from '../knowledge/embedded-knowledge'
+import {CONTEST_SQLITE,CONTEST_MARKDOWN,FRESHMAN_HANDBOOK,embeddedSourceId,embeddedSourceWhere} from '../knowledge/embedded-knowledge'
 import { Prisma } from "@prisma/client"
 import { PrismaService } from "../prisma/prisma.service"
 import { KnowledgeRetriever, metadata, terms, excerptForQuery, type KnowledgeRow, type RetrievalOptions } from './knowledge-retriever'
@@ -78,7 +78,7 @@ export class CampusGuideService implements OnApplicationBootstrap {
         await tx.knowledgeRevision.create({data:{entryId:key,snapshot:JSON.parse(JSON.stringify(row)),operatorId:operator.id}})
         await tx.knowledgeEntry.update({where:{id:key},data:input.action==='remove'?{status:'ARCHIVED'}:{title:input.title!.trim(),answer:input.detail!,url:input.url!,summary:'',aiReviewStatus:'IDLE'}})
       }else{
-        const extra={...(row.extra||{}),kb:{...(row.extra?.kb||{}),...(input.action==='remove'?{superseded:true}:{}),adminEditedAt:new Date().toISOString()}}
+        const extra={...(row.extra||{}),kb:{...(row.extra?.kb||{}),...(input.action==='remove'?{superseded:true}:{}),originalTitle:row.extra?.kb?.originalTitle||row.title,adminEditedAt:new Date().toISOString()}}
         await tx.setting.create({data:{key:'campus_edit_revision:'+key+':'+Date.now()+':'+Math.random().toString(36).slice(2),group:'knowledge-history',value:JSON.parse(JSON.stringify(row))}})
         await tx.campusGuideItem.update({where:{id:key},data:input.action==='remove'?{extra}:{title:input.title!.trim(),detail:input.detail!,summaryShort:input.detail!.slice(0,300),url:input.url!,steps:[],keyFacts:[],detailParts:Prisma.DbNull,searchText:[input.title,input.detail,row.dept,row.source].join(' ').toLowerCase(),extra}})
       }
@@ -96,11 +96,11 @@ export class CampusGuideService implements OnApplicationBootstrap {
   private evaluationLoading?:Promise<KnowledgeRetriever>
   /** Explicit administrator evaluation scope; never changes global mounted flags. */
   private async retrievalIndex(options:RetrievalOptions):Promise<KnowledgeRetriever>{
-    if(options.baseIds?.length){
-      const bases=await this.prisma.knowledgeBase.findMany({where:{id:{in:[...options.baseIds]},mounted:true,kind:{not:'REMOVED'},agentId:null},select:{id:true,connection:true}})
-      if(bases.length!==options.baseIds.length)throw new BadRequestException('所选知识库不可用')
+    if(options.baseIds){
+      if(!options.baseIds.length)return new KnowledgeRetriever([])
+      const bases=await this.prisma.knowledgeBase.findMany({where:{id:{in:[...options.baseIds]},mounted:true,kind:{not:'REMOVED'},OR:[{agentId:null},...(options.agentId?[{agentId:options.agentId}]:[])]},select:{id:true,connection:true}})
       const index=await this.index()
-      return new KnowledgeRetriever(index.rows.filter(row=>{const m=metadata(row);return bases.some(b=>{const c=b.connection as any;if(m.collection==='base:'+b.id)return true;const source=c?.sourceKey;if(source===CONTEST_SQLITE)return m.collection==='campus-v2-contest'&&m.file==='database/campus.sqlite';if(source===CONTEST_MARKDOWN)return m.collection==='campus-v2-contest'&&String(m.file).startsWith('knowledge/');if(source)return (m.file||'legacy/guide_v4.json')===source;return c?.collection===m.collection})}))
+      return new KnowledgeRetriever(index.rows.filter(row=>{const m=metadata(row);return bases.some(b=>{const c=b.connection as any;if(m.collection==='base:'+b.id)return true;const source=c?.sourceKey;if(source===FRESHMAN_HANDBOOK)return m.collection==='freshman';if(source===CONTEST_SQLITE)return m.collection==='campus-v2-contest'&&m.file==='database/campus.sqlite';if(source===CONTEST_MARKDOWN)return m.collection==='campus-v2-contest'&&String(m.file).startsWith('knowledge/');if(source)return (m.file||'legacy/guide_v4.json')===source;return c?.collection===m.collection})}))
     }
     if(!options.sourceKeys)return this.index()
     if(options.sourceKeys.length!==2||![CONTEST_SQLITE,CONTEST_MARKDOWN].every(key=>options.sourceKeys!.includes(key)))throw new BadRequestException('无效的评测知识库范围')
@@ -264,6 +264,15 @@ export class CampusGuideService implements OnApplicationBootstrap {
     const total=rows.length,page=Math.max(1,Number(query.page)||1),pageSize=Math.min(100,Math.max(1,Number(query.pageSize)||20))
     rows.sort((a,b)=>a.title.localeCompare(b.title,'zh-CN')||a.id.localeCompare(b.id))
     return {items:rows.slice((page-1)*pageSize,page*pageSize).map(r=>this.toHit(r,0,'guide')),total,page,pageSize}
+  }
+
+  /** The student portal directory shares the same mounted-source and superseded filters as the Agent. */
+  async portalCatalog(collections: string[]) {
+    return (await this.index()).rows.filter(row => {
+      const meta = metadata(row)
+      return collections.includes(meta.collection) && !meta.agentId && meta.simulation !== true &&
+        !row.id.startsWith('managed:') && !/模拟|演示/.test([row.title,row.source,row.place].join(' '))
+    })
   }
   // ---------- 查询 ----------
   async collections(includeScoped=false) {

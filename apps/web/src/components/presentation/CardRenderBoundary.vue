@@ -1,6 +1,6 @@
 <template>
   <div v-if="failed" key="failed" class="card-render-failure" role="status">
-    <MarkdownView v-if="fallback" :content="fallback"/><strong>卡片组件暂时无法显示</strong><p>可先阅读文字回答，也可以重新加载卡片。</p>
+    <slot name="fallback"><MarkdownView v-if="fallback" :content="fallback"/></slot><strong>卡片组件暂时无法显示</strong><p>可以重新加载原卡片。</p>
     <button type="button" :disabled="disabled || recovering" @click="retry(false)">{{recovering?'正在自动重渲…':'重新渲染'}}</button><small>{{recovering?'首次失败自动重渲一次。':'后续重渲由你确认，不调用模型；诊断已上报。'}}</small>
   </div>
   <div v-else :key="'content-'+attempt"><slot :ready="ready"/></div>

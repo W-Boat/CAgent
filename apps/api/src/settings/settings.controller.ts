@@ -24,6 +24,11 @@ export class SettingsController {
     const all = await this.settings.all()
     return {
       ...Object.fromEntries(SETTING_DEFS.filter(def=>def.group==='student').map(def=>[def.key,all[def.key]])),
+      ...Object.fromEntries(['voice_asr_enabled','voice_asr_max_seconds','voice_tts_enabled','voice_tts_max_chars','mascot_enabled','mascot_name','mascot_resident_enabled','thinking_messages'].map(key => [key, all[key]])),
+      presentation_fallback: all.presentation_fallback,
+      student_thinking_enabled: all.student_thinking_enabled,
+      student_thinking_default: all.student_thinking_default,
+      student_conversation_export_enabled: all.student_conversation_export_enabled,
       site_name: all.site_name,
       site_description: all.site_description,
       allow_registration: all.allow_registration,
@@ -60,6 +65,18 @@ export class SettingsController {
   @Get("version")
   @RequirePermissions("setting:read")
   version(){return buildInfo}
+
+  @Get('sensitive-words')
+  @RequirePermissions('setting:read')
+  async sensitiveWords(){return {words:await this.settings.get<string[]>('sensitive_words'),enabled:await this.settings.get<boolean>('content_moderation')}}
+
+  @Put('sensitive-words')
+  @RequirePermissions('setting:write')
+  async updateSensitiveWords(@Body('words') words:unknown,@CurrentUser() me:AuthUser){
+    const list=Array.isArray(words)?[...new Set(words.map(word=>typeof word==='string'?word.trim():word))]:words
+    await this.update({sensitive_words:list},me)
+    return this.sensitiveWords()
+  }
 
   @Get("flat")
   @RequirePermissions("setting:read")

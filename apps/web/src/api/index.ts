@@ -308,6 +308,7 @@ export const conversationsApi = {
   flagMessage: (id: string, flagged: boolean, note?: string) =>
     post<MessageItem>(`/conversations/admin/messages/${id}/flag`, { flagged, note }),
   export: (id: string) => get<Record<string, unknown>>(`/conversations/admin/${id}/export`),
+  exportOwn: (id:string) => get<Record<string,unknown>>(`/conversations/${id}/export`),
 }
 
 // ---------------- 用量 / 配额 ----------------
@@ -356,6 +357,7 @@ export const usageApi = {
 // ---------------- 技能 ----------------
 
 export const skillsApi = {
+  builtIns:()=>get<{key:string;name:string;description:string;category:string;icon?:string;needsNetwork?:boolean}[]>('/skills/built-ins'),
   // available 走统一过滤层（情侣相关完全隐藏）；管理端 list() 同样隐藏已下线能力
   available: () => get<SkillItem[]>("/skills/available").then(filterAvailable),
   list: (params: Record<string, unknown> = {}) => get<SkillItem[]>("/skills", params).then(filterRetired),

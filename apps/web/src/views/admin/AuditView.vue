@@ -62,83 +62,86 @@
       <el-button @click="reset">重置</el-button>
     </div>
 
-    <el-table :data="logs" v-loading="loading" stripe size="small">
-      <el-table-column label="时间" width="168">
-        <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
-      </el-table-column>
+    <div class="table-card">
+      <el-table :data="logs" v-loading="loading" stripe size="small">
+        <el-table-column label="时间" width="168">
+          <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
+        </el-table-column>
 
-      <el-table-column label="操作人" min-width="170">
-        <template #default="{ row }">
-          <div class="actor-cell">
-            <el-avatar :size="24" :src="row.user?.avatar || undefined">
-              {{ (row.user?.name || row.actor || "S").slice(0, 1) }}
-            </el-avatar>
-            <div>
-              <div>{{ row.user?.name || row.actor || "系统" }}</div>
-              <div class="muted small">{{ row.user?.email || row.ip || "-" }}</div>
+        <el-table-column label="操作人" min-width="170">
+          <template #default="{ row }">
+            <div class="actor-cell">
+              <el-avatar :size="24" :src="row.user?.avatar || undefined">
+                {{ (row.user?.name || row.actor || "S").slice(0, 1) }}
+              </el-avatar>
+              <div>
+                <div>{{ row.user?.name || row.actor || "系统" }}</div>
+                <div class="muted small">{{ row.user?.email || row.ip || "-" }}</div>
+              </div>
             </div>
-          </div>
-        </template>
-      </el-table-column>
+          </template>
+        </el-table-column>
 
-      <el-table-column label="动作" width="190">
-        <template #default="{ row }">
-          <el-tag size="small" effect="plain" :type="actionTag(row.action)">{{ row.action }}</el-tag>
-        </template>
-      </el-table-column>
+        <el-table-column label="动作" width="190">
+          <template #default="{ row }">
+            <el-tag size="small" effect="plain" :type="actionTag(row.action)">{{ row.action }}</el-tag>
+          </template>
+        </el-table-column>
 
-      <el-table-column label="资源" width="130">
-        <template #default="{ row }">
-          <span class="mono small">{{ row.resource }}</span>
-        </template>
-      </el-table-column>
+        <el-table-column label="资源" width="130">
+          <template #default="{ row }">
+            <span class="mono small">{{ row.resource }}</span>
+          </template>
+        </el-table-column>
 
-      <el-table-column label="资源 ID" width="150">
-        <template #default="{ row }">
-          <span v-if="row.resourceId" class="mono small">{{ truncate(row.resourceId, 16) }}</span>
-          <span v-else class="muted">-</span>
-        </template>
-      </el-table-column>
+        <el-table-column label="资源 ID" width="150">
+          <template #default="{ row }">
+            <span v-if="row.resourceId" class="mono small">{{ truncate(row.resourceId, 16) }}</span>
+            <span v-else class="muted">-</span>
+          </template>
+        </el-table-column>
 
-      <el-table-column label="详情" min-width="220">
-        <template #default="{ row }">
-          <span class="muted small">{{ detailPreview(row.detail) }}</span>
-        </template>
-      </el-table-column>
+        <el-table-column label="详情" min-width="220">
+          <template #default="{ row }">
+            <span class="muted small">{{ detailPreview(row.detail) }}</span>
+          </template>
+        </el-table-column>
 
-      <el-table-column label="IP" width="130">
-        <template #default="{ row }">
-          <span class="mono small">{{ row.ip || "-" }}</span>
-        </template>
-      </el-table-column>
+        <el-table-column label="IP" width="130">
+          <template #default="{ row }">
+            <span class="mono small">{{ row.ip || "-" }}</span>
+          </template>
+        </el-table-column>
 
-      <el-table-column label="结果" width="80">
-        <template #default="{ row }">
-          <el-tag :type="row.success ? 'success' : 'danger'" size="small" effect="plain">
-            {{ row.success ? "成功" : "失败" }}
-          </el-tag>
-        </template>
-      </el-table-column>
+        <el-table-column label="结果" width="80">
+          <template #default="{ row }">
+            <el-tag :type="row.success ? 'success' : 'danger'" size="small" effect="plain">
+              {{ row.success ? "成功" : "失败" }}
+            </el-tag>
+          </template>
+        </el-table-column>
 
-      <el-table-column label="" width="70" fixed="right">
-        <template #default="{ row }">
-          <el-button text type="primary" size="small" @click="showDetail(row)">详情</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+        <el-table-column label="" width="70" fixed="right">
+          <template #default="{ row }">
+            <el-button text type="primary" size="small" @click="showDetail(row)">详情</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
 
-    <el-pagination
-      v-if="total > 0"
-      v-model:current-page="query.page"
-      v-model:page-size="query.pageSize"
-      :total="total"
-      :page-sizes="[20, 50, 100]"
-      layout="total, sizes, prev, pager, next"
-      background
-      class="pager"
-      @current-change="load"
-      @size-change="reload"
-    />
+      <div class="pager">
+        <el-pagination
+          v-if="total > 0"
+          v-model:current-page="query.page"
+          v-model:page-size="query.pageSize"
+          :total="total"
+          :page-sizes="[20, 50, 100]"
+          layout="total, sizes, prev, pager, next"
+          background
+          @current-change="load"
+          @size-change="reload"
+        />
+      </div>
+    </div>
 
     <el-drawer v-model="detailVisible" title="审计日志详情" size="560px">
       <div v-if="current">

@@ -301,28 +301,36 @@ export class ConversationsService {
   }
 
   /** 导出会话（JSON），用于审计留档 */
-  async exportConversation(id: string) {
+  async requestTrace(conversationId:string,messageId:string){
+    const row=await this.prisma.message.findFirst({where:{id:messageId,conversationId,role:'assistant'},select:{seq:true,providerKey:true,modelKey:true,finishReason:true,promptTokens:true,completionTokens:true,latencyMs:true,attachments:true,model:{select:{contextWindow:true}}}})
+    if(!row)throw new NotFoundException('回复不存在')
+    const user=await this.prisma.message.findFirst({where:{conversationId,seq:{lt:row.seq},role:'user'},orderBy:{seq:'desc'},select:{content:true}})
+    const attached=row.attachments as {requestMode?:string;agentRun?:{peakInputTokens?:number};modelMessages?:{role:string;content:string}[]}|null
+    return {request:user?.content||'',mode:attached?.requestMode||row.finishReason||'stream',provider:row.providerKey,model:row.modelKey,contextWindow:row.model?.contextWindow||null,input:row.promptTokens,output:row.completionTokens,peak:attached?.agentRun?.peakInputTokens,latencyMs:row.latencyMs,transcript:(attached?.modelMessages||[]).filter(m=>m.role==='tool').slice(0,8).map(m=>stripToolMarkup(String(m.content||'')).slice(0,1200))}
+  }
+  async exportConversation(id: string, own = false) {
     const conversation = await this.detail(id)
+    const messages = own ? conversation.messages.filter(message => message.role === 'user' || message.role === 'assistant') : conversation.messages
     return {
       exportedAt: new Date().toISOString(),
       conversation: {
         id: conversation.id,
         title: conversation.title,
-        user: conversation.user,
+        ...(!own ? {user:conversation.user} : {}),
         model: conversation.model?.key ?? null,
         agent: conversation.agent?.name ?? null,
         createdAt: conversation.createdAt,
-        messageCount: conversation.messages.length
+        messageCount: messages.length
       },
-      messages: conversation.messages.map((m) => ({
+      messages: messages.map((m) => ({
         seq: m.seq,
         role: m.role,
         content: m.content,
-        reasoning: m.reasoning,
+        ...(own && m.role === 'user' ? { files: ((m.attachments as { files?: { name: string }[] } | null)?.files || []).map(file => file.name) } : {}),
+        ...(!own ? {reasoning:m.reasoning,flagged:m.flagged} : {}),
         status: m.status,
         tokens: m.totalTokens,
         model: m.modelKey,
-        flagged: m.flagged,
         createdAt: m.createdAt
       }))
     }

@@ -97,64 +97,61 @@ export const menuGroups: MenuGroup[] = [
     items: [
       { title: "工作台", path: "/dashboard", icon: "Odometer", permission: "dashboard:read" },
       { title: "智能对话", path: "/chat", icon: "ChatDotRound" },
-      { title: "智能体广场", path: "/agents", icon: "Promotion" },
-      { title: "我的用量", path: "/usage", icon: "Histogram" },
-      { title: "我的记忆", path: "/memory", icon: "Memo", feature:"memory", badge: "Beta" }
     ]
   },
   {
     id: "knowledge-guide",
-    title: "知识与导览",
+    title: "校园内容",
     items: [
       // 用 Guide 而不是 MapLocation：校园导览是「一路指引」，不是地图打点
-      { title: "校园导览", path: "/campus", icon: "Guide", permission: "campus:read" },
-      { title: "讲座日历", path: "/lectures", icon: "Calendar" },
-      { title: '知识库管理', path: '/admin/knowledge', icon: 'Collection', permission: 'campus:admin' },
-      { title: "导览记录", path: "/admin/campus-runs", icon: "Compass", permission: "campus:read" },
-      { title: "导览统计", path: "/admin/campus-stats", icon: "TrendCharts", permission: "campus:admin" }
+      { title: '知识库管理', path: '/admin/knowledge', icon: 'Collection', permission: ['campus:read','campus:admin'] },
+      { title: "讲座管理", path: "/lectures", icon: "Calendar" },
     ]
   },
   {
     id: "agents-capabilities",
-    title: "智能体与能力",
+    title: "模型与智能体",
     items: [
-      { title: "技能中心", path: "/skills", icon: "MagicStick" },
-      { title: "智能体管理", path: "/admin/agents", icon: "Avatar", permission: "agent:read" },
+      { title: "智能体管理", path: "/agents", icon: "Avatar" },
+      { title: "工具与技能", path: "/skills", icon: "MagicStick" },
       // 技能用 SetUp（扳手）区分于「收藏」含义的 Star
-      { title: "技能管理", path: "/admin/skills", icon: "SetUp", permission: "skill:read" },
-      { title: "技能运行记录", path: "/admin/skill-runs", icon: "Tickets", permission: "skill:read" },
-      { title: "模型供应商", path: "/admin/providers", icon: "Connection", permission: "provider:read" },
-      { title: "模型配置", path: "/admin/models", icon: "Cpu", permission: "model:read" },
-      { title: '界面实验室', path: '/admin/presentation', icon: 'PresentationLab', permission: 'campus:admin' }
+      { title: "模型接入", path: "/admin/providers", icon: "Connection", permission: ["provider:read","model:read"] },
+      { title: '排版实验室', path: '/admin/presentation', icon: 'PresentationLab', permission: 'campus:admin' }
     ]
   },
   {
     id: "evaluation-feedback",
-    title: "评测与反馈",
+    title: "质量与安全",
     items: [
-      { title: '反馈与学习', path: '/admin/learning', icon: 'Reading', permission: 'learning:read', badge: 'Beta' },
-      { title:"批量对话测试",path:"/admin/evaluations",icon:"Document",permission:"conversation:read" },
-      { title: "会话审计", path: "/admin/conversations", icon: "ChatLineSquare", permission: "conversation:read" },
-      { title: "消息审计", path: "/admin/messages", icon: "Document", permission: "message:read" },
+      { title:"批量评测",path:"/admin/evaluations",icon:"Document",permission:"conversation:read" },
+      { title: '反馈与纠偏', path: '/admin/learning', icon: 'Reading', permission: 'learning:read', badge: 'Beta' },
+      { title: "对话审计", path: "/admin/conversations", icon: "ChatLineSquare", permission: ["conversation:read","message:read","campus:read"] },
+      { title: '敏感词管理', path: '/admin/sensitive-words', icon: 'WarningFilled', permission: 'setting:read' },
     ]
   },
   {
     id: "platform-management",
-    title: "平台管理",
+    title: "系统管理",
     items: [
-      { title: "数据看板", path: "/admin/dashboard", icon: "DataBoard", permission: "dashboard:read" },
-      { title: "用户管理", path: "/admin/users", icon: "User", permission: "user:read" },
-      { title: "角色权限", path: "/admin/roles", icon: "Key", permission: "role:read" },
-      { title: "用量统计", path: "/admin/usage", icon: "Histogram", permission: "usage:read:all" },
-      { title: "配额管理", path: "/admin/quotas", icon: "Coin", permission: "quota:read" },
-      { title: "审计日志", path: "/admin/audit", icon: "List", permission: "audit:read" },
-      { title: "系统设置", path: "/admin/settings", icon: "Setting", permission: "setting:read" }
+      { title: "用户与权限", path: "/admin/users", icon: "User", permission: ["user:read","role:read"] },
+      { title: "用户配额", path: "/admin/quotas", icon: "Coin", permission: "quota:read" },
+      { title: "用户记忆", path: "/admin/memory", icon: "Memo", permission: "*", feature:"memory", badge:"Beta" },
+      { title: "平台设置", path: "/admin/settings", icon: "Setting", permission: "setting:read" },
+      { title: "操作日志", path: "/admin/audit", icon: "List", permission: "audit:read" }
     ]
   }
 ]
 
+export function adminMenuItem(path:string){return menuGroups.flatMap(group=>group.items).find(item=>path===item.path||path.startsWith(item.path+'/'))}
+
+const workspace = () => import('@/views/admin/AdminWorkspaceView.vue')
 export const routes: RouteRecordRaw[] = [
+  {path:'/student/academic-calendar',name:'student-academic-calendar',component:()=>import('@/views/student/next/SchoolDirectoryView.vue'),meta:{title:'学年校历',studentAllowed:true,permission:'campus:read'}},
+  {path:'/student/directory',name:'student-phones',component:()=>import('@/views/student/next/SchoolDirectoryView.vue'),meta:{title:'部门电话',studentAllowed:true,permission:'campus:read'}},
   {path:'/student/lectures',name:'student-lectures',component:()=>import('@/views/student/next/StudentLecturesView.vue'),meta:{title:'讲座与日历',studentAllowed:true,studentOnly:true}},
+  {path:'/student/information',name:'student-information',component:()=>import('@/views/student/next/StudentPortalView.vue'),meta:{title:'校园资讯',studentAllowed:true,permission:'campus:read'}},
+  {path:'/student/services',name:'student-services',component:()=>import('@/views/student/next/StudentPortalView.vue'),meta:{title:'办事大厅',studentAllowed:true,permission:'campus:read'}},
+  {path:'/student/applications',name:'student-applications',component:()=>import('@/views/student/next/StudentPortalView.vue'),meta:{title:'应用中心',studentAllowed:true,permission:'campus:read'}},
   {path:'/timetable',redirect:'/campus?collection=collective-timetable',meta:{studentAllowed:true}},
   {path:'/browser',redirect:'/campus?collection=collective-timetable',meta:{studentAllowed:true}},
   {path:'/map',name:'campus-map',component:()=>import('@/views/campus/CampusMapView.vue'),meta:{public:true,studentAllowed:true,title:'校园地图'}},
@@ -194,15 +191,16 @@ export const routes: RouteRecordRaw[] = [
     component: () => import("@/layouts/AppLayoutNext.vue"),
     redirect: "/dashboard",
     children: [
-      {path:'lectures',name:'lecture-calendar',component:()=>import('@/views/campus/LectureCalendarView.vue'),meta:{title:'讲座与日历',studentAllowed:true}},
-      {path:'admin/knowledge',name:'admin-knowledge',component:()=>import('@/views/admin/KnowledgeAdminView.vue'),meta:{title:'知识库管理',permission:'campus:admin',keepAlive:true}},
+      {path:'lectures',name:'lecture-calendar',component:()=>import('@/views/campus/LectureCalendarView.vue'),meta:{title:'讲座日历维护',studentAllowed:true}},
+      {path:'admin/knowledge',name:'admin-knowledge',component:workspace,props:{section:'knowledge'},meta:{title:'知识与校园导览'}},
+      {path:'admin/memory',name:'admin-memory',component:()=>import('@/views/admin/MemoryOverviewView.vue'),meta:{title:'全站记忆',feature:'memory',permission:'*'}},
       {path:'admin/presentation',name:'admin-presentation',component:()=>import('@/views/admin/PresentationPlayground.vue'),meta:{title:'界面实验室',permission:'campus:admin'}},
       {path:'admin/learning',name:'admin-learning',component:()=>import('@/views/admin/LearningAdminView.vue'),meta:{title:'反馈与学习',permission:'learning:read',keepAlive:true}},
       {
         path: "dashboard",
         name: "dashboard",
-        component: () => import("@/views/next/WorkbenchNextView.vue"),
-        meta: { title: "工作台", permission: "dashboard:read", keepAlive: true }
+        component: workspace, props:{section:'dashboard'},
+        meta: { title: "工作台" }
       },
       {
         path: "chat/:id?",
@@ -213,14 +211,14 @@ export const routes: RouteRecordRaw[] = [
       {
         path: "skills",
         name: "skills",
-        component: () => import("@/views/skills/SkillCenterView.vue"),
-        meta: { title: "技能中心", keepAlive: true }
+        component: workspace, props:{section:'skills'},
+        meta: { title: "技能与工具" }
       },
       {
         path: "agents",
         name: "agents",
-        component: () => import("@/views/agents/AgentGalleryView.vue"),
-        meta: { title: "智能体广场", keepAlive: true }
+        component: workspace, props:{section:'agents'},
+        meta: { title: "智能体" }
       },
       {
         path: "usage",
@@ -257,68 +255,60 @@ export const routes: RouteRecordRaw[] = [
       {
         path: "admin/dashboard",
         name: "admin-dashboard",
-        component: () => import("@/views/admin/next/AdminDashboardNextView.vue"),
-        meta: { title: "数据看板", permission: "dashboard:read", keepAlive: true }
+        redirect:'/dashboard'
       },
       {
         path: "admin/users",
         name: "admin-users",
-        component: () => import("@/views/admin/UsersView.vue"),
-        meta: { title: "用户管理", permission: "user:read", keepAlive: true }
+        component: workspace, props:{section:'people'},
+        meta: { title: "用户与权限" }
       },
       {
         path: "admin/roles",
         name: "admin-roles",
-        component: () => import("@/views/admin/RolesView.vue"),
-        meta: { title: "角色权限", permission: "role:read", keepAlive: true }
+        redirect:'/admin/users?tab=roles'
       },
       {
         path: "admin/providers",
         name: "admin-providers",
-        component: () => import("@/views/admin/ProvidersView.vue"),
-        meta: { title: "模型供应商", permission: "provider:read", keepAlive: true }
+        component: workspace, props:{section:'models'},
+        meta: { title: "模型与供应商" }
       },
       {
         path: "admin/models",
         name: "admin-models",
-        component: () => import("@/views/admin/ModelsView.vue"),
-        meta: { title: "模型配置", permission: "model:read", keepAlive: true }
+        redirect:'/admin/providers?tab=models'
       },
       {
         path: "admin/agents",
         name: "admin-agents",
-        component: () => import("@/views/admin/AgentsAdminView.vue"),
-        meta: { title: "智能体管理", permission: "agent:read", keepAlive: true }
+        redirect:'/agents?tab=manage'
       },
       {
         path: "admin/skills",
         name: "admin-skills",
-        component: () => import("@/views/admin/SkillsAdminView.vue"),
-        meta: { title: "技能管理", permission: "skill:read", keepAlive: true }
+        redirect:'/skills?tab=manage'
       },
       {
         path: "admin/skill-runs",
         name: "admin-skill-runs",
-        component: () => import("@/views/admin/SkillRunsView.vue"),
-        meta: { title: "技能运行记录", permission: "skill:read", keepAlive: true }
+        redirect:'/dashboard?tab=runs'
       },
       {
         path: "admin/conversations",
         name: "admin-conversations",
-        component: () => import("@/views/admin/ConversationsView.vue"),
-        meta: { title: "会话审计", permission: "conversation:read", keepAlive: true }
+        component: workspace, props:{section:'audit'},
+        meta: { title: "审计" }
       },
       {
         path: "admin/messages",
         name: "admin-messages",
-        component: () => import("@/views/admin/MessagesView.vue"),
-        meta: { title: "消息审计", permission: "message:read", keepAlive: true }
+        redirect:'/admin/conversations?tab=messages'
       },
       {
         path: "admin/usage",
         name: "admin-usage",
-        component: () => import("@/views/admin/UsageAdminView.vue"),
-        meta: { title: "用量统计", permission: "usage:read:all", keepAlive: true }
+        redirect:'/dashboard?tab=usage'
       },
       {
         path: "admin/quotas",
@@ -330,7 +320,7 @@ export const routes: RouteRecordRaw[] = [
         path: "admin/audit",
         name: "admin-audit",
         component: () => import("@/views/admin/AuditView.vue"),
-        meta: { title: "审计日志", permission: "audit:read", keepAlive: true }
+        meta: { title: "平台操作日志", permission: "audit:read", keepAlive: true }
       },
       {
         path: "admin/settings",
@@ -338,19 +328,18 @@ export const routes: RouteRecordRaw[] = [
         component: () => import("@/views/admin/SettingsView.vue"),
         meta: { title: "系统设置", permission: "setting:read", keepAlive: true }
       },
+      {path:'admin/sensitive-words',name:'admin-sensitive-words',component:()=>import('@/views/admin/SensitiveWordsView.vue'),meta:{title:'敏感词管理',permission:'setting:read'}},
       {path:"admin/evaluations",name:"admin-evaluations",component:()=>import("@/views/admin/EvaluationsView.vue"),meta:{title:"批量对话测试",permission:"conversation:read"}},
       {path:'admin/trial',redirect:'/dashboard'},
       {
         path: "admin/campus-runs",
         name: "admin-campus-runs",
-        component: () => import("@/views/admin/CampusRunsView.vue"),
-        meta: { title: "导览记录", permission: "campus:read", keepAlive: true }
+        redirect:'/admin/conversations?tab=campus'
       },
       {
         path: "admin/campus-stats",
         name: "admin-campus-stats",
-        component: () => import("@/views/admin/CampusStatsView.vue"),
-        meta: { title: "导览统计", permission: "campus:admin", keepAlive: true }
+        redirect:'/dashboard?tab=campus'
       }
     ]
   },

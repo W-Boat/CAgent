@@ -31,80 +31,83 @@
       <el-button @click="reset">重置</el-button>
     </div>
 
-    <el-table :data="sessions" v-loading="loading" stripe size="small">
-      <el-table-column label="会话" min-width="220">
-        <template #default="{ row }">
-          <div class="name-cell">
-            <span class="name">{{ row.name }}</span>
-            <el-tag v-if="row.alive" size="small" type="success" effect="plain">存活</el-tag>
-          </div>
-          <div class="muted small mono">{{ truncate(row.currentUrl || row.startUrl || "尚未导航", 58) }}</div>
-        </template>
-      </el-table-column>
+    <div class="table-card">
+      <el-table :data="sessions" v-loading="loading" stripe size="small">
+        <el-table-column label="会话" min-width="220">
+          <template #default="{ row }">
+            <div class="name-cell">
+              <span class="name">{{ row.name }}</span>
+              <el-tag v-if="row.alive" size="small" type="success" effect="plain">存活</el-tag>
+            </div>
+            <div class="muted small mono">{{ truncate(row.currentUrl || row.startUrl || "尚未导航", 58) }}</div>
+          </template>
+        </el-table-column>
 
-      <el-table-column label="所属用户" min-width="180">
-        <template #default="{ row }">
-          <div class="user-cell">
-            <span>{{ row.user?.name || "-" }}</span>
-            <span class="muted small">{{ row.user?.email || "" }}</span>
-          </div>
-        </template>
-      </el-table-column>
+        <el-table-column label="所属用户" min-width="180">
+          <template #default="{ row }">
+            <div class="user-cell">
+              <span>{{ row.user?.name || "-" }}</span>
+              <span class="muted small">{{ row.user?.email || "" }}</span>
+            </div>
+          </template>
+        </el-table-column>
 
-      <el-table-column label="状态" width="95">
-        <template #default="{ row }">
-          <el-tag :type="statusType(row.status)" size="small" effect="plain">
-            {{ statusText(row.status) }}
-          </el-tag>
-        </template>
-      </el-table-column>
+        <el-table-column label="状态" width="95">
+          <template #default="{ row }">
+            <el-tag :type="statusType(row.status)" size="small" effect="plain">
+              {{ statusText(row.status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
 
-      <el-table-column label="模式" width="90">
-        <template #default="{ row }">
-          <el-tag size="small" effect="plain" type="info">{{ row.headless ? "无头" : "有头" }}</el-tag>
-        </template>
-      </el-table-column>
+        <el-table-column label="模式" width="90">
+          <template #default="{ row }">
+            <el-tag size="small" effect="plain" type="info">{{ row.headless ? "无头" : "有头" }}</el-tag>
+          </template>
+        </el-table-column>
 
-      <el-table-column label="步数" width="80">
-        <template #default="{ row }">{{ row._count?.steps ?? row.steps?.length ?? 0 }}</template>
-      </el-table-column>
+        <el-table-column label="步数" width="80">
+          <template #default="{ row }">{{ row._count?.steps ?? row.steps?.length ?? 0 }}</template>
+        </el-table-column>
 
-      <el-table-column label="创建时间" width="168">
-        <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
-      </el-table-column>
+        <el-table-column label="创建时间" width="168">
+          <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
+        </el-table-column>
 
-      <el-table-column label="关闭时间" width="168">
-        <template #default="{ row }">{{ formatDateTime(row.closedAt) }}</template>
-      </el-table-column>
+        <el-table-column label="关闭时间" width="168">
+          <template #default="{ row }">{{ formatDateTime(row.closedAt) }}</template>
+        </el-table-column>
 
-      <el-table-column label="操作" width="160" fixed="right">
-        <template #default="{ row }">
-          <el-button text type="primary" size="small" @click="showDetail(row)">轨迹</el-button>
-          <el-button
-            text
-            type="danger"
-            size="small"
-            :disabled="row.status !== 'ACTIVE'"
-            @click="forceClose(row)"
-          >
-            强制关闭
-          </el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+        <el-table-column label="操作" width="160" fixed="right">
+          <template #default="{ row }">
+            <el-button text type="primary" size="small" @click="showDetail(row)">轨迹</el-button>
+            <el-button
+              text
+              type="danger"
+              size="small"
+              :disabled="row.status !== 'ACTIVE'"
+              @click="forceClose(row)"
+            >
+              强制关闭
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
 
-    <el-pagination
-      v-if="total > 0"
-      v-model:current-page="query.page"
-      v-model:page-size="query.pageSize"
-      :total="total"
-      :page-sizes="[20, 50, 100]"
-      layout="total, sizes, prev, pager, next"
-      background
-      class="pager"
-      @current-change="load"
-      @size-change="reload"
-    />
+      <div class="pager">
+        <el-pagination
+          v-if="total > 0"
+          v-model:current-page="query.page"
+          v-model:page-size="query.pageSize"
+          :total="total"
+          :page-sizes="[20, 50, 100]"
+          layout="total, sizes, prev, pager, next"
+          background
+          @current-change="load"
+          @size-change="reload"
+        />
+      </div>
+    </div>
 
     <el-drawer v-model="detailVisible" :title="detail?.name || '会话轨迹'" size="680px">
       <div v-if="detail" v-loading="detailLoading">

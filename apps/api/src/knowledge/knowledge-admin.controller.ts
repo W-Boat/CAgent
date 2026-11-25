@@ -12,6 +12,7 @@ import {SettingsService} from '../settings/settings.service'
 import {KnowledgeAutomationService} from './knowledge-automation.service'
 import { CampusGuideService } from '../campus/campus-guide.service'
 import {resolveCampusMap} from '../campus/campus-map'
+import {currentCampusMaps} from '../campus/campus-map-storage'
 import {collectorRequest,collectorStatus,collectorQrImage,collectorCollection,collectorBatchResult} from './wechat-collector'
 import {articleUrl} from './wechat-source'
 import {campusQuery,isSupportUrgent} from './keyword-rule'
@@ -80,11 +81,9 @@ export class KnowledgeAdminController {
     const rules=await this.store.keywordRules(query,agentId)
     const fixed = isSupportUrgent(query)||rules.some(r=>r.rule.behavior==='INSTRUCT')?null:await this.store.fixed(campusQuery(query),agentId,false)
     const search = await this.guide.search(campusQuery(query),'full',5,{agentId})
-    return {...search,rules:rules.map(({entry,rule})=>({id:entry.id,title:entry.title,...rule})),map:isSupportUrgent(query)||!await this.store.embeddedEnabled('maps',agentId)?null:resolveCampusMap(query),fixed:fixed ? {id:fixed.id,title:fixed.title,question:fixed.question,answer:fixed.answer,baseId:fixed.baseId} : null}
+    return {...search,rules:rules.map(({entry,rule})=>({id:entry.id,title:entry.title,...rule})),map:isSupportUrgent(query)||!await this.store.embeddedEnabled('maps',agentId)?null:resolveCampusMap(query,'',await currentCampusMaps(this.prisma)),fixed:fixed ? {id:fixed.id,title:fixed.title,question:fixed.question,answer:fixed.answer,baseId:fixed.baseId} : null}
   }
   @Get('bases') @RequirePermissions('campus:admin') bases() {return this.admin.bases()}
-  @Get('bases/:id/shortcuts') @RequirePermissions('campus:admin') shortcuts(@Param('id') id:string){return this.store.shortcutBindings(id)}
-  @Put('bases/:id/shortcuts') @RequirePermissions('campus:admin') saveShortcuts(@Param('id') id:string,@Body() bindings:unknown,@CurrentUser() me:AuthUser){return this.store.saveShortcutBindings(id,bindings,me)}
   @Post('bases') @RequirePermissions('campus:admin') createBase(@Body() dto:BaseDto,@CurrentUser() me:AuthUser) {return this.admin.saveBase(dto,me)}
   @Patch('bases/:id') @RequirePermissions('campus:admin') editBase(@Param('id') id:string,@Body() dto:BaseDto,@CurrentUser() me:AuthUser) {return this.admin.saveBase(dto,me,id)}
   @Post('bases/:id/mount') @RequirePermissions('campus:admin') mount(@Param('id') id:string,@Body() dto:MountDto,@CurrentUser() me:AuthUser) {return this.admin.mount(id,dto.mounted,me)}

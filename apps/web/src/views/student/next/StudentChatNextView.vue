@@ -1,14 +1,26 @@
 <script setup lang="ts">
+import ConversationSearch from '@/components/ConversationSearch.vue'
+import ConversationHistoryRow from '@/components/ConversationHistoryRow.vue'
+import {useComposerHeight} from '@/composables/useComposerHeight'
+import {groupConversations} from '@/utils/conversation-groups'
+import '@/styles/chat-workspace.css'
+import {featureFromCard} from '@/utils/campus-features'
 import AnswerLoading from '@/components/presentation/AnswerLoading.vue'
 import {retainCardReadingPosition} from "@/utils/chat-follow"
 import AnswerVersions from '@/components/AnswerVersions.vue'
 import ImageTransferProgress from '@/components/ImageTransferProgress.vue'
 import {useImageAttachments} from '@/composables/useImageAttachments'
-import {regenerateChat,type ChatStreamHandlers} from '@/api/chat-stream'
-import OutputPreferenceSelect from "@/components/OutputPreferenceSelect.vue"
+import {regenerateChat,type ChatStreamHandlers,type SendMessagePayload} from '@/api/chat-stream'
+import StudentTopbar from '@/components/student/StudentTopbar.vue'
+import ComposerSources from '@/components/student/ComposerSources.vue'
+import CampusMascot from '@/components/student/CampusMascot.vue'
+import {Delete,EditPen,Download,Paperclip} from '@element-plus/icons-vue'
+import {useResizablePanel} from '@/composables/useResizablePanel'
 import {useOutputPreference} from "@/composables/useOutputPreference"
 const {outputPreference}=useOutputPreference()
 import { composerKeys } from '@/utils/composer'
+import VoiceInput from '@/components/experience/VoiceInput.vue'
+import VoicePlayback from '@/components/experience/VoicePlayback.vue'
 import { useConversationHistory } from '@/composables/useConversationHistory'
 import { useConversationDraft } from '@/composables/useConversationDraft' 
 import {studentDisplay} from '@/utils/student-display'
@@ -35,7 +47,6 @@ defineOptions({ name: "student-chat" })
 
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import { useRouter } from "vue-router"
-import KnowledgeShortcuts from '@/components/KnowledgeShortcuts.vue'
 import {
   agentsApi,
   chatApi,
@@ -47,8 +58,8 @@ import {
 } from "@/api"
 import { memoryApi } from "@/api/memory"
 import { streamChat } from "@/api/chat-stream"
-import { toastError, toastOk } from "@/api/client"
-import { copyText, fromNow, truncate } from "@/utils/format"
+import { get,request,toastError, toastOk } from "@/api/client"
+import { copyText,downloadJson, truncate } from "@/utils/format"
 import { useAuthStore } from "@/stores/auth"
 import { useThemeStore } from "@/stores/theme"
 import MarkdownView from "@/components/MarkdownView.vue"
@@ -76,16 +87,13 @@ import {
   IconLogout,
   IconMenu,
   IconMoon,
-  IconPin,
   IconPlus,
   IconRefresh,
-  IconSearch,
   IconSend,
   IconStop,
   IconSun,
   IconThumbDown,
   IconThumbUp,
-  IconTrash
 } from "@/components/student/icons"
 import type { AgentItem, ConversationItem, MessageItem, ModelItem, SkillItem } from "@/api/types"
 
@@ -100,6 +108,7 @@ interface ToolEvent {
 interface ChatMessage {
   id: string
   role: "user" | "assistant"
+  fileNames?:string[]
   content: string
   createdAt: string
   status?: string
@@ -137,6 +146,7 @@ const campusNet = useCampusNetStore()
 const router = useRouter()
 
 const conversations = ref<ConversationItem[]>([])
+const conversationGroups=computed(()=>groupConversations(conversations.value))
 const messages = ref<ChatMessage[]>([])
 const models = ref<ModelItem[]>([])
 const agents = ref<AgentItem[]>([])
@@ -144,10 +154,69 @@ const agents = ref<AgentItem[]>([])
 const skills = ref<SkillItem[]>([])
 /** 本次请求启用的技能 key */
 const pickedSkills = ref<string[]>([])
+const builtinOptions=ref<{id:string;label:string;note?:string}[]>([])
+const chosenBases=ref<string[]|null>(null),availableBases=ref<{id:string;label:string}[]>([]),restrictSkills=ref(false)
+const {width:sidebarWidth,resize:resizeSide,keyResize:keyResizeSide}=useResizablePanel('cagent.student-sidebar-width',264)
+const topbar=ref<InstanceType<typeof StudentTopbar>>()
+const featureOpen=ref(false),petHidden=ref(false)
+const accountPane=ref<'memory'|'usage'|''>('')
+const quickFeatures=ref<{label:string;question:string}[]>([])
+const takeoutShortcut=computed(()=>quickFeatures.value.some(x=>/外卖红黑榜/.test(x.label+' '+x.question)))
+const OwnMemory=defineAsyncComponent(()=>import('@/views/memory/MemoryView.vue'))
+const OwnUsage=defineAsyncComponent(()=>import('@/views/usage/MyUsageView.vue'))
+try{petHidden.value=localStorage.getItem('cagent.pet.hidden')==='1'}catch{}
+watch(petHidden,value=>{try{localStorage.setItem('cagent.pet.hidden',value?'1':'0')}catch{}})
+function showFeature(card:Record<string,unknown>){const id=featureFromCard(card);if(id)void topbar.value?.showFeature(id,card)}
+async function exportOwn(id:string){try{downloadJson(await conversationsApi.exportOwn(id),`conversation-${id}.json`);toastOk('会话已导出')}catch(e){toastError(e,'导出失败')}}
+function onHistoryCommand(command:string,conversation:ConversationItem){
+  if(command==='rename')return renameConversation(conversation)
+  if(command==='export')return exportOwn(conversation.id)
+  if(command==='delete')return removeConversation(conversation)
+}
+async function renameConversation(conversation:ConversationItem){
+  if(streaming.value)return
+  let title:string
+  try{
+    const {value}=await ElMessageBox.prompt('输入新的会话标题','重命名会话',{inputValue:conversation.title||'',inputPlaceholder:'会话标题',inputValidator:value=>{const length=value?.trim().length||0;return length>=1&&length<=100||'请输入 1–100 字'},confirmButtonText:'保存',cancelButtonText:'取消'})
+    title=value.trim()
+  }catch{return}
+  try{const updated=await conversationsApi.update(conversation.id,{title});conversation.title=updated.title;toastOk('会话已重命名')}
+  catch(error){toastError(error,'未能保存会话标题')}
+}
+function showAccount(command:string){if(command==='logout'){void logout();return}if(command==='usage'||command==='memory'){accountPane.value=command;featureOpen.value=true}}
 
 const keyword = ref("")
 const activeId = ref("")
 const selectedModelId = ref("")
+const searchAvailable = ref(false)
+const searchMode = ref<NonNullable<SendMessagePayload['webSearch']>>('auto')
+const savedSearchMode = ref<'auto'|'off'>('auto')
+const thinkingEffort = ref<SendMessagePayload['thinkingEffort']>()
+const thinkingAvailable = computed(()=>models.value.find(model=>model.id===selectedModelId.value)?.supportsThinking===true)
+const thinkingEnabled = computed(()=>auth.settings?.student_thinking_enabled!==false)
+const thinkingDefault = computed(()=>auth.settings?.student_thinking_default||'high')
+const composerPreferenceKey = () => `cagent.composer-controls.${auth.user?.id||'guest'}`
+watch(()=>auth.user?.id,()=>{
+  savedSearchMode.value='auto'
+  thinkingEffort.value=undefined
+  try {
+    const saved=JSON.parse(localStorage.getItem(composerPreferenceKey())||'{}')
+    if(saved.search==='off')savedSearchMode.value='off'
+    if(['none','low','high','max'].includes(saved.thinking))thinkingEffort.value=saved.thinking
+  } catch { /* Keep server defaults when preferences cannot be read. */ }
+  searchMode.value=savedSearchMode.value
+},{immediate:true})
+function saveComposerPreferences(){
+  try{localStorage.setItem(composerPreferenceKey(),JSON.stringify({search:savedSearchMode.value,thinking:thinkingEffort.value}))}catch{}
+}
+function selectSearch(mode:NonNullable<SendMessagePayload['webSearch']>){
+  searchMode.value=mode
+  if(mode!=='on'){savedSearchMode.value=mode;saveComposerPreferences()}
+}
+function selectThinking(effort:NonNullable<SendMessagePayload['thinkingEffort']>|'default'){
+  thinkingEffort.value=effort==='default'?undefined:effort
+  saveComposerPreferences()
+}
 
 /**
  * 所选模型是否支持视觉（图片理解）。
@@ -158,6 +227,9 @@ const visionSupported = computed(
   () => models.value.find((m) => m.id === selectedModelId.value)?.supportsVision !== false
 )
 const selectedAgentId = ref("")
+watch(selectedAgentId,async id=>{
+ try{const bases=await get<{id:string;name:string}[]>('/campus/selectable-sources',id?{agentId:id}:undefined);if(id!==selectedAgentId.value)return;availableBases.value=bases.map(x=>({id:x.id,label:x.name}));if(chosenBases.value)chosenBases.value=chosenBases.value.filter(key=>bases.some(base=>base.id===key))}catch{}
+},{immediate:true})
 
 /** 管理模式：批量勾选/删除会话；打开会话或新建对话时自动退出 */
 const manageMode = ref(false)
@@ -182,6 +254,12 @@ const refusedAgentIds = new Set<string>()
 
 const draft = ref("")
 const pendingImages = ref<string[]>([])
+const pendingDocuments=ref<{name:string;token?:string;text?:string}[]>([])
+const documentStatus=ref('')
+const textFiles=/\.(?:txt|md|csv|tsv|json|xml|yaml|yml|js|ts|jsx|tsx|py|java|c|h|cpp|go|rs|sql|html|css|log)$/i
+const nativeFiles=/\.(?:pdf|docx?|pptx?|xlsx?|epub|mobi|bmp|tiff?)$/i
+const fileAccept='image/jpeg,image/png,image/webp,image/gif,.txt,.md,.csv,.tsv,.json,.xml,.yaml,.yml,.js,.ts,.jsx,.tsx,.py,.java,.c,.h,.cpp,.go,.rs,.sql,.html,.css,.log,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.epub,.mobi,.bmp,.tif,.tiff'
+watch(activeId,()=>{pendingDocuments.value=[]})
 const {imagePreparing,imageTransfer,prepare:prepareImages,beginUpload,uploadProgress,finishUpload}=useImageAttachments(pendingImages,activeId,message=>ElMessage.warning(message))
 const streaming = ref(false)
 const loadingConversations = ref(false)
@@ -192,6 +270,7 @@ const scrollEl = ref<HTMLElement>()
 /** 会话列表滚动容器：用于把当前项滚进可视区 */
 const convScrollEl = ref<HTMLElement>()
 const inputEl = ref<HTMLTextAreaElement>()
+const composerHeight=useComposerHeight(inputEl,'cagent.student-composer-height')
 const fileInput = ref<HTMLInputElement>()
 const composer = composerKeys(send)
 useConversationDraft(activeId, draft, pendingImages)
@@ -270,6 +349,21 @@ function askFromCard(text: string) {
   draft.value = text
   void send()
 }
+let lastCardDraft = ''
+function draftFromCard(text: string) {
+  if (draft.value.trim() && draft.value !== lastCardDraft) {
+    ElMessage.info('请先处理输入框里的草稿，再从卡片继续')
+    return
+  }
+  draft.value = lastCardDraft = text
+  void nextTick(() => inputEl.value?.focus())
+}
+watch(()=>router.currentRoute.value.query.ask,value=>{
+  if(router.currentRoute.value.path!=='/student'||typeof value!=='string'||!value.trim())return
+  draftFromCard(value.slice(0,500))
+  const {ask,...query}=router.currentRoute.value.query
+  void router.replace({path:'/student',query})
+},{immediate:true})
 
 /**
  * 卡片里的「切换智能体」。
@@ -456,7 +550,7 @@ async function loadConversations() {
   try {
     const page = await conversationsApi.mine({
       page: 1,
-      pageSize: 50,
+      pageSize: 100,
       keyword: keyword.value || undefined
     })
     if (request === listRequest) conversations.value = page.items
@@ -476,6 +570,7 @@ let metaPromise: Promise<void> | null = null
 async function loadMeta() {
   // 三个接口互不依赖，并发拉取；单个失败不影响其余
   await Promise.all([
+    get<{label:string;question:string}[]>('/campus/shortcuts').then(data=>quickFeatures.value=data).catch(()=>undefined),
     modelsApi
       .available()
       .then((list) => {
@@ -518,7 +613,9 @@ async function loadMeta() {
         // 清单到手后立即按前缀配置预勾选推荐/自动技能
         applySkillPresets()
       })
-      .catch(() => undefined)
+      .catch(() => undefined),
+    skillsApi.builtIns().then(list=>{builtinOptions.value=list.map(tool=>({id:'builtin:'+tool.key,label:tool.name,note:tool.description}));if(!restrictSkills.value)pickedSkills.value=[...new Set([...pickedSkills.value,...builtinOptions.value.map(tool=>tool.id)])]}).catch(()=>undefined)
+    ,get<{enabled:boolean}>('/search/available').then(result=>{searchAvailable.value=result.enabled}).catch(()=>undefined)
   ])
 }
 
@@ -530,18 +627,7 @@ async function loadMeta() {
 const uniqueSkills = computed(() => dedupeSkills(skills.value))
 
 /** 输入区仅展示用户已选用的实际工具技能。 */
-const skillChips = computed(() => {
-  const out: { key: string; name: string; on: boolean }[] = []
-  const seen = new Set<string>()
-  for (const s of uniqueSkills.value) {
-    const picked = pickedSkills.value.includes(s.key)
-    if (!picked || /^(ucass-kb-(survival|takeout)|kb-)/.test(s.key)) continue
-    if (seen.has(s.key)) continue
-    seen.add(s.key)
-    out.push({ key: s.key, name: s.name, on: picked })
-  }
-  return out
-})
+const skillOptions = computed(()=>[...uniqueSkills.value.filter(s=>!/^(ucass-kb-(survival|takeout)|kb-)/.test(s.key)).map(s=>({id:s.key,label:s.name,note:s.description})),...builtinOptions.value])
 
 /**
  * 技能预设：新对话开始时按前缀配置预勾选（见 utils/skill-presets.ts）。
@@ -549,6 +635,7 @@ const skillChips = computed(() => {
  * pickedSkills —— 用户可随时在输入框上方摘除，不是强制锁定。
  */
 function applySkillPresets() {
+  if(restrictSkills.value)return
   const keys = [
     ...pickSkillKeysByPrefix(uniqueSkills.value, AUTO_SKILL_PREFIXES),
     ...pickSkillKeysByPrefix(uniqueSkills.value, RECOMMENDED_SKILL_PREFIXES)
@@ -575,7 +662,11 @@ async function openConversation(id: string) {
 
 
 function toChatMessage(item: MessageItem): ChatMessage {
-  const images = (item.attachments as { images?: string[] } | null)?.images
+  const images = item.attachments?.images
+  const fileNames = [
+    ...(item.attachments?.files || []).map(file => file.name),
+    ...Array.from((item.content || '').matchAll(/\n\n【上传资料】([^\r\n]+)/g), match => match[1])
+  ]
   const toolCalls = item.toolCalls || []
   return {
     id: item.id,
@@ -586,6 +677,7 @@ function toChatMessage(item: MessageItem): ChatMessage {
     error: item.error || undefined,
     streaming: false,
     images: images?.length ? images : undefined,
+    fileNames: item.role === 'user' && fileNames.length ? fileNames : undefined,
     kbHits: normalizeKnowledgeSources(item.attachments?.knowledgeSources),
     runMetrics:item.attachments?.agentRun,
     modelName: item.modelKey || undefined,
@@ -647,7 +739,7 @@ function onSearch() {
 function scrollActiveConvIntoView() {
   void nextTick(() => {
     convScrollEl.value
-      ?.querySelector(".st-conv.is-active")
+      ?.querySelector(".history-row.is-active")
       ?.scrollIntoView({ block: "nearest" })
   })
 }
@@ -692,7 +784,6 @@ async function newConversation() {
   activeId.value = ""
   messages.value = []
   // 新对话回到预设态：清掉上一轮手动勾选，重新应用推荐/自动技能
-  pickedSkills.value = []
   applySkillPresets()
   if (isNarrow.value) sideHidden.value = true
   await nextTick()
@@ -850,16 +941,11 @@ function useStarter(text: string) {
 // ---------------- 输入 ----------------
 
 /** 自适应高度：先归零再读 scrollHeight，否则高度只会增不会减 */
-function autoGrow() {
-  const el = inputEl.value
-  if (!el) return
-  el.style.height = "auto"
-  el.style.height = `${Math.min(el.scrollHeight, 190)}px`
-}
+function autoGrow() {composerHeight.grow()}
 
 function pickImage() {
   // 双保险：入口已隐藏，但仍防键盘/插件触发（当前无视觉模型时直接忽略）
-  if (!visionSupported.value || streaming.value || imagePreparing.value) return
+  if (streaming.value || imagePreparing.value || documentStatus.value) return
   fileInput.value?.click()
 }
 
@@ -867,8 +953,29 @@ async function onFilesPicked(event: Event) {
   const input = event.target as HTMLInputElement
   const files = Array.from(input.files || [])
   input.value = ""
-  if(streaming.value || !visionSupported.value)return
-  await prepareImages(files)
+  if(streaming.value)return
+  const conversation=activeId.value
+  const images=files.filter(file=>['image/jpeg','image/png','image/webp','image/gif'].includes(file.type))
+  if(images.length){if(visionSupported.value)await prepareImages(images);else ElMessage.warning('当前模型不支持图片输入')}
+  for(const file of files.filter(file=>!images.includes(file))){
+    if(pendingDocuments.value.length>=4){ElMessage.warning('一轮最多添加四个文件');break}
+    if(file.size>15*1024*1024){ElMessage.warning(`${file.name} 超过 15 MB`);continue}
+    try{
+      documentStatus.value=`正在读取 ${file.name}`
+      if(textFiles.test(file.name)){
+        if(file.size>256*1024)throw Error('文本文件最多 256 KB')
+        const text=(await file.text()).replace(/^\uFEFF/,'').trim()
+        if(!text||text.includes('\0'))throw Error('文件没有可读取的文本')
+        if(activeId.value===conversation){if(text.length>9000)ElMessage.info('将使用该文件的前 9000 个字符');pendingDocuments.value.push({name:file.name,text:text.slice(0,9000)})}
+      }else if(nativeFiles.test(file.name)){
+        const flash=models.value.find(m=>/^deepseek-(?:v[\d.]+-)?flash$/i.test(m.key))
+        if(!flash)throw Error('请先启用官方 DeepSeek Flash 模型以读取此类文件')
+        const form=new FormData();form.append('file',file)
+        const result=await request<{name:string;token:string}>({method:'POST',url:'/chat/files',data:form,timeout:250000,onUploadProgress:e=>{if(e.total)documentStatus.value=e.loaded>=e.total?`正在解析 ${file.name}`:`上传 ${file.name} ${Math.round(100*e.loaded/e.total)}%`}})
+        if(activeId.value===conversation){pendingDocuments.value.push(result);selectedModelId.value=flash.id}
+      }else throw Error('此文件格式暂不支持')
+    }catch(e){toastError(e,`无法读取 ${file.name}`)}finally{documentStatus.value=''}
+  }
 }
 
 // ---------------- 首次使用引导 ----------------
@@ -1086,14 +1193,18 @@ async function send() {
 /** 发送实现；isAutoRetry 只决定失败后还能不能再自动重试（防无限套娃） */
 async function runSend(isAutoRetry: boolean,bypassCache=false,revision?:ChatMessage) {
   const originalUser=revision?messages.value.slice(0,messages.value.indexOf(revision)).reverse().find(m=>m.role==='user'):undefined
-  const content = revision?originalUser?.content||'重新生成原回答':draft.value.trim()
-  if (!content || streaming.value || imagePreparing.value || loadingMessages.value || (historyError.value && !messages.value.length)) return
+  const documents=revision?[]:[...pendingDocuments.value]
+  const input=draft.value.trim()||(documents.length?'请阅读这些附件，概括主要内容。':'')
+  const uploadedText=documents.filter(file=>file.text).map(file=>`【上传资料】${file.name}\n${file.text}`).join('\n\n')
+  const content = revision?originalUser?.content||'重新生成原回答':input+(uploadedText?'\n\n'+uploadedText:'')
+  if (!content || streaming.value || imagePreparing.value || documentStatus.value || loadingMessages.value || (historyError.value && !messages.value.length)) return
 
   const stamp = Date.now()
   const userMsg: ChatMessage = {
     id: `local-user-${stamp}`,
     role: "user",
     content,
+    fileNames:documents.map(file=>file.name),
     createdAt: new Date().toISOString(),
     images: pendingImages.value.length ? [...pendingImages.value] : undefined
   }
@@ -1108,7 +1219,7 @@ async function runSend(isAutoRetry: boolean,bypassCache=false,revision?:ChatMess
   }
   if(revision){assistantMsg.id=revision.id;messages.value.splice(messages.value.indexOf(revision),1,assistantMsg)}else messages.value.push(userMsg, assistantMsg)
 
-  if(!revision){draft.value = "";pendingImages.value = []}
+  if(!revision){draft.value = "";pendingImages.value = [];pendingDocuments.value=[]}
   void nextTick(autoGrow)
   streaming.value = true
   // 刚发出的消息做一次平滑滚落（后续的逐帧跟随由 typer 驱动）
@@ -1128,10 +1239,16 @@ async function runSend(isAutoRetry: boolean,bypassCache=false,revision?:ChatMess
     modelId: usedModelId || undefined,
     agentId: selectedAgentId.value || undefined,
     images: userMsg.images,
-    skills: pickedSkills.value.length ? [...pickedSkills.value] : undefined,
+    fileTokens:documents.flatMap(file=>file.token?[file.token]:[]),
+    skills: pickedSkills.value.filter(key=>restrictSkills.value||!key.startsWith('builtin:')),
+    knowledgeBaseIds:chosenBases.value??undefined,
+    restrictSkills:restrictSkills.value,
+    webSearch:searchAvailable.value?searchMode.value:undefined,
+    thinkingEffort:thinkingEnabled.value&&thinkingAvailable.value?thinkingEffort.value:undefined,
     // 自动记忆开关：引导里选过就按选择，没选过（读不到）按开启
     memoryEnabled: memoryEnabledPref()
   }
+  if(payload.webSearch==='on')searchMode.value=savedSearchMode.value
 
   /*
    * 之后所有流式状态的读写都走**响应式代理**：push 进数组的是原始对象，
@@ -1141,7 +1258,7 @@ async function runSend(isAutoRetry: boolean,bypassCache=false,revision?:ChatMess
   const userMsgRef = originalUser || userMsg
   const target = revision?messages.value.find(m=>m.id===revision.id)!:messages.value[messages.value.length - 1]
 
-  const request=(handlers:ChatStreamHandlers)=>revision?regenerateChat({conversationId:activeId.value!,messageId:revision.id,modelId:selectedModelId.value||undefined,outputPreference:outputPreference.value},handlers):streamChat(payload,handlers)
+  const request=(handlers:ChatStreamHandlers)=>revision?regenerateChat({conversationId:activeId.value!,messageId:revision.id,modelId:selectedModelId.value||undefined,outputPreference:outputPreference.value,knowledgeBaseIds:payload.knowledgeBaseIds,skills:payload.skills,restrictSkills:payload.restrictSkills,webSearch:payload.webSearch,thinkingEffort:payload.thinkingEffort},handlers):streamChat(payload,handlers)
   if(!revision&&payload.images?.length)beginUpload()
   const { abort, done } = request({
     onUploadProgress:uploadProgress,
@@ -1280,7 +1397,6 @@ async function copyMessage(text: string) {
 /** 点赞点踩只提交不追问原因（轻交互）；再点一次同向是撤销 */
 async function submitFeedback(messageId: string, positive: boolean) {
   const current = feedbackState.value[messageId]
-  if (!positive && current !== 'negative') {feedbackMessageId.value=messageId;feedbackVisible.value=true;return}
   try {
     if (current === (positive ? "positive" : "negative")) {
       await learningApi.revoke(messageId)
@@ -1289,7 +1405,8 @@ async function submitFeedback(messageId: string, positive: boolean) {
     }
     await learningApi.submit({ messageId, positive })
     feedbackState.value[messageId] = positive ? "positive" : "negative"
-    toastOk(positive ? "感谢反馈" : "已记录，我们会改进")
+    if(!positive){feedbackMessageId.value=messageId;feedbackVisible.value=true}
+    else toastOk('感谢反馈')
   } catch (error) {
     toastError(error, "反馈提交失败")
   }
@@ -1373,53 +1490,31 @@ onBeforeUnmount(() => {
     新版学生端外壳。所有 next 令牌挂 .nx-root（styles/next.css），
     暗色由 html.dark 自动生效；离开容器全部失效，与经典版互不影响。
   -->
-  <div class="nx-root nx-student">
+  <div class="nx-root nx-student" :style="{'--student-side-width':`${sidebarWidth}px`}">
     <!-- 窄屏抽屉遮罩：Transition 包一层，关闭时也有淡出而不是瞬间消失 -->
     <Transition name="st-mask">
       <div v-if="isNarrow && !sideHidden" class="st-backdrop" @click="sideHidden = true"></div>
     </Transition>
 
     <!-- ============ 侧栏：品牌 / 新建 / 搜索 / 会话列表 / 用户条 ============ -->
-    <aside class="st-side" :class="{ 'is-hidden': sideHidden }">
+    <aside class="st-side chat-sidebar" :class="{ 'is-hidden': sideHidden }" :inert="sideHidden">
       <div class="st-brand">
         <div class="st-seal" aria-hidden="true">{{ sealChar }}</div>
         <div class="st-brand-text">
           <div class="st-brand-name">{{ auth.siteName }}</div>
           <div class="st-brand-sub">{{ display.subtitle }}</div>
         </div>
+        <button type="button" class="nx-icon-btn st-collapse" aria-label="收起对话侧栏" @click="sideHidden=true"><el-icon><Fold/></el-icon></button>
       </div>
 
-      <div class="st-side-actions">
-        <button type="button" class="nx-btn nx-btn-primary nx-btn-block st-new" @click="newConversation">
+      <div class="chat-history-toolbar">
+        <button type="button" class="nx-btn nx-btn-primary chat-history-new st-new" @click="newConversation">
           <IconPlus />
           新建对话
         </button>
-        <!-- 管理模式开关：批量勾选/删除会话；打开会话或新建对话时自动退出 -->
-        <button
-          type="button"
-          class="nx-btn nx-btn-block st-manage"
-          :class="{ 'is-on': manageMode }"
-          :aria-pressed="manageMode"
-          @click="toggleManageMode"
-        >
-          {{ manageMode ? "完成" : "管理" }}
-        </button>
       </div>
 
-      <OutputPreferenceSelect/>
-      <div class="st-search">
-        <div class="nx-search">
-          <IconSearch />
-          <input
-            v-model="keyword"
-            type="search"
-            class="nx-input"
-            placeholder="搜索历史对话"
-            aria-label="搜索历史对话"
-            @input="onSearch"
-          />
-        </div>
-      </div>
+      <ConversationSearch v-model="keyword" :editing="manageMode" @search="onSearch" @edit="toggleManageMode"/>
 
       <!--
         管理模式操作条。
@@ -1461,53 +1556,21 @@ onBeforeUnmount(() => {
             {{ keyword ? "没有匹配的对话" : "还没有对话，从下面开始吧" }}
           </div>
 
-          <div
-            v-for="conv in conversations"
-            :key="conv.id"
-            class="st-conv"
-            :class="{
-              'is-active': conv.id === activeId,
-              'is-checked': manageMode && selectedConvIds.has(conv.id)
-            }"
-            role="button"
-            tabindex="0"
-            @click="onConvRowClick(conv)"
-            @keydown.enter.prevent="onConvRowClick(conv)"
-          >
-            <!-- 管理模式行首自绘勾选框：普通模式不渲染，行结构不变 -->
-            <span
-              v-if="manageMode"
-              class="st-conv-check"
-              :class="{ 'is-on': selectedConvIds.has(conv.id) }"
-              aria-hidden="true"
-            ></span>
-            <div class="st-conv-body">
-              <div class="st-conv-title">
-                <IconPin v-if="conv.pinned" class="st-pin" />
-                {{ conv.title || "未命名对话" }}
-              </div>
-              <div class="st-conv-meta">
-                {{ conv.messageCount ?? conv._count?.messages ?? 0 }} 条 ·
-                {{ fromNow(conv.lastMessageAt || conv.updatedAt) }}
-              </div>
-            </div>
-            <!-- 管理模式下隐藏单删按钮，删除统一走操作条 -->
-            <button
-              v-if="!manageMode"
-              type="button"
-              class="st-conv-del"
-              aria-label="删除对话"
-              @click.stop="removeConversation(conv)"
-            >
-              <IconTrash />
-            </button>
-          </div>
+          <section v-for="group in conversationGroups" :key="group.key" class="conversation-day">
+            <h3>{{group.label}}</h3>
+            <ConversationHistoryRow v-for="conv in group.items" :key="conv.id"
+              :title="conv.title" :active="conv.id===activeId" :pinned="conv.pinned"
+              :editing="manageMode" :selected="manageMode&&selectedConvIds.has(conv.id)"
+              @select="onConvRowClick(conv)" @command="onHistoryCommand($event,conv)">
+              <el-dropdown-item command="rename" :disabled="streaming"><el-icon><EditPen/></el-icon>重命名</el-dropdown-item>
+              <el-dropdown-item v-if="auth.settings?.student_conversation_export_enabled!==false" command="export"><el-icon><Download/></el-icon>导出 JSON</el-dropdown-item>
+              <el-dropdown-item command="delete" divided><el-icon><Delete/></el-icon>删除</el-dropdown-item>
+            </ConversationHistoryRow>
+          </section>
         </template>
       </div>
 
       <div class="st-user">
-        <RouterLink to="/student/lectures" class="nx-icon-btn st-utility-link" aria-label="讲座日历" title="讲座日历"><el-icon><Calendar/></el-icon></RouterLink>
-        <RouterLink v-if="display.mapEntry" to="/map" class="nx-icon-btn st-utility-link" aria-label="校园地图" title="校园地图"><el-icon><MapLocation/></el-icon></RouterLink>
         <div class="nx-avatar st-user-avatar">
           <img v-if="isImageUrl(auth.user?.avatar)" :src="auth.user!.avatar!" alt="" />
           <template v-else>{{ (auth.user?.name || "同").slice(0, 1) }}</template>
@@ -1516,40 +1579,26 @@ onBeforeUnmount(() => {
           <div class="st-user-name">{{ auth.displayName }}</div>
           <div class="st-user-role">学生</div>
         </div>
-        <button
-          type="button"
-          class="nx-icon-btn"
-          v-if="theme.allowToggle" :aria-label="theme.isDark ? '切换到浅色' : '切换到深色'"
-          @click="theme.toggle()"
-        >
-          <IconSun v-if="theme.isDark" />
-          <IconMoon v-else />
-        </button>
         <button type="button" class="nx-icon-btn" aria-label="退出登录" @click="logout">
           <IconLogout />
         </button>
       </div>
     </aside>
+    <div v-if="!isNarrow&&!sideHidden" class="st-resize" role="separator" aria-label="调整对话侧栏宽度" aria-orientation="vertical" :aria-valuenow="sidebarWidth" :aria-valuemin="200" :aria-valuemax="420" tabindex="0" @pointerdown="resizeSide" @keydown="keyResizeSide"/>
 
     <!-- ============ 主区 ============ -->
     <section class="st-main">
-      <header class="st-top">
-        <button
-          v-if="isNarrow"
+      <StudentTopbar ref="topbar" chat :takeout="takeoutShortcut" :pet-hidden="petHidden&&auth.settings?.mascot_resident_enabled!==false" :show-map="display.mapEntry" :title="activeConversation?.title || activeAgent?.name || '新的对话'" :subtitle="streaming?'正在回复…':undefined" @ask="draftFromCard" @show-pet="petHidden=false" @account="showAccount">
+        <template #leading><button
+          v-if="isNarrow||sideHidden"
           type="button"
           class="nx-icon-btn"
           aria-label="打开对话列表"
           @click="sideHidden = false"
         >
           <IconMenu />
-        </button>
-
-        <div class="st-title-wrap">
-          <div class="st-title">{{ activeConversation?.title || activeAgent?.name || "新的对话" }}</div>
-          <div class="st-subtitle">
-            {{ streaming ? "正在回复…" : activeAgent ? `由「${activeAgent.name}」回答` : "校园生活与办事助手" }}
-          </div>
-        </div>
+        </button></template>
+      </StudentTopbar>
 
         <!--
           这里刻意没有智能体 / 模型选择器（产品决策）：
@@ -1580,14 +1629,6 @@ onBeforeUnmount(() => {
           </div>
         </Transition>
 
-        <!-- 管理端配置的学校 Logo：右上角轻量露出，空配置不渲染 -->
-        <img
-          v-if="auth.settings?.student_logo_url"
-          :src="auth.settings.student_logo_url"
-          class="st-logo"
-          alt="学校标识"
-        />
-      </header>
 
       <!-- 消息滚动区（悬浮的「回到底部」挂在同一层） -->
       <div class="st-stage">
@@ -1662,7 +1703,8 @@ onBeforeUnmount(() => {
                 <div v-if="msg.images?.length" class="nx-msg-images st-msg-images">
                   <img v-for="(img, i) in msg.images" :key="i" :src="img" alt="已发送的图片" />
                 </div>
-                <div class="nx-msg-bubble">{{ msg.content }}</div>
+                <div v-if="msg.fileNames?.length" class="st-documents"><el-tag v-for="(name,i) in msg.fileNames" :key="i" effect="plain">{{name}}</el-tag></div>
+                <div class="nx-msg-bubble">{{ msg.content.split('\n\n【上传资料】',1)[0] }}</div>
               </template>
 
               <!-- 助手消息 -->
@@ -1683,7 +1725,7 @@ onBeforeUnmount(() => {
                     助手正文按「Markdown / 卡片」交替分段渲染。
                     卡片是组件，不能走 MarkdownView 的 v-html，必须先切开。
                   -->
-                  <CardMessage :content="msg.content" :streaming="!!msg.streaming" :disabled="streaming" :auto-play="!!msg.liveEffect" :effect-key="msg.id" :has-knowledge-sources="!!msg.kbHits?.length" :knowledge-sources="msg.kbHits" @ask="askFromCard" @switch-agent="switchAgentFromCard" @use-skill="useSkillFromCard" :progress="msg.runProgress"/>
+                  <CardMessage panel-features :content="msg.content" :streaming="!!msg.streaming" :disabled="streaming" :auto-play="!!msg.liveEffect" :effect-key="msg.id" :has-knowledge-sources="!!msg.kbHits?.length" :knowledge-sources="msg.kbHits" confirm-ask @feature="showFeature" @draft-ask="draftFromCard" @ask="askFromCard" @switch-agent="switchAgentFromCard" @use-skill="useSkillFromCard" :progress="msg.runProgress"/>
                   <span v-if="msg.streaming" class="nx-caret" aria-hidden="true"></span>
                 </div>
 
@@ -1691,6 +1733,7 @@ onBeforeUnmount(() => {
 
                 <!-- 消息操作：悬停才出现，不干扰阅读 -->
                 <div v-if="!msg.streaming && msg.content" class="st-msg-actions">
+                  <VoicePlayback v-if="auth.isLoggedIn && auth.settings?.voice_tts_enabled" :content="msg.content" :max-chars="auth.settings.voice_tts_max_chars || 2500"/>
                   <button
                     type="button"
                     class="nx-icon-btn"
@@ -1737,6 +1780,7 @@ onBeforeUnmount(() => {
         >
           <IconDown />
         </button>
+        <CampusMascot v-if="!petHidden && auth.settings?.mascot_resident_enabled!==false" :busy="streaming" :phase="messages.at(-1)?.runProgress?.stage" @hide="petHidden=true"/>
       </div>
 
       <!-- 输入区 -->
@@ -1772,30 +1816,17 @@ onBeforeUnmount(() => {
             </div>
           </Transition>
 
-          <div class="st-composer-box">
-            <KnowledgeShortcuts v-if="display.knowledgeShortcuts" :disabled="streaming" @ask="draft=$event"/>
+          <div class="st-composer-box chat-composer-box">
+            <button type="button" class="composer-height-handle" aria-label="调整输入框高度" title="向上拖动调高输入框，方向键调整，Home 恢复默认" @pointerdown="composerHeight.start" @pointermove="composerHeight.move" @pointerup="composerHeight.finish" @pointercancel="composerHeight.finish" @keydown="composerHeight.resize"></button>
             <!--
               辛瓜指南、外卖经验已收录知识库，直接提问即可查询；这里仅显示已启用的工具技能。
               学生没有技能选择器，这里是他们使用技能的唯一入口（原「本次启用」条
               只显示已勾选项，等于没有入口）。卡片激活的技能也并入此行。
             -->
-            <div v-if="skillChips.length" class="st-skills">
-              <span class="st-skills-label">技能</span>
-              <button
-                v-for="c in skillChips"
-                :key="c.key"
-                type="button"
-                class="nx-chip"
-                :class="{ 'is-on': c.on }"
-                :aria-label="`${c.on ? '停用' : '启用'}技能 ${c.name}`"
-                @click="toggleSkill(c.key)"
-              >
-                {{ c.name }}
-                <span v-if="c.on" class="st-chip-x" aria-hidden="true">×</span>
-              </button>
-            </div>
+
 
             <ImageTransferProgress :state="imageTransfer"/>
+            <div v-if="pendingDocuments.length||documentStatus" class="st-documents" aria-live="polite"><el-tag v-for="(file,index) in pendingDocuments" :key="index" closable @close="pendingDocuments.splice(index,1)">{{file.name}}</el-tag><span v-if="documentStatus">{{documentStatus}}</span></div>
             <div v-if="pendingImages.length" class="st-previews">
               <div v-for="(img, i) in pendingImages" :key="i" class="st-preview">
                 <img :src="img" alt="待发送图片" />
@@ -1806,7 +1837,7 @@ onBeforeUnmount(() => {
             <textarea
               ref="inputEl"
               v-model="draft"
-              class="st-textarea"
+              class="st-textarea chat-composer-input"
               rows="1"
               :placeholder="display.placeholder"
               aria-label="输入消息"
@@ -1815,18 +1846,23 @@ onBeforeUnmount(() => {
               @keydown="composer.keydown" @compositionstart="composer.start" @compositionend="composer.end"
             ></textarea>
 
+            <ComposerSources :bases="availableBases" :skills="skillOptions" :base-selection="chosenBases" :skill-selection="pickedSkills" :disabled="streaming"
+              :search-available="searchAvailable" :search-mode="searchMode" :thinking-enabled="thinkingEnabled" :thinking-available="thinkingAvailable"
+              :thinking-effort="thinkingEffort" :thinking-default="thinkingDefault"
+              @bases="chosenBases=$event" @skills="restrictSkills=true;pickedSkills=$event" @search="selectSearch" @thinking="selectThinking"/>
+
             <div class="st-composer-foot">
               <div class="st-composer-left">
+                <VoiceInput v-if="auth.isLoggedIn && auth.settings?.voice_asr_enabled" :max-seconds="auth.settings.voice_asr_max_seconds || 60" :disabled="streaming" @transcript="draft = draft ? draft + ' ' + $event : $event"/>
                 <button
-                  v-if="visionSupported"
                   type="button"
                   class="nx-icon-btn"
-                  aria-label="添加图片"
-                  title="添加图片"
-                  :disabled="streaming || imagePreparing"
+                  aria-label="添加文件或图片"
+                  title="添加文件或图片"
+                  :disabled="streaming || imagePreparing || !!documentStatus"
                   @click="pickImage"
                 >
-                  <IconImage />
+                  <el-icon><Paperclip/></el-icon>
                 </button>
                 <span class="st-char">{{ draft.length }} 字</span>
               </div>
@@ -1840,7 +1876,7 @@ onBeforeUnmount(() => {
                   v-else
                   type="button"
                   class="nx-btn nx-btn-primary st-send"
-                  :disabled="!draft.trim() || imagePreparing || loadingMessages || (Boolean(historyError) && !messages.length)"
+                  :disabled="(!draft.trim()&&!pendingDocuments.length) || !!documentStatus || imagePreparing || loadingMessages || (Boolean(historyError) && !messages.length)"
                   @click="send"
                 >
                   <IconSend />
@@ -1854,7 +1890,7 @@ onBeforeUnmount(() => {
         <input
           ref="fileInput"
           type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif"
+          :accept="fileAccept"
           multiple
           class="st-file"
           @change="onFilesPicked"
@@ -1862,6 +1898,9 @@ onBeforeUnmount(() => {
         <p v-if="display.footer" class="st-display-footer">{{ display.footer }}</p>
       </footer>
     </section>
+    <el-drawer v-model="featureOpen" :direction="isNarrow?'btt':'rtl'" :size="isNarrow?'58dvh':'min(640px,90vw)'" :title="accountPane==='usage'?'我的用量':'我的记忆'" destroy-on-close>
+      <div class="nx-root student-feature-body"><OwnMemory v-if="accountPane==='memory'"/><OwnUsage v-else-if="accountPane==='usage'"/></div>
+    </el-drawer>
 
     <!-- ============ 首次使用引导：每个用户只弹一次，点遮罩等同跳过 ============ -->
     <Transition name="st-mask">

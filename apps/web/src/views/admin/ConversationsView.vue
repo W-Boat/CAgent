@@ -49,90 +49,93 @@
       <el-button @click="reset">重置</el-button>
     </div>
 
-    <el-table :data="items" v-loading="loading" stripe size="small">
-      <el-table-column label="会话" min-width="240">
-        <template #default="{ row }">
-          <div class="conv-cell">
-            <el-icon class="conv-icon"><ChatLineSquare /></el-icon>
-            <div class="conv-main">
-              <div class="conv-title">
-                {{ row.title || "未命名会话" }}
-                <el-tag v-if="row.pinned" size="small" type="warning" effect="plain">置顶</el-tag>
+    <div class="table-card">
+      <el-table :data="items" v-loading="loading" stripe size="small">
+        <el-table-column label="会话" min-width="240">
+          <template #default="{ row }">
+            <div class="conv-cell">
+              <el-icon class="conv-icon"><ChatLineSquare /></el-icon>
+              <div class="conv-main">
+                <div class="conv-title">
+                  {{ row.title || "未命名会话" }}
+                  <el-tag v-if="row.pinned" size="small" type="warning" effect="plain">置顶</el-tag>
+                </div>
+                <div class="muted small mono">{{ row.id }}</div>
               </div>
-              <div class="muted small mono">{{ row.id }}</div>
             </div>
-          </div>
-        </template>
-      </el-table-column>
+          </template>
+        </el-table-column>
 
-      <el-table-column label="所属用户" min-width="180">
-        <template #default="{ row }">
-          <div class="user-cell">
-            <span>{{ row.user?.name || "-" }}</span>
-            <span class="muted small">{{ row.user?.email || "" }}</span>
-            <span v-if="row.user?.department" class="muted small">{{ row.user.department }}</span>
-          </div>
-        </template>
-      </el-table-column>
+        <el-table-column label="所属用户" min-width="180">
+          <template #default="{ row }">
+            <div class="user-cell">
+              <span>{{ row.user?.name || "-" }}</span>
+              <span class="muted small">{{ row.user?.email || "" }}</span>
+              <span v-if="row.user?.department" class="muted small">{{ row.user.department }}</span>
+            </div>
+          </template>
+        </el-table-column>
 
-      <el-table-column label="模型 / 智能体" width="180">
-        <template #default="{ row }">
-          <div class="model-cell">
-            <el-tag v-if="row.model" size="small" effect="plain">{{ row.model.name }}</el-tag>
-            <el-tag v-if="row.agent" size="small" type="success" effect="plain">{{ row.agent.name }}</el-tag>
-            <span v-if="!row.model && !row.agent" class="muted">-</span>
-          </div>
-        </template>
-      </el-table-column>
+        <el-table-column label="模型 / 智能体" width="180">
+          <template #default="{ row }">
+            <div class="model-cell">
+              <el-tag v-if="row.model" size="small" effect="plain">{{ row.model.name }}</el-tag>
+              <el-tag v-if="row.agent" size="small" type="success" effect="plain">{{ row.agent.name }}</el-tag>
+              <span v-if="!row.model && !row.agent" class="muted">-</span>
+            </div>
+          </template>
+        </el-table-column>
 
-      <el-table-column label="消息数" width="90">
-        <template #default="{ row }">{{ row._count?.messages ?? row.messageCount ?? 0 }}</template>
-      </el-table-column>
+        <el-table-column label="消息数" width="90">
+          <template #default="{ row }">{{ row._count?.messages ?? row.messageCount ?? 0 }}</template>
+        </el-table-column>
 
-      <el-table-column label="Token" width="110">
-        <template #default="{ row }">{{ formatTokens(row.totalTokens) }}</template>
-      </el-table-column>
+        <el-table-column label="Token" width="110">
+          <template #default="{ row }">{{ formatTokens(row.totalTokens) }}</template>
+        </el-table-column>
 
-      <el-table-column label="状态" width="95">
-        <template #default="{ row }">
-          <el-tag :type="convStatusType(row.status)" size="small" effect="plain">
-            {{ convStatusText(row.status) }}
-          </el-tag>
-        </template>
-      </el-table-column>
+        <el-table-column label="状态" width="95">
+          <template #default="{ row }">
+            <el-tag :type="convStatusType(row.status)" size="small" effect="plain">
+              {{ convStatusText(row.status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
 
-      <el-table-column label="更新时间" width="168">
-        <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
-      </el-table-column>
+        <el-table-column label="更新时间" width="168">
+          <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
+        </el-table-column>
 
-      <el-table-column label="操作" width="150" fixed="right">
-        <template #default="{ row }">
-          <el-button text type="primary" size="small" @click="showDetail(row)">查看对话</el-button>
-          <el-button
-            text
-            type="primary"
-            size="small"
-            :disabled="!auth.can('conversation:export')"
-            @click="exportConv(row)"
-          >
-            导出
-          </el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+        <el-table-column label="操作" width="150" fixed="right">
+          <template #default="{ row }">
+            <el-button text type="primary" size="small" @click="showDetail(row)">查看对话</el-button>
+            <el-button
+              text
+              type="primary"
+              size="small"
+              :disabled="!auth.can('conversation:export')"
+              @click="exportConv(row)"
+            >
+              导出
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
 
-    <el-pagination
-      v-if="total > 0"
-      v-model:current-page="query.page"
-      v-model:page-size="query.pageSize"
-      :total="total"
-      :page-sizes="[20, 50, 100]"
-      layout="total, sizes, prev, pager, next"
-      background
-      class="pager"
-      @current-change="load"
-      @size-change="reload"
-    />
+      <div class="pager">
+        <el-pagination
+          v-if="total > 0"
+          v-model:current-page="query.page"
+          v-model:page-size="query.pageSize"
+          :total="total"
+          :page-sizes="[20, 50, 100]"
+          layout="total, sizes, prev, pager, next"
+          background
+          @current-change="load"
+          @size-change="reload"
+        />
+      </div>
+    </div>
 
     <el-drawer v-model="detailVisible" :title="current?.title || '会话详情'" size="720px">
       <div v-if="current" v-loading="detailLoading">

@@ -643,17 +643,16 @@ async function seedAgents(adminId: string, defaultModelId: string | null) {
 async function seedDemoUsers() {
   if (process.env.SEED_DEMO_USERS !== "true") return
 
-  const role = await prisma.role.findUnique({ where: { key: "user" } })
-  if (!role) return
-
   const demos = [
     {
+      roleKey: "user",
       email: "student@cagent.local",
       name: "张同学",
       department: "计算机学院",
       studentNo: "2023001"
     },
     {
+      roleKey: "teacher",
       email: "teacher@cagent.local",
       name: "李老师",
       department: "计算机学院",
@@ -664,31 +663,26 @@ async function seedDemoUsers() {
   const password = process.env.SEED_DEMO_PASSWORD
   if (!password || password.length < 12) throw new Error("Set SEED_DEMO_PASSWORD before enabling demo accounts")
 
-  for (const demo of demos) {
+  for (const { roleKey, ...demo } of demos) {
     const existing = await prisma.user.findUnique({
       where: { email: demo.email }
     })
     if (existing) continue
-
-    const user = await prisma.user.create({
+    const role = await prisma.role.findUniqueOrThrow({ where: { key: roleKey } })
+    await prisma.user.create({
       data: {
         ...demo,
         passwordHash: await bcrypt.hash(password, 10),
-        status: "ACTIVE"
-      }
-    })
-    await prisma.userRole.create({
-      data: { userId: user.id, roleId: role.id }
-    })
-    await prisma.userQuota.create({
-      data: {
-        userId: user.id,
-        enabled: true,
-        dailyTokenLimit: 100000,
-        monthlyTokenLimit: 2000000,
-        dailyRequestLimit: 200,
-        rpmLimit: 20,
-        note: "演示账号配额"
+        status: "ACTIVE",
+        roles: { create: { roleId: role.id } },
+        quota: { create: {
+          enabled: true,
+          dailyTokenLimit: 100000,
+          monthlyTokenLimit: 2000000,
+          dailyRequestLimit: 200,
+          rpmLimit: 20,
+          note: "演示账号配额"
+        } }
       }
     })
   }
@@ -697,6 +691,10 @@ async function seedDemoUsers() {
 }
 
 async function main() {
+  if (process.argv.includes("--demo-only")) {
+    await seedDemoUsers()
+    return
+  }
   console.log("开始写入种子数据…\n")
 
   await seedPermissions()

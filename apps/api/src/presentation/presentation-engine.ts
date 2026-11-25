@@ -1,5 +1,6 @@
 import {UI_COMPONENTS,isUiDocument,validateUiDocument} from './agent-ui'
 import {parseCardJson} from './card-json'
+import { matchingRecipe, type PresentationPolicy } from './presentation-policy'
 
 export interface PresentationPlan {
  mode:'plain'|'native'|'page'|'adaptive'
@@ -8,7 +9,7 @@ export interface PresentationPlan {
  reason:string
  contextQuery?:string
 }
-export interface PresentationContext {previousQuery?:string;clarifyChoices?:{label:string;query:string}[];outputPreference?:'cards'|'adaptive'|'text'}
+export interface PresentationContext {previousQuery?:string;clarifyChoices?:{label:string;query:string}[];outputPreference?:'cards'|'adaptive'|'text';policy?:PresentationPolicy}
 export function isPresentationFollowup(query:string):boolean {
  return query.trim().length<=80&&!/换(?:个|一)|另外|改(?:成|问)|不是.*而是|聊.*别的|校园卡|一卡通|奖学金|助学|社团|图书馆|食堂|超市|成绩|宿舍|户口|复习计划|学习计划|心理咨询|退学/.test(query)&&/^(?:那|然后|接着|接下来|下一步|继续|再|详细|具体|材料|流程|时间|入口|需要|要带|能|可以|周末|电话|地址|在哪|怎么办|多少钱|多久|如何准备|怎么准备|我选|我是|我在|本科生|研究生|良乡|望京|每天|第[一二三四五六\d]+步|这一步|就这个|还有)/.test(query.trim())
 }
@@ -41,41 +42,24 @@ export function presentationPlan(query:string,context:PresentationContext={}):Pr
  return plan('adaptive','adaptive',[],'text：从答案结构选择；单条事实/闲聊/散文用文字，业务字段/多个实体/动作入口用 page')
 }
 export function presentationHint(query:string,context:PresentationContext={}):string{return presentationPlan(query,context).reason}
-const examples={
- business:{type:'page',version:'0.1',id:'answer',layout:'stack',fallback:'示例事项需按指南前往窗口办理，材料为指南列明的证件。',children:[{type:'service_card',id:'matter',title:'示例服务窗口',mode:'offline',summary:'按证据中的地点与要求办理。',actionLabel:'查看准备材料',action:{kind:'ask',message:'这项服务需要准备什么材料？'}},{type:'key_values',id:'details',title:'办理须知',items:[{label:'材料',value:'指南列明的证件'}]}]},
- collect:{type:'page',version:'0.1',id:'answer',layout:'stack',fallback:'请提供目标与每天可投入的时间，再制定计划。',children:[{type:'form',id:'conditions',title:'补充计划条件',fields:[{key:'goal',label:'目标',type:'text',required:true},{key:'hours',label:'每天可投入小时',type:'number',required:true}],submitLabel:'按条件制定计划',action:{kind:'ask',message:'按我确认的条件制定计划'}}]},
- compare:{type:'page',version:'0.1',id:'answer',layout:'stack',fallback:'示例中甲为1、乙为2。',children:[{type:'table',id:'comparison',title:'同一维度比较',columns:['方案','给定值'],rows:[['甲',1],['乙',2]]}]},
- procedure:{type:'page',version:'0.1',id:'answer',layout:'stack',fallback:'示例：先核对事项，再按指南提交证件。',children:[{type:'steps',id:'flow',title:'事项办理流程',steps:[{title:'核对事项',desc:'按证据确认办理对象。'},{title:'提交材料',desc:'按原文要求办理。'}]},{type:'checklist',id:'materials',title:'准备材料',items:[{title:'证据中的证件',desc:'保留原件/复印件要求。'}]}]},
- checklist:{type:'page',version:'0.1',id:'answer',layout:'stack',fallback:'示例材料：证件，具体要求以证据为准。',children:[{type:'checklist',id:'materials',title:'准备材料',items:[{title:'证据中的证件',desc:'原件/复印件要求。'}]}]},
- clarify:{type:'page',version:'0.1',id:'answer',layout:'stack',fallback:'请选择具体事项：甲或乙。',children:[{type:'options',id:'choices',title:'你想办理哪项？',options:[{label:'事项甲',value:'请给我事项甲的办理流程'},{label:'事项乙',value:'请给我事项乙的准备材料'}]}]},
-} as const
 export function presentationPrompt(query:string,sourceIds:ReadonlySet<string>=new Set(),context:PresentationContext={}):string {
- const plan=presentationPlan(query,context),example=plan.intent==='collect'?examples.collect:plan.intent==='procedure'?examples.procedure:plan.intent==='checklist'?examples.checklist:plan.intent==='clarify'?examples.clarify:plan.intent==='compare'||plan.intent==='chart'?examples.compare:examples.business
- if(plan.mode==='plain')return `【本轮输出偏好：文字为主】只用可读 Markdown 段落、列表或表格回答，不输出通用 card/JSON。保留真实事实、完整条件和入口，证据不足说明缺项。专用危机/关怀/地图由场景决定。不要 DSML、工具协议或正文来源编号。${plan.contextQuery?'沿用事项：'+JSON.stringify(plan.contextQuery):''}`
- if(context.outputPreference==='cards'&&plan.mode!=='native')return `【本轮输出偏好：固定卡片】遵循固定模板，优先 familiar 卡片；不要 page/info_card，来源由知识库来源区显示。简单事实/闲聊保持文字。每张用完整的 card JSON 围栏。不能创造事实、入口、日期或工具动作。可用模板：
-facts:{type:"facts",title:string,items:[{label:string,value:string}]}
-steps:{type:"steps",title:string,steps:[{title:string,desc:string}]}
-checklist:{type:"checklist",title:string,items:[{title:string,desc:string}]}
-timeline:{type:"timeline",title:string,items:[{date:string,title:string,desc:string}]}
-compare:{type:"compare",title:string,columns:[string],rows:[[string]]}
-options:{type:"options",title:string,options:[{label:string,desc:string,action:"完整下一轮问题"}],submitText:"确认并继续"}
-guide:{type:"guide",title:string,items:[{label:string,desc:string,url:"完整真实HTTPS入口"}]}
-notice:{type:"notice",title:string,body:string}
-原生 care/crisis/map/places/dinner 仍使用专用卡。流程用 steps，材料用 checklist，澄清用实际 options，不重复追问已提供的条件。读过清单不代表完成办理。不要输出工具调用文本或正文来源编号。当前事项：${JSON.stringify(plan.contextQuery||query)}。${context.clarifyChoices?.length?'真实候选：'+JSON.stringify(context.clarifyChoices):''}`
- return `【统一呈现协议 Agent UI v0.1】本段是最终呈现规则，取代旧会话/旧智能体中的通用 facts/compare/guide/sections 等排版示例。页面实验室的组件就是正式聊天可用组件，不需要用户说“卡片”才能用。
-请用用户提问的语言直接交付结果。中文问题用中文回答；工具调用前不要输出 I will / I\'ll 或“我将去查询”之类预告。
-已有证据时，先用一句简短中文交付关键结论，再输出完整页面；这句必须是实际答案，便于用户先读到结果。
-本轮策略：${plan.reason}。${plan.mode==='native'?'保留原生专用卡，不能用通用页面替代。':'办理事项、多实体推荐、同维度比较、收集任务条件应主动生成 page 界面；不是把生成后的长文重新包起来。'}
-先理解意图与证据，再组织内容：同一事项字段→key_values；线上/线下服务→service_card；实体概况→info_card；多事项→card_group；流程→steps；材料→checklist；日期/阶段→timeline；限制→notice；问答→faq；比较→table；真实数值→chart；缺条件→form；已知候选澄清→options；入口→service_card action或button link。service_card用mode区分online/offline，未知办理方式用info_card；没有已核实链接就省略action或提供ask追问，不给线下窗口编造网址。不要把步骤/材料写成 summary 或连续 text。可组合信息、清单、流程和入口，各块内容勿重复。缺条件要主动用选项或表单询问，不只在末尾说“你告诉我”。候选来自上下文，不编造可办事项；用户选定或提供条件后完成任务，不反复询问。读过清单不代表备齐材料或完成办理，未确认进度时给条件步骤或用选项询问。简单事实/闲聊/文章仍用 Markdown。
-${plan.contextQuery?'本轮连续追问，上一轮事项：'+JSON.stringify(plan.contextQuery)+'。沿用事项，不因短问句改回闲聊/通用文字。':''}${context.clarifyChoices?.length?'真实澄清候选：'+JSON.stringify(context.clarifyChoices.slice(0,4)):''}
-必须用完整的 \`\`\`card JSON 围栏。所有新组件放入一个 page.children，不能把单个组件当顶层页面，也不要把字段写成伪代码。根格式：{type:"page",version:"0.1",id:"answer",layout:"stack"或"grid",fallback:"完整简明文字答案，包括事实与操作条件",children:[组件]}。示例仅示范结构，不能照抄示例事实：
-${JSON.stringify(example)}
-注册表（? 表示可省略字段；实际输出只用合法 JSON）：
-${Object.entries(UI_COMPONENTS).filter(([type])=>['text','info_card','notice','button','card_group',...plan.components,...(plan.intent==='adaptive'?['steps','checklist','table','options','service_card','key_values']:[])].includes(type)).map(([type,v])=>type+':{type:"'+type+'",id:string,'+v.shape+'}').join('\n')}
-每个 page/组件的 sourceRefs 最多8个，不需要罗列所有命中来源，只选直接支撑该组件的依据。每页最多48组件/4层，每组最多16项；流程/清单/时间线/问答24条、选项2–12个、表格8列40行、图表24标签3系列、表单8字段。id 唯一且只用英文字母数字下划线。完成标记由用户操作，不输出 done/checked。不要 HTML/CSS/JS 或额外字段。图表不得编造；图片用证据里的 HTTPS 图像。表单不收密码/令牌，不能直接登录、申请或写库；ask 是点击后下一轮问题，link 逐字复制真实完整 http(s) 地址。
-care/crisis/map/places/dinner/effect/poem/agents 等专用原生卡仍按场景使用。来源只在知识库来源区域；不要 sources 卡或可见索引编号。sourceRefs 是可省略的元数据；只能逐字复制本轮完整授权ID，最多8个并去重，不写序号/URL/猜测ID。无法确认时省略此字段，不影响事实回答。可选授权ID：${JSON.stringify([...sourceIds].slice(0,16))}（也可使用当前工具检索结果中的完整ID）。未知/冲突按来源说明。
-输出前检查：本轮是否需要业务/比较/条件收集界面？若需要且已有足够信息，不以纯 Markdown 或旧通用卡代替。所有新组件是否包在 page.children？字段/数值/来源/链接是否来自真实上下文？
-${plan.mode==='page'?`【本轮交付格式】必须输出一个有效 page，优先组件：${plan.components.join('、')}。${plan.contextQuery?'这是已有事项的连续追问；短句不等于简单事实，保留结构化界面，仅更新用户本轮关注的部分。':''}材料清单不能只给 Markdown 列表，流程不能只给文字编号，澄清不能只在末尾问一句。证据不足时如实显示缺项或用 options/form 收集必要条件，不补造事实。`:'【本轮交付格式】按本轮语义选择，专用原生卡与简单文字要求优先。'}`
+ const plan = presentationPlan(query,context)
+ if(plan.mode==='plain') return '用简明 Markdown 回答，保持事实、办理条件和真实入口。不要输出通用卡片、工具协议或来源索引。'
+ if(plan.mode==='native') return '本轮使用对应原生专用卡，简单解释仍用文字；不套通用页面。'
+ const followup = plan.contextQuery ? '；沿用上一事项 ' + JSON.stringify(plan.contextQuery) : ''
+ const choices = context.clarifyChoices?.length ? '；真实候选 ' + JSON.stringify(context.clarifyChoices.slice(0,4)) : ''
+ if(context.outputPreference==='cards') return '固定卡片用 card JSON 围栏：facts(title,items:[{label,value}])、steps(title,steps:[{title,desc}])、checklist(title,items:[{title,desc}])、timeline(title,items:[{date,title,desc}])、compare(title,columns,rows)、options(title,options:[{label,action}])、notice(title,body)。含 type。简单问题用文字。入口、日期及流程取自证据' + followup + choices
+ const recipe = plan.intent==='clarify' ? undefined : matchingRecipe(query + ' ' + (plan.contextQuery || ''), context.policy?.recipes)
+ const types = [...new Set([...(recipe?.components || []), ...plan.components, ...(plan.mode==='adaptive' ? ['info_card','key_values','steps','table','service_card'] : []), 'text','notice','button'])]
+ const fields = Object.entries(UI_COMPONENTS).filter(([type])=>types.includes(type)).map(([type, spec])=>type+' '+spec.shape).join('\n')
+ return [
+   '先直接回答要点。遇到步骤、清单、比较、多个实体或待用户选择的问题，用新式卡片；简单事实直接用文字。',
+   plan.reason + followup + choices,
+   '一个 card JSON 围栏：{"type":"page","layout":"stack","children":[{"type":"步骤或其他组件",...}]}。每个组件含 type；id、version、fallback 由服务器补齐，可省略。',
+   fields,
+   '最多 '+(context.policy?.maxCards??5)+' 个内容组件，不重复正文和卡片里的事实。' + (recipe ? '本轮模板优先 '+recipe.components.join('、')+'，layout='+recipe.layout+'。' : ''),
+   '只能用已知事实、候选和真实入口；来源编号由来源区显示。sourceRefs 可省略，需要时使用真实 ID：'+JSON.stringify([...sourceIds].slice(0,8))+ '。只给完整 JSON，不输出 HTML、思考预告或工具语法。',
+ ].join('\n')
 }
 /** Presentation boundary: does not execute tools or touch Agent Core/session state. */
 export function inspectPresentation(answer:string,sourceIds:ReadonlySet<string>,query?:string,context:PresentationContext={}){

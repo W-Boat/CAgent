@@ -1,6 +1,8 @@
 import { ApiPropertyOptional } from "@nestjs/swagger"
+import { deepSeekThinkingEfforts, type DeepSeekThinkingEffort } from '../llm/deepseek-model'
 import {
   IsIn,
+  ArrayMaxSize,
   IsArray,
   IsBoolean,
   IsNumber,
@@ -10,6 +12,11 @@ import {
 } from "class-validator"
 
 export class SendMessageDto {
+  @IsOptional() @IsIn(['auto','on','off']) webSearch?:'auto'|'on'|'off'
+  @IsOptional() @IsIn(deepSeekThinkingEfforts) thinkingEffort?:DeepSeekThinkingEffort
+  @IsOptional() @IsArray() @ArrayMaxSize(4) @IsString({each:true}) @MaxLength(2048,{each:true}) fileTokens?:string[]
+  @IsOptional() @IsArray() @ArrayMaxSize(150) @IsString({each:true}) @MaxLength(100,{each:true}) knowledgeBaseIds?:string[]
+  @IsOptional() @IsBoolean() restrictSkills?:boolean
   @IsOptional() @IsIn(['cards','adaptive','text']) outputPreference?:'cards'|'adaptive'|'text'
   @IsOptional() @IsBoolean() bypassCache?:boolean
   @IsOptional() @IsIn(["student-chat","admin-chat","trial-chat","api"]) origin?:string
@@ -63,6 +70,11 @@ export class SendMessageDto {
 }
 
 export class RegenerateDto {
+  @IsOptional() @IsIn(['auto','on','off']) webSearch?:'auto'|'on'|'off'
+  @IsOptional() @IsIn(deepSeekThinkingEfforts) thinkingEffort?:DeepSeekThinkingEffort
+  @IsOptional() @IsArray() @ArrayMaxSize(150) @IsString({each:true}) @MaxLength(100,{each:true}) knowledgeBaseIds?:string[]
+  @IsOptional() @IsArray() @ArrayMaxSize(150) @IsString({each:true}) @MaxLength(100,{each:true}) skills?:string[]
+  @IsOptional() @IsBoolean() restrictSkills?:boolean
   @IsOptional() @IsIn(['cards','adaptive','text']) outputPreference?:'cards'|'adaptive'|'text'
   @IsOptional() @IsIn(["student-chat","admin-chat","trial-chat","api"]) origin?:string
   @IsOptional() @IsString() modelId?:string

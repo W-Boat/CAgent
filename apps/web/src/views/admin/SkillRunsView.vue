@@ -77,67 +77,70 @@
       <el-button @click="reset">重置</el-button>
     </div>
 
-    <el-table :data="runs" v-loading="loading" stripe size="small">
-      <el-table-column label="开始时间" width="168">
-        <template #default="{ row }">{{ formatDateTime(row.startedAt) }}</template>
-      </el-table-column>
+    <div class="table-card">
+      <el-table :data="runs" v-loading="loading" stripe size="small">
+        <el-table-column label="开始时间" width="168">
+          <template #default="{ row }">{{ formatDateTime(row.startedAt) }}</template>
+        </el-table-column>
 
-      <el-table-column label="技能" min-width="170">
-        <template #default="{ row }">
-          <div class="skill-cell">
-            <span>{{ row.skill?.name || "-" }}</span>
-            <el-tag v-if="row.skill?.type" size="small" effect="plain">{{ typeText(row.skill.type) }}</el-tag>
-          </div>
-        </template>
-      </el-table-column>
+        <el-table-column label="技能" min-width="170">
+          <template #default="{ row }">
+            <div class="skill-cell">
+              <span>{{ row.skill?.name || "-" }}</span>
+              <el-tag v-if="row.skill?.type" size="small" effect="plain">{{ typeText(row.skill.type) }}</el-tag>
+            </div>
+          </template>
+        </el-table-column>
 
-      <el-table-column label="调用者" min-width="170">
-        <template #default="{ row }">
-          <div class="user-cell">
-            <span>{{ row.user?.name || "-" }}</span>
-            <span class="muted small">{{ row.user?.email || "" }}</span>
-          </div>
-        </template>
-      </el-table-column>
+        <el-table-column label="调用者" min-width="170">
+          <template #default="{ row }">
+            <div class="user-cell">
+              <span>{{ row.user?.name || "-" }}</span>
+              <span class="muted small">{{ row.user?.email || "" }}</span>
+            </div>
+          </template>
+        </el-table-column>
 
-      <el-table-column label="状态" width="95">
-        <template #default="{ row }">
-          <el-tag :type="statusType(row.status)" size="small" effect="plain">
-            {{ statusText(row.status) }}
-          </el-tag>
-        </template>
-      </el-table-column>
+        <el-table-column label="状态" width="95">
+          <template #default="{ row }">
+            <el-tag :type="statusType(row.status)" size="small" effect="plain">
+              {{ statusText(row.status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
 
-      <el-table-column label="耗时" width="100">
-        <template #default="{ row }">{{ formatDuration(row.durationMs) }}</template>
-      </el-table-column>
+        <el-table-column label="耗时" width="100">
+          <template #default="{ row }">{{ formatDuration(row.durationMs) }}</template>
+        </el-table-column>
 
-      <el-table-column label="输出摘要" min-width="230">
-        <template #default="{ row }">
-          <span v-if="row.error" class="err-text">{{ truncate(row.error, 60) }}</span>
-          <span v-else class="muted">{{ outputPreview(row.output) }}</span>
-        </template>
-      </el-table-column>
+        <el-table-column label="输出摘要" min-width="230">
+          <template #default="{ row }">
+            <span v-if="row.error" class="err-text">{{ truncate(row.error, 60) }}</span>
+            <span v-else class="muted">{{ outputPreview(row.output) }}</span>
+          </template>
+        </el-table-column>
 
-      <el-table-column label="" width="70" fixed="right">
-        <template #default="{ row }">
-          <el-button text type="primary" size="small" @click="showDetail(row)">详情</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+        <el-table-column label="" width="70" fixed="right">
+          <template #default="{ row }">
+            <el-button text type="primary" size="small" @click="showDetail(row)">详情</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
 
-    <el-pagination
-      v-if="total > 0"
-      v-model:current-page="query.page"
-      v-model:page-size="query.pageSize"
-      :total="total"
-      :page-sizes="[20, 50, 100]"
-      layout="total, sizes, prev, pager, next"
-      background
-      class="pager"
-      @current-change="load"
-      @size-change="reload"
-    />
+      <div class="pager">
+        <el-pagination
+          v-if="total > 0"
+          v-model:current-page="query.page"
+          v-model:page-size="query.pageSize"
+          :total="total"
+          :page-sizes="[20, 50, 100]"
+          layout="total, sizes, prev, pager, next"
+          background
+          @current-change="load"
+          @size-change="reload"
+        />
+      </div>
+    </div>
 
     <el-drawer v-model="detailVisible" title="运行详情" size="600px">
       <div v-if="current">

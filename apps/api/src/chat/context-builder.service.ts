@@ -1,7 +1,7 @@
 import {BadRequestException,Injectable} from '@nestjs/common'
 import {PrismaService} from '../prisma/prisma.service'
 import {estimateTokens,type ChatMessage,type LlmToolDef} from './llm/types'
-import {contextTurns,fitContext,messageTokens} from './runtime/context-budget'
+import {compactHistory,contextTurns,fitContext,messageTokens} from './runtime/context-budget'
 import {isUiDocument,uiContentText,validateUiDocument} from '../presentation/agent-ui'
 
 export interface ResolvedModel {
@@ -27,8 +27,17 @@ export class ContextBuilderService {
     const score=(index===turns.length-2?100:0)+(index+1)/turns.length+words.filter(word=>text.includes(word)).length*0.2
     return {turn,index,score,cost:turn.reduce((n,m)=>n+messageTokens(m),0)}
   }).sort((a,b)=>b.score-a.score)
+  let reserve = 0
+  if (ranked.reduce((sum, item) => sum + item.cost, 0) > budget) {
+    reserve = Math.min(900, Math.max(0, Math.floor(budget * 0.22)))
+    budget -= reserve
+  }
   const picked=ranked.filter(item=>{if(item.cost>budget)return false;budget-=item.cost;return true}).sort((a,b)=>a.index-b.index)
-  try{return fitContext([...prefix,...picked.flatMap(item=>item.turn),...last],params.tools||[],params.budgetTokens,params.maxOutputTokens).messages}
+  const included = new Set(picked.map(item => item.index))
+  const compact = compactHistory(turns.slice(0,-1).filter((_turn,index) => !included.has(index)), reserve + budget - 20)
+  const body = [...picked.flatMap(item=>item.turn),...last]
+  if (compact && body[0]) body[0] = {...body[0],content:compact.content+'\n\n【随后用户提问】\n'+body[0].content}
+  try{return fitContext([...prefix,...body],params.tools||[],params.budgetTokens,params.maxOutputTokens).messages}
   catch(error){throw new BadRequestException((error as Error).message)}
  }
  async loadHistory(conversationId:string,excludeMessageId?:string,limit=40,beforeSeq?:number):Promise<HistoryMessage[]> {
@@ -37,7 +46,7 @@ export class ContextBuilderService {
     const attachments=row.attachments as any
     const transcript=attachments?.modelMessages
     if(row.role==='assistant'&&Array.isArray(transcript)&&validTranscript(transcript))return transcript.map(m=>({...m,content:modelText(m),seq:row.seq}))
-    return [{role:row.role as ChatMessage['role'],content:modelText(row),seq:row.seq,...(row.role==='user'&&Array.isArray(attachments?.images)?{images:attachments.images.filter((x:any)=>typeof x==='string').slice(0,8)}:{})}]
+    return [{role:row.role as ChatMessage['role'],content:modelText(row),seq:row.seq,...(row.role==='user'&&Array.isArray(attachments?.images)?{images:attachments.images.filter((x:any)=>typeof x==='string').slice(0,8)}:{}),...(row.role==='user'&&Array.isArray(attachments?.files)?{files:attachments.files.filter((x:any)=>x&&typeof x.id==='string'&&x.expires>Date.now()).map((x:any)=>x.id).slice(0,4)}:{})}]
   })
  }
  buildTools(supportsTools:boolean,defs:LlmToolDef[]):LlmToolDef[]|undefined {return supportsTools&&defs.length?defs:undefined}
@@ -51,7 +60,17 @@ function modelText(message:{role:string;content:string}):string {
  // Keep validated compact structure as well as facts: flattening teaches follow-ups to emit plain text.
  // Prior citation IDs are turn-local, so do not feed stale references back to the model.
  return message.content.replace(/```(?:card|json)\s*\n([\s\S]*?)\n```/gi,(whole,raw)=>{
-  try{const value=JSON.parse(raw);if(!isUiDocument(value))return whole;const checked=validateUiDocument(value);if(!checked.page)return uiContentText(value);const clean=(node:any):any=>{const {sourceRefs,...fields}=node;return {...fields,...(node.children?{children:node.children.map(clean)}:{})}};return '```card\n'+JSON.stringify(clean(checked.page))+'\n```'}catch{return whole}
+  try{
+    const value=JSON.parse(raw)
+    if(!isUiDocument(value))return whole
+    const checked=validateUiDocument(value)
+    if(!checked.page)return uiContentText(value)
+    const types = new Set<string>()
+    const visit = (node: {type:string;children?:unknown[]}) => { if (node.type !== 'page') types.add(node.type); for (const child of node.children || []) visit(child as typeof node) }
+    visit(checked.page)
+    // Carry semantic facts and a short layout cue, rather than repeating the wire JSON in every turn.
+    return '[上一条排版：'+[...types].join(',')+']\n'+uiContentText({...checked.page,fallback:undefined})
+  }catch{return whole}
  }).trim()
 }
 function validTranscript(value:any[]):boolean {

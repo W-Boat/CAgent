@@ -5,13 +5,15 @@
 
 .nx-root.nx-student {
   /* 任务规格：学生端侧栏 264px（覆盖共享默认 248px，只影响本视图） */
-  --nx-sidebar-width: 264px;
+  --nx-sidebar-width: var(--student-side-width,264px);
 
   display: flex;
   height: 100dvh;
   overflow: hidden;
   background: var(--nx-bg);
 }
+.st-resize{width:8px;margin-inline:-4px;position:relative;z-index:3;cursor:col-resize;touch-action:none;flex:none;align-self:stretch;outline:none}.st-resize::after{content:'';position:absolute;top:46%;left:3px;width:2px;height:34px;background:var(--nx-border);border-radius:3px}.st-resize:focus-visible::after,.st-resize:hover::after{background:var(--nx-accent);width:3px}.st-collapse{margin-left:auto;flex:none}
+.student-feature-body{min-height:100%;padding:0;background:var(--nx-surface)}.st-documents{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0;font-size:12px;color:var(--nx-text-2)}
 
 /* ═══════════ 侧栏 ═══════════ */
 .st-utility-link .el-icon,.st-utility-link svg{width:20px;height:20px;font-size:20px}
@@ -725,7 +727,7 @@
 
 .st-composer {
   flex: 0 0 auto;
-  padding: 0 24px calc(16px + env(safe-area-inset-bottom));
+  padding: 0 24px calc(7px + env(safe-area-inset-bottom));
   background: var(--nx-bg);
 }
 
@@ -1058,7 +1060,7 @@ button.nx-chip:hover .st-chip-x {
   }
 
   .st-composer {
-    padding: 0 12px calc(12px + env(safe-area-inset-bottom));
+    padding: 0 12px calc(5px + env(safe-area-inset-bottom));
   }
 
   /* 用户气泡放宽到 88%：窄屏长句少折行（覆盖 next.css 的 min(85%, 34rem)） */
@@ -1096,4 +1098,4 @@ button.nx-chip:hover .st-chip-x {
   }
 }
 
-.st-display-footer{margin:8px 0 0;text-align:center;font-size:11px;line-height:1.6;color:var(--nx-text-3);overflow-wrap:anywhere}
+.st-display-footer{margin:4px 0 0;text-align:center;font-size:11px;line-height:1.35;color:var(--nx-text-3);overflow-wrap:anywhere}

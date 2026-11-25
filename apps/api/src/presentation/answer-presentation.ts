@@ -1,7 +1,8 @@
 import {isUiDocument,validateUiDocument,safeUiUrl,uiContentText} from './agent-ui'
 import {parseCardJson} from './card-json'
+import type { PresentationPolicy } from './presentation-policy'
 export type AnswerPreference='adaptive'|'text'|'cards'
-const natives=new Set(['care','comfort','crisis','map','places','dinner','takeout','effect','poem','agents','skills'])
+const natives=new Set(['care','comfort','crisis','map','places','dinner','takeout','lecture-calendar','campus-feature','effect','poem','agents','skills'])
 const fence=(value:unknown)=>'```card\n'+JSON.stringify(value)+'\n```\n'
 const cell=(v:unknown)=>String(v??'').replace(/\|/g,'\\|').replace(/\r?\n/g,'<br>')
 const table=(columns:unknown[],rows:unknown[][])=>[columns.map(cell).join(' | '),columns.map(()=> '---').join(' | '),...rows.map(row=>row.map(cell).join(' | '))].map(row=>'| '+row+' |').join('\n')
@@ -46,15 +47,41 @@ function fixed(node:any):string {
   default:return fence(node)
  }
 }
+function limitCards(node: any, budget: { remaining: number }, overflow?: Set<string>): any {
+ if (!['page','card_group','text'].includes(node.type) && --budget.remaining < 0) {
+   overflow?.add(node.id)
+   return { type:'text', id:node.id, role:'paragraph', content:markdown(node) }
+ }
+ return Array.isArray(node.children)
+   ? { ...node, children:node.children.map((child: unknown) => limitCards(child,budget,overflow)) }
+   : node
+}
+function renderLimitedPage(page: any, budget: { remaining: number }): string {
+ const overflow = new Set<string>()
+ const limited = limitCards(page,budget,overflow)
+ // Whole overflow groups remain readable outside the structured layout.
+ const tail: string[] = []
+ const prune = (node: any): any => {
+   if (overflow.has(node.id) || (node.type==='card_group' && node.children.every((child: any) => child.type==='text'))) {
+     tail.push(markdown(node))
+     return null
+   }
+   if (!Array.isArray(node.children)) return node
+   const children = node.children.map(prune).filter(Boolean)
+   return children.length || !['page','card_group'].includes(node.type) ? {...node,children} : null
+ }
+ const retained = prune(limited)
+ return (retained ? '\n'+fence(retained) : '') + (tail.length ? '\n'+tail.join('\n\n')+'\n' : '')
+}
 /** Finite structured data -> presentation; never fetch, execute or ask another model. */
-export function formatCardBlock(raw:string,language:string,preference:AnswerPreference,sourceIds:ReadonlySet<string>,original:string):string {
+export function formatCardBlock(raw:string,language:string,preference:AnswerPreference,sourceIds:ReadonlySet<string>,original:string,policy?:PresentationPolicy,budget?:{remaining:number}):string {
  let value:any;try{value=parseCardJson(raw)}catch{
   if(language!=='card'&&!/"type"\s*:\s*"(?:page|info_card|service_card|key_values|steps|form|table)/.test(raw))return original
   // Recover only complete JSON string fields; never execute or invent missing structure.
   const recovered:string[]=[];for(const match of raw.slice(0,128*1024).matchAll(/"(fallback|title|content|summary|body|desc|answer|label|value)"\s*:\s*("(?:\\.|[^"\\])*")/g))try{const text=JSON.parse(match[2]);if(typeof text==='string'&&text.trim()&&!recovered.includes(text))recovered.push(text)}catch{}
   return recovered.length?recovered.join('\n\n')+'\n':'这部分回答未完整生成，请重新生成以补全内容。\n'
  }
- if(!value||typeof value!=='object'||Array.isArray(value)||typeof value.type!=='string')return original
+ if(!value||typeof value!=='object'||Array.isArray(value)||typeof value.type!=='string')return language==='card' ? '这部分回答未完整生成，请重新生成以补全内容。\n' : original
  if(natives.has(value.type))return original
  if(isUiDocument(value)){
   // Discard invalid provenance metadata; never invent, alias or authorize a source ID.
@@ -67,10 +94,24 @@ export function formatCardBlock(raw:string,language:string,preference:AnswerPref
    if(Array.isArray(node.children))copy.children=node.children.slice(0,17).map((child:any)=>references(child,depth+1))
    return copy
   }
-  const validated=validateUiDocument(references(value,0),{sourceIds});if(!validated.page)return (typeof value.fallback==='string'&&value.fallback.trim()&&value.fallback.length<=4000?value.fallback:uiContentText(value)||'这部分回答未完整生成，请重新生成以补全内容。')+'\n'
+  const normalized = references(value,0)
+  const validated=validateUiDocument(normalized,{sourceIds})
+  if(!validated.page){
+   const fallback = typeof value.fallback==='string'&&value.fallback.trim()&&value.fallback.length<=4000 ? value.fallback : ''
+   if (preference==='adaptive' && policy?.fallback==='fixed' && Array.isArray(normalized.children)) {
+    const remaining = budget || {remaining:policy.maxCards}
+    const outputs = normalized.children.flatMap((node: any, index: number) => {
+     const checked = validateUiDocument({type:'page',version:'0.1',id:'recovery_'+index,layout:'stack',fallback:'请阅读下方内容。',children:[node]},{sourceIds}).page
+     if (!checked) return uiContentText(node) || []
+     return fixed(limitCards(checked,remaining))
+    })
+    if (outputs.some((item:string) => item.startsWith('```card'))) return [fallback,...outputs].filter(Boolean).join('\n\n')+'\n'
+   }
+   return (fallback || uiContentText(value) || '这部分回答未完整生成，请重新生成以补全内容。')+'\n'
+  }
   if(preference==='text')return markdown({...validated.page,fallback:typeof value.fallback==='string'?value.fallback:''})+'\n'
   if(preference==='cards')return fixed(validated.page)
-  return '\n'+fence(validated.page)
+  return budget ? renderLimitedPage(validated.page,budget) : '\n'+fence(validated.page)
  }
  // Legacy data remains data; only known, well-shaped templates are flattened.
  if(preference==='text'&&['facts','compare','steps','checklist','timeline','notice','faq','options'].includes(value.type)){
@@ -81,7 +122,10 @@ export function formatCardBlock(raw:string,language:string,preference:AnswerPref
 /** Buffer only a structured fence. Plain prose continues streaming immediately. */
 export class AnswerPresentationStream {
  private pending='';private start=true;private literal='';private block:{mark:string;language:string;opening:string;body:string}|null=null
- constructor(private preference:AnswerPreference,private sources:()=>ReadonlySet<string>=()=>new Set()){}
+ private readonly budget?: { remaining: number }
+ constructor(private preference:AnswerPreference,private sources:()=>ReadonlySet<string>=()=>new Set(),private policy?:PresentationPolicy){
+  if (policy) this.budget={remaining:policy.maxCards}
+ }
  push(part:string):string {
   this.pending+=part;let visible='',end:number
   while((end=this.pending.indexOf('\n'))>=0){const line=this.pending.slice(0,end+1);this.pending=this.pending.slice(end+1);visible+=this.line(line)}
@@ -91,7 +135,7 @@ export class AnswerPresentationStream {
  private line(line:string):string {
   if(!this.literal&&!this.block){const inline=/(?:^|[^`])(```(?:card|json)\s*\n)$/i.exec(line);if(inline&&inline.index>=0&&line.indexOf(inline[1])>0){const at=line.indexOf(inline[1]);const prefix=line.slice(0,at);this.start=true;return prefix+'\n\n'+this.line(line.slice(at))}}
 
-  if(this.block){if(new RegExp('^\\s*'+this.block.mark[0]+'{'+this.block.mark.length+',}\\s*$').test(line.trim())){const b=this.block;this.block=null;this.start=true;return formatCardBlock(b.body,b.language,this.preference,this.sources(),b.opening+b.body+line)}this.block.body+=line;return ''}
+  if(this.block){if(new RegExp('^\\s*'+this.block.mark[0]+'{'+this.block.mark.length+',}\\s*$').test(line.trim())){const b=this.block;this.block=null;this.start=true;return formatCardBlock(b.body,b.language,this.preference,this.sources(),b.opening+b.body+line,this.policy,this.budget)}this.block.body+=line;return ''}
   const wasStart=this.start;this.start=true
   const match=/^\s*(`{3,}|~{3,})([^\r\n]*)[\r\n]*$/.exec(line)
   if(this.literal){if(match&&match[1][0]===this.literal[0]&&match[1].length>=this.literal.length&&!match[2].trim())this.literal='';return line}
@@ -100,10 +144,10 @@ export class AnswerPresentationStream {
  }
  finish():string {
   let result='';if(this.pending){result=this.line(this.pending);this.pending=''}
-  if(this.block){const b=this.block;this.block=null;result+=formatCardBlock(b.body,b.language,this.preference,this.sources(),b.opening+b.body)}
+  if(this.block){const b=this.block;this.block=null;result+=formatCardBlock(b.body,b.language,this.preference,this.sources(),b.opening+b.body,this.policy,this.budget)}
   return result
  }
 }
-export function formatAnswerPresentation(answer:string,preference:AnswerPreference,sourceIds:ReadonlySet<string>=new Set()):string {
- const stream=new AnswerPresentationStream(preference,()=>sourceIds);return stream.push(answer)+stream.finish()
+export function formatAnswerPresentation(answer:string,preference:AnswerPreference,sourceIds:ReadonlySet<string>=new Set(),policy?:PresentationPolicy):string {
+ const stream=new AnswerPresentationStream(preference,()=>sourceIds,policy);return stream.push(answer)+stream.finish()
 }
