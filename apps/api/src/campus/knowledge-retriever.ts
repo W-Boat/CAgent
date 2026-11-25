@@ -1,7 +1,7 @@
 import {COURSE_COLLECTION,collectiveIntent,matchesCourseConstraints} from '../knowledge/collective-timetable'
 /** Deterministic local retrieval. The index is replaceable; response/provenance stay stable. */
 export const KNOWLEDGE_SKILL_COLLECTIONS: Record<string, string> = {
-  'ucass-kb-survival': 'survival', 'ucass-kb-takeout': 'takeout'
+  'campusdemo-kb-survival': 'survival', 'campusdemo-kb-takeout': 'takeout'
 }
 export const isKnowledgeSkill = (skill:{key:string;category?:string}) => !!KNOWLEDGE_SKILL_COLLECTIONS[skill.key]
   || (skill.key.startsWith('kb-') && skill.category === '校园知识库')
@@ -48,7 +48,7 @@ export interface RetrievalOptions { collection?: string; topic?:string; previous
 export interface RankedRow { row: KnowledgeRow; score: number; reasons: string[]; related: KnowledgeRow[] }
 export function metadata(row: KnowledgeRow) {
   const extra = row.extra && !Array.isArray(row.extra) ? row.extra : {}
-  return { trust: /榜题|行知校园/.test(row.source || '') ? 'curated' : /课程|红黑|辛瓜|UCASSbook/.test(row.source || '') ? 'community' : 'official_index',
+  return { trust: /榜题|校园导览/.test(row.source || '') ? 'curated' : /课程|红黑|校园助手|campusdemobook/.test(row.source || '') ? 'community' : 'official_index',
     collection: 'legacy', parent: row.id, aliases: extra.benchmark_aliases || extra.aliases || [],
     relations: [...(extra.matter_id ? [`matter:${extra.matter_id}`] : []), ...(extra.matter_ids || []).map((id: string) => `matter:${id}`)], ...extra.kb }
 }

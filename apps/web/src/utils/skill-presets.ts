@@ -49,7 +49,7 @@ export function pickSkillKeysByPrefix<T extends { key?: string | null }>(
 }
 
 /** 校园网本地模型（学校本地化部署，仅校园网可达） */
-export const CAMPUS_MODEL_KEYS = ["step-3.7-flash", "qwen3.8-27b"]
+export const CAMPUS_MODEL_KEYS = String(import.meta.env.VITE_CAMPUS_MODEL_KEYS || '').split(',').map(key=>key.trim()).filter(Boolean)
 
 export interface ModelPickItem {
   id?: string | null

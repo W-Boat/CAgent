@@ -11,7 +11,7 @@ export interface PresentationPlan {
 }
 export interface PresentationContext {previousQuery?:string;clarifyChoices?:{label:string;query:string}[];outputPreference?:'cards'|'adaptive'|'text';policy?:PresentationPolicy}
 export function isPresentationFollowup(query:string):boolean {
- return query.trim().length<=80&&!/换(?:个|一)|另外|改(?:成|问)|不是.*而是|聊.*别的|校园卡|一卡通|奖学金|助学|社团|图书馆|食堂|超市|成绩|宿舍|户口|复习计划|学习计划|心理咨询|退学/.test(query)&&/^(?:那|然后|接着|接下来|下一步|继续|再|详细|具体|材料|流程|时间|入口|需要|要带|能|可以|周末|电话|地址|在哪|怎么办|多少钱|多久|如何准备|怎么准备|我选|我是|我在|本科生|研究生|良乡|望京|每天|第[一二三四五六\d]+步|这一步|就这个|还有)/.test(query.trim())
+ return query.trim().length<=80&&!/换(?:个|一)|另外|改(?:成|问)|不是.*而是|聊.*别的|校园卡|一卡通|奖学金|助学|社团|图书馆|食堂|超市|成绩|宿舍|户口|复习计划|学习计划|心理咨询|退学/.test(query)&&/^(?:那|然后|接着|接下来|下一步|继续|再|详细|具体|材料|流程|时间|入口|需要|要带|能|可以|周末|电话|地址|在哪|怎么办|多少钱|多久|如何准备|怎么准备|我选|我是|我在|本科生|研究生|主校区|第二校区|每天|第[一二三四五六\d]+步|这一步|就这个|还有)/.test(query.trim())
 }
 export function presentationContextFromHistory(query:string,history:{role:string;content:string}[]):PresentationContext {
  const previous=history.slice();if(previous.at(-1)?.role==='user'&&previous.at(-1)?.content===query)previous.pop()

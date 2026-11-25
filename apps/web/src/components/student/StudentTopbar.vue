@@ -18,7 +18,7 @@
       <button v-if="auth.user" class="campus-edit" type="button" title="编辑顶栏" aria-label="编辑顶栏" @click="openEditor"><el-icon><Setting/></el-icon></button>
     </nav>
     <div v-if="!menuOnly" class="topbar-controls">
-      <button v-if="chat&&petHidden" class="nx-icon-btn show-mascot" type="button" title="显示辛瓜" aria-label="显示辛瓜" @click="emit('show-pet')">
+      <button v-if="chat&&petHidden" class="nx-icon-btn show-mascot" type="button" title="显示校园助手" aria-label="显示校园助手" @click="emit('show-pet')">
         <MascotImage/>
       </button>
       <img v-if="auth.settings?.student_logo_url" :src="auth.settings.student_logo_url" class="campus-logo" alt=""/>
@@ -72,7 +72,7 @@ const availableFeatures=ref<{label:string;question:string}[]>([])
 const hasFeature=(name:RegExp)=>availableFeatures.value.some(item=>name.test(item.label+' '+item.question))
 const catalog=computed<Shortcut[]>(()=>[
   {id:'dinner',icon:Food,label:'今天吃什么'},
-  {id:'game',icon:Present,label:'辛瓜小游戏'},
+  {id:'game',icon:Present,label:'校园助手小游戏'},
   {id:'calendar',to:'/student/academic-calendar',icon:Calendar,label:'学年校历'},
   {id:'lecture',icon:Calendar,label:'讲座日历'},
   ...(props.showMap===false?[]:[{id:'map' as const,to:'/map',icon:MapLocation,label:'校园地图'}]),

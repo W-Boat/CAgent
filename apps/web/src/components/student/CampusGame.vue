@@ -4,7 +4,7 @@ import MascotImage from '@/components/experience/MascotImage.vue'
 
 const remaining=ref(20),score=ref(0),target=ref(-1),playing=ref(false),played=ref(false),best=ref(0)
 let end=0,tick:ReturnType<typeof setInterval>|undefined,move:ReturnType<typeof setTimeout>|undefined
-try{best.value=Number(localStorage.getItem('cagent.xingua.best'))||0}catch{}
+try{best.value=Number(localStorage.getItem('cagent.campus-game.best'))||0}catch{}
 
 function next(){
   const previous=target.value
@@ -13,7 +13,7 @@ function next(){
 }
 function stop(){
   clearInterval(tick);clearTimeout(move);target.value=-1;playing.value=false
-  if(score.value>best.value){best.value=score.value;try{localStorage.setItem('cagent.xingua.best',String(best.value))}catch{}}
+  if(score.value>best.value){best.value=score.value;try{localStorage.setItem('cagent.campus-game.best',String(best.value))}catch{}}
 }
 function start(){
   score.value=0;remaining.value=20;played.value=true;playing.value=true;end=Date.now()+20_000
@@ -26,10 +26,10 @@ onBeforeUnmount(()=>{clearInterval(tick);clearTimeout(move)})
 
 <template>
   <section class="melon-game" @keydown="keyCatch">
-    <p class="game-rules">20 秒内尽量多点到辛瓜。也可以按数字 1–9。</p>
+    <p class="game-rules">20 秒内尽量多点到校园助手。也可以按数字 1–9。</p>
     <div class="game-score"><span>剩余 <strong>{{remaining}} 秒</strong></span><span>得分 <strong>{{score}}</strong></span><span>最高 <strong>{{best}}</strong></span></div>
     <div class="game-board">
-      <button v-for="cell in 9" :key="cell" type="button" :aria-label="`第 ${cell} 格${target===cell-1?'，辛瓜':''}`" :aria-disabled="!playing" @click="catchMelon(cell-1)">
+      <button v-for="cell in 9" :key="cell" type="button" :aria-label="`第 ${cell} 格${target===cell-1?'，校园助手':''}`" :aria-disabled="!playing" @click="catchMelon(cell-1)">
         <span>{{cell}}</span><MascotImage v-if="target===cell-1" motion="tap"/>
       </button>
     </div>

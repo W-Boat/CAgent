@@ -90,7 +90,7 @@ export function isCompatibleCard(value:Record<string,unknown>):boolean{
   if(type==='steps')return Array.isArray(value.steps)
   if(type==='options')return Array.isArray(value.options)
   if(type==='agents')return Array.isArray(value.agents)||Array.isArray(value.skills)
-  if(type==='map')return ['liangxiang','wangjing'].includes(String(value.campus))
+  if(type==='map')return ['main-campus','second-campus'].includes(String(value.campus))
   if(type==='takeout')return typeof value.title==='string'
   if(type==='campus-feature')return typeof value.feature==='string'&&typeof value.title==='string'
   if(type==='effect')return ['tiger','melon','cat'].includes(String(value.effect))
@@ -187,7 +187,7 @@ export function parseCardSegments(text: string,cache?:CardBlockCache): Segment[]
       }
       if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
         if(parsed.type==='agents'&&Array.isArray(parsed.skills)){
-          const legacy=parsed.skills.filter((s:any)=>/^(ucass-kb-(survival|takeout)|kb-)/.test(s.key||''))
+          const legacy=parsed.skills.filter((s:any)=>/^(campusdemo-kb-(survival|takeout)|kb-)/.test(s.key||''))
           if(legacy.length){
             parsed.skills=parsed.skills.filter((s:any)=>!legacy.includes(s))
             if(parsed.skills.length||parsed.agents?.length)out.push({kind:'card',card:parsed})
@@ -195,7 +195,7 @@ export function parseCardSegments(text: string,cache?:CardBlockCache): Segment[]
             continue
           }
         }
-        if(parsed.type==='skills' &&Array.isArray(parsed.items)&&parsed.items.length&&parsed.items.every((s:any)=>/^(ucass-kb-(survival|takeout)|kb-)/.test(s.key||s.skillKey||''))){
+        if(parsed.type==='skills' &&Array.isArray(parsed.items)&&parsed.items.length&&parsed.items.every((s:any)=>/^(campusdemo-kb-(survival|takeout)|kb-)/.test(s.key||s.skillKey||''))){
           out.push({kind:'card',card:{type:'guide',title:'知识库资料',intro:'这些内容已收录知识库，可直接查询。',items:parsed.items.map((s:any)=>({label:s.name||s.label||'校园生活资料',action:'请查询'+(s.name||s.label||'校园生活资料')+'知识库内容',desc:s.description||''}))}})
         }else out.push({ kind: "card", card: parsed as Record<string, unknown> })
       } else {

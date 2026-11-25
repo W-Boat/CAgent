@@ -17,7 +17,7 @@ const normalized=computed(()=>{const seen=new Set<string>();return (props.source
 const used=computed(()=>normalized.value.filter(s=>s.used)),references=computed(()=>normalized.value.filter(s=>!s.used)),primary=computed(()=>used.value.length?used.value:references.value)
 const shortTitle=(title:string)=>title.split(' / ').at(-1)||title
 const collectionLabel=(key:string)=>({maps:'校园地图',handbook:'学生手册',portal:'校园门户',services:'一站式服务',matters:'办事指南',courses:'课程资料',freshman:'新生指南',survival:'校园生活',takeout:'餐饮经验'} as Record<string,string>)[key]||(key.startsWith('base:')?'外挂知识库':key||'校园资料')
-const sourceLabel=(file:string)=>/UCASSbook/.test(file)?'学生生活手册':/campus-maps/.test(file)?'手绘校园地图':file||'未标注资料名称'
+const sourceLabel=(file:string)=>/campusdemobook/.test(file)?'学生生活手册':/campus-maps/.test(file)?'手绘校园地图':file||'未标注资料名称'
 const trustLabel=(trust?:string)=>({handbook:'手册资料',community:'社区整理',reviewed:'已审核',ai_reviewed:'AI 审核资料',official_index:'校内索引',curated:'整理资料'} as Record<string,string>)[trust||'']||''
 </script>
 <style scoped>

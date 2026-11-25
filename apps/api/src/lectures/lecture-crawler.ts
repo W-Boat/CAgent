@@ -1,3 +1,4 @@
+import {isCampusOfficialHost,isConfiguredCampusNetwork} from '../common/campus-deployment'
 import {get} from 'node:https'
 import {get as httpGet} from 'node:http'
 import {lookup} from 'node:dns/promises'
@@ -11,7 +12,7 @@ export function pinnedLectureLookup(address:{address:string;family:number}){
 }
 function connectionError(error:any){
  const code=String(error?.code||'')
- if(['ENOTFOUND','EAI_AGAIN'].includes(code))return '校园域名解析失败，请检查服务器 DNS（校内 DNS 可按部署要求设为 10.27.88.8）'
+ if(['ENOTFOUND','EAI_AGAIN'].includes(code))return '校园域名解析失败，请检查服务器 DNS'
  if(/CERT|TLS|SSL|SELF_SIGNED/.test(code))return '来源 TLS 证书验证失败，请配置受信任证书；未关闭证书校验'
  return '来源连接失败或超时'+(code?'（'+code.replace(/[^A-Z0-9_]/g,'').slice(0,60)+'）':'')
 }
@@ -26,8 +27,8 @@ export async function readLecturePage(input:string,signal:AbortSignal,redirects=
  const safe=lectureUrl(input);if(!safe||signal.aborted)throw new Error('来源地址不允许或任务已超时')
  const url=new URL(safe);let addresses:{address:string;family:number}[]
  try{addresses=await lookup(url.hostname,{all:true})}catch(e){throw new Error(connectionError(e))}
- const campusHost=url.hostname==='ucass.edu.cn'||url.hostname.endsWith('.ucass.edu.cn')
- if(!addresses.length||addresses.some(a=>!publicAddress(a.address)&&!(campusNetwork&&campusHost&&/^10\.27\.\d{1,3}\.\d{1,3}$/.test(a.address))))throw new Error('解析到内网地址；校内来源可启用校园网直连后重试')
+ const campusHost=isCampusOfficialHost(url.hostname)
+ if(!addresses.length||addresses.some(a=>!publicAddress(a.address)&&!(campusNetwork&&campusHost&&isConfiguredCampusNetwork(a.address))))throw new Error('解析到内网地址；校内来源可启用校园网直连后重试')
  const address=addresses.find(a=>a.family===4)||addresses[0]
  if(url.protocol==='http:'&&(!campusNetwork||!campusHost))throw new Error('学校 HTTP 来源需要开启校园网直连')
  return new Promise((resolve,reject)=>{
@@ -87,7 +88,7 @@ export function parseLectureDetail(html:string,item:{url:string;title:string;pub
  const time=timeLine.match(/(?:上午|下午|晚上|晚间)?\s*\d{1,2}[:：]\d{2}(?:\s*[-—~至]\s*\d{1,2}[:：]\d{2})?/)?.[0]?.trim()||''
  const location=body.match(/(?:活动地点|讲座地点|地点)[：:\s]*([^\n]{2,120})/)?.[1]?.trim()||''
  const speaker=body.match(/(?:主讲人|主讲嘉宾|报告人|主讲)[：:\s]*([^\n]{2,100})/)?.[1]?.trim()||''
- const campus=/望京/.test(location)?'望京校区':/良乡/.test(location)?'良乡校区':/线上|腾讯会议|Zoom|在线/i.test(location)?'线上':'未注明'
+ const campus=/第二校区/.test(location)?'第二校区':/主校区/.test(location)?'主校区':/线上|腾讯会议|Zoom|在线/i.test(location)?'线上':'未注明'
  return normalizeLecture({...item,title,source_id:source.id,source_name:source.name,org:source.name,published,event_date:eventDate,time_text:time,location,campus,speaker,
   excerpt:body,content_kind:/回顾|纪要|圆满|成功举办/.test(title)?'review':/预告|通知|邀请|报名/.test(title)?'preview':'info',date_confidence:confidence,type:/沙龙/.test(title)?'学术沙龙':/论坛/.test(title)?'论坛':/研讨/.test(title)?'研讨会':'讲座'})
 }

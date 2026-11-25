@@ -239,7 +239,7 @@
               <span class="opt-hint">{{ skillTypeText(s.type) }}</span>
             </el-option>
           </el-select>
-          <div class="field-tip">提示词技能按需读取工作流程；可执行技能按权限调用。辛瓜、外卖及资料内容在知识库管理中维护。</div>
+          <div class="field-tip">提示词技能按需读取工作流程；可执行技能按权限调用。校园助手、外卖及资料内容在知识库管理中维护。</div>
         </el-form-item>
 
         <el-row :gutter="12">

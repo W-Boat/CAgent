@@ -354,7 +354,7 @@ export class SkillsEngineService {
     if (skillIds.length === 0) return []
     /*
      * 入参同时兼容 id 与 key：不同前端的历史习惯不同 —— 学生端/卡片/技能预设
-     * 发的是 key（如 ucass-kb-survival），管理端选择器发的是 id。
+     * 发的是 key（如 campusdemo-kb-survival），管理端选择器发的是 id。
      * 曾按 id 单查导致学生侧勾选的技能静默不注入（"技能不可用"的根因）。
      * 同一字符串既是 id 又是 key 的概率为零（cuid vs 可读 key），OR 查询安全。
      */
@@ -683,7 +683,7 @@ export class SkillsEngineService {
     const config = (skill.config as any) || {}
     const builtin: string | undefined = config.builtin
 
-    // 内置技能：校园导览（UCASS）——只给路径，不代办
+    // 内置技能：校园导览（campusdemo）——只给路径，不代办
     if (builtin === "campus_guide") {
       return this.runCampusGuide(skill, ctx)
     }
@@ -737,7 +737,7 @@ export class SkillsEngineService {
   }
 
   /**
-   * 内置工具：UCASS 校园事务导览。
+   * 内置工具：campusdemo 校园事务导览。
    *
    * 严格遵循 skill 的定位——**指路人，不是代办者**：
    *   - 只从本地索引检索，不编造部门/电话/链接

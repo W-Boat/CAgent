@@ -2,7 +2,7 @@
  * 把「校园门户条目 + 一站式服务平台事项」两份 JSON 的精确入口对齐进统一知识库。
  *
  * 用法：
- *   cd apps/api && node scripts/import-link-entries.mjs <ucass_guide.json> <easy_platform.json>
+ *   cd apps/api && node scripts/import-link-entries.mjs <campusdemo_guide.json> <easy_platform.json>
  *
  * 对齐纪律：
  *  - 只给事项/服务类条目挂链接，公告类文本不挂错链接；
@@ -28,7 +28,7 @@ if (existsSync(envPath)) {
 const prisma = new PrismaClient()
 const [guidePath, easyPath] = process.argv.slice(2)
 if (!guidePath || !easyPath) {
-  console.error("用法: node scripts/import-link-entries.mjs <ucass_guide.json> <easy_platform.json>")
+  console.error("用法: node scripts/import-link-entries.mjs <campusdemo_guide.json> <easy_platform.json>")
   process.exit(1)
 }
 for (const p of [guidePath, easyPath]) {
@@ -57,12 +57,12 @@ function hallKeyword(...paths) {
   return ""
 }
 
-const EASY_SEARCH = "https://easy.ucass.edu.cn/v2/site/search?keyword="
+const EASY_SEARCH = "https://easy.campus.example.invalid/v2/site/search?keyword="
 const INTERNAL = /^https?:\/\/(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|127\.)/i
 
-/** 出题材料把门户误写成 portal.ucass，统一纠正为真实门户域名 */
+/** 出题材料把门户误写成 portal.campusdemo，统一纠正为真实门户域名 */
 function fixDomain(s) {
-  return String(s || "").replace(/portal\.ucass\.edu\.cn/g, "info.ucass.edu.cn")
+  return String(s || "").replace(/portal\.campusdemo\.edu\.cn/g, "info.campus.example.invalid")
 }
 const ACTIONABLE = new Set(["事项", "表单", "预约", "微应用", "在线办事/微应用", "业务系统入口", "正版软件下载"])
 

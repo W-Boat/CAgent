@@ -1,3 +1,4 @@
+import {isCampusOfficialHost} from '../common/campus-deployment'
 import {ConflictException,Injectable,ServiceUnavailableException} from '@nestjs/common'
 import {load} from 'cheerio'
 import {PrismaService} from '../prisma/prisma.service'
@@ -9,10 +10,10 @@ import {academicCalendarIndex,academicCalendarPortal,academicNotices,campusDepar
 export type DirectoryKind='academic-calendar'|'directory'
 type Entry={key:string;title:string;answer:string;summary:string;url:string;source:string;aliases:string[]}
 const bases={
-  'academic-calendar':{id:'kb-ucass-academic-calendar',name:'学年校历',description:'教务处公开校历档案与可核验教学日期',sourceUrl:academicCalendarPortal},
-  directory:{id:'kb-ucass-office-phones',name:'部门公开办公电话',description:'学校官网公开的部门与服务办公室座机',sourceUrl:campusDepartments},
+  'academic-calendar':{id:'kb-campusdemo-academic-calendar',name:'学年校历',description:'教务处公开校历档案与可核验教学日期',sourceUrl:academicCalendarPortal},
+  directory:{id:'kb-campusdemo-office-phones',name:'部门公开办公电话',description:'学校官网公开的部门与服务办公室座机',sourceUrl:campusDepartments},
 }
-const officialLink=(value:string)=>{try{const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password&&(url.hostname==='ucass.edu.cn'||url.hostname.endsWith('.ucass.edu.cn'))?url.href:''}catch{return ''}}
+const officialLink=(value:string)=>{try{const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password&&isCampusOfficialHost(url.hostname)?url.href:''}catch{return ''}}
 const digits=(value:string)=>value.normalize('NFKC').replace(/[\s\u00a0]+/g,' ')
 
 @Injectable()

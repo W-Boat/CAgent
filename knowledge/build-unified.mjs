@@ -13,7 +13,7 @@ const out = arg('--out', join(here, 'dist'))
 mkdirSync(out, { recursive: true })
 const load = name => JSON.parse(readFileSync(join(src, name), 'utf8'))
 const hash = text => createHash('sha256').update(text).digest('hex')
-const clean = text => String(text ?? '').replace(/portal\.ucass\.edu\.cn/g, 'info.ucass.edu.cn').replace(/\r/g, '').trim()
+const clean = text => String(text ?? '').replace(/portal\.campusdemo\.edu\.cn/g, 'info.campus.example.invalid').replace(/\r/g, '').trim()
 const url = text => { try { const u = new URL(clean(text)); return ['http:', 'https:'].includes(u.protocol) ? u.href : '' } catch { return '' } }
 const splitIds = text => clean(text).split(/[；;,，、\s]+/).filter(Boolean)
 const items = [], ids = new Set(), keys = new Set(), documents = new Set(), excluded = []
@@ -63,12 +63,12 @@ const chunk = (file, key, title, text, props = {}) => pieces(text).forEach((part
   { ...props, extra: { ...props.extra, parent: file + ':' + key, kb: { ...props.extra?.kb, part: i } } }))
 
 // Portal full/slim are two projections of the same collection, never two corpora.
-const portal = load('ucass_guide.json'), slim = load('ucass_guide_slim.json')
+const portal = load('campusdemo_guide.json'), slim = load('campusdemo_guide_slim.json')
 if (portal.items.length !== slim.items.length || portal.items.some((r, i) => r.title !== slim.items[i].title || r.url !== slim.items[i].url)) {
   throw new Error('门户 full/slim 内容不一致，需要人工确认来源')
 }
-excluded.push({ file: 'ucass_guide_slim.json', reason: '与 full 逐条校验一致，作为投影视图，不重复索引', count: slim.items.length })
-for (const [i, row] of portal.items.entries()) add('ucass_guide.json', `${row.category}/${row.item_id || ''}/${hash(row.title + row.url).slice(0,16)}`, row.title, row.desc || '', {
+excluded.push({ file: 'campusdemo_guide_slim.json', reason: '与 full 逐条校验一致，作为投影视图，不重复索引', count: slim.items.length })
+for (const [i, row] of portal.items.entries()) add('campusdemo_guide.json', `${row.category}/${row.item_id || ''}/${hash(row.title + row.url).slice(0,16)}`, row.title, row.desc || '', {
   url: row.url, cat: row.category, type: row.content_type, extra: { trust: 'official_index', locator: `items[${i}]`,
     kb: { collection: 'portal', entryKind: 'direct' } }
 })
@@ -131,7 +131,7 @@ writeFileSync(join(out, 'retrieval-cases.json'), JSON.stringify(sheet('08_'), nu
 writeFileSync(join(out, 'quarantine.json'), JSON.stringify(quarantined, null, 2))
 excluded.push({ file: workbookFile, reason: '示例/模拟记录隔离；测试答案、使用说明、意图标签与数据字典仅供治理和评测', count: quarantined.length })
 
-for (const file of ['社科院课程测评_RAG.json', '社科大外卖红黑榜_RAG.json']) {
+for (const file of ['学校课程测评_RAG.json', '校园外卖红黑榜_RAG.json']) {
   const data = load(file)
   if (file.includes('外卖')) for (const s of data.sheets.filter(s => /红榜|黑榜/.test(s.sheet_name))) {
     const red = s.sheet_name === '红榜'
@@ -153,9 +153,9 @@ for (const file of ['社科院课程测评_RAG.json', '社科大外卖红黑榜_
     })
   }
 }
-for (const file of ['UCASSbook_RAG.json', '烧烤店辛瓜生存指北_RAG.json']) {
+for (const file of ['campusdemobook_RAG.json', '烧烤店校园助手生存指北_RAG.json']) {
   const data = load(file)
-  const sections = file.startsWith('UCASSbook') ? data.sections.map(s => {
+  const sections = file.startsWith('campusdemobook') ? data.sections.map(s => {
     const number=s.heading.match(/^(\d+(?:\.\d+)*)\./)?.[1]
     const lines=clean(s.text).split('\n').map(clean).filter(Boolean)
     const name=clean(s.heading.replace(/^\d+(?:\.\d+)*\.?\s*/,'')) || lines[1] || s.heading
@@ -182,7 +182,7 @@ for (const file of ['UCASSbook_RAG.json', '烧烤店辛瓜生存指北_RAG.json'
   }
   for (const s of sections) chunk(file, s.id, s.title || data.document.title, s.text, {
     type: '生活指南', cat:s.path?.slice(0,2).join(' / ') || '生活指南', extra: { locator: s.locator, trust: 'community', aliases:s.name?[...new Set([s.name,s.name.replace(/^(学生|校园|学校)/,'')])].filter(n=>n.length>=2):[],
-      kb: {collection: file.startsWith('UCASSbook') ? 'handbook' : 'survival',sectionPath:s.path || [],sectionKey:s.number?`${file}:${s.number}`:undefined,
+      kb: {collection: file.startsWith('campusdemobook') ? 'handbook' : 'survival',sectionPath:s.path || [],sectionKey:s.number?`${file}:${s.number}`:undefined,
         children:s.children?.map(c=>`${file}:${c.number}`),overview:!!s.overview} }
   })
 }

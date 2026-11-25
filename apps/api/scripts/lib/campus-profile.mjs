@@ -1,7 +1,7 @@
 import {readFileSync} from 'node:fs'
 import {resolve,sep} from 'node:path'
 import {createHash} from 'node:crypto'
-export const MARKER='deployment_profile:ucass-campus'
+export const MARKER='deployment_profile:campusdemo-campus'
 export const pick=(row,fields)=>Object.fromEntries(fields.filter(k=>row[k]!==undefined).map(k=>[k,row[k]]))
 export function loadCampusProfile(directory,origin='http://localhost:5173'){
  const root=resolve(directory),manifest=JSON.parse(readFileSync(resolve(root,'manifest.json'),'utf8'))

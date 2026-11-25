@@ -129,7 +129,7 @@ def main():
     sources.append({
         'key': 'portal-navigation', 'id': portal['portalNavigationBase'], 'kind': 'LOCAL', 'mounted': True,
         'name': '官方门户入口与办理导航', 'description': '通用校园应用入口和学生办事路径。',
-        'connection': {'observedAt': portal['portalNavigationObservedAt'], 'taxonomy': {'entryPrefix': 'ucass-portal-nav:', 'topics': [
+        'connection': {'observedAt': portal['portalNavigationObservedAt'], 'taxonomy': {'entryPrefix': 'campusdemo-portal-nav:', 'topics': [
             {'key': 'apps', 'label': '校园应用'}, {'key': 'services', 'label': '学生事务'}]}},
     })
     entries = []

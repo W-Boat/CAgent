@@ -114,7 +114,7 @@ export const PAGES = [
     path: "/campus",
     title: "校园导览 · CAgent",
     description:
-      "社科大校内办事指引：部门、地点、电话、所需材料与入口，一步步教你怎么做。"
+      "校园校内办事指引：部门、地点、电话、所需材料与入口，一步步教你怎么做。"
   },
   {
     path: "/usage",

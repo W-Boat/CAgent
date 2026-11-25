@@ -90,7 +90,7 @@ export class CampusGuideRunService {
       return "该事项校方尚未启用，页面里可能没有内容——先看清楚再决定要不要跑一趟。"
     }
     if (hit.access === "校园网/VPN") {
-      return `这个入口要在校园网内或连上 aTrust VPN 才能打开。${bits.join("，")}。页面已为你打开，接下来自己操作。`
+      return `这个入口要在校园网内或连上 学校配置的 VPN 才能打开。${bits.join("，")}。页面已为你打开，接下来自己操作。`
     }
     if (hit.access === "已合并下线") {
       return "该平台已合并到其他系统，请从新入口进入。"

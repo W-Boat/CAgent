@@ -20,8 +20,8 @@ async function request(method,path,body,token) {
 }
 const {accessToken} = await request('POST','/auth/login',{email,password})
 for (const entry of [
-  {key:'ucass-kb-survival',name:'辛瓜生存指北',collection:'survival',icon:'🍢'},
-  {key:'ucass-kb-takeout',name:'外卖红黑榜',collection:'takeout',icon:'🥡'}
+  {key:'campusdemo-kb-survival',name:'校园助手生存指北',collection:'survival',icon:'🍢'},
+  {key:'campusdemo-kb-takeout',name:'外卖红黑榜',collection:'takeout',icon:'🥡'}
 ]) {
   const existing=await request('GET',`/skills?keyword=${encodeURIComponent(entry.key)}&pageSize=100`,undefined,accessToken)
   const skill = (existing.items || existing).find(s => s.key === entry.key)
@@ -32,7 +32,7 @@ for (const entry of [
 
 }
 const agents=await request('GET','/agents',undefined,accessToken)
-const guide=(agents.items || agents).find(agent=>agent.key==='ucass-guide')
+const guide=(agents.items || agents).find(agent=>agent.key==='campusdemo-guide')
 if(guide){
   await request('PATCH',`/agents/${guide.id}`,{systemPrompt:readFileSync(fileURLToPath(new URL('./agent-guide.md',import.meta.url)),'utf8')},accessToken)
   console.log('已更新校园导办 Agent 的证据与查询指引')

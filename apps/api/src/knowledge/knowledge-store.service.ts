@@ -211,7 +211,7 @@ export class KnowledgeStoreService {
     // Read only red-list rows from an enabled source. No black-list rows enter a dinner card.
     if(matched.some(({rule})=>rule.card?.type==='dinner'&&rule.card.sourceCollection==='takeout')){
       const enabled=await this.embeddedEnabled('takeout',agentId,baseIds)
-      const rows=enabled?await this.prisma.campusGuideItem.findMany({where:{AND:[await this.embeddedWhere(),{extra:{path:['kb','file'],equals:'社科大外卖红黑榜_RAG.json'}},{extra:{path:['kb','collection'],equals:'takeout'}},{extra:{path:['kb','audience'],equals:'红榜'}}]},select:{title:true},orderBy:{externalId:'asc'}}):[]
+      const rows=enabled?await this.prisma.campusGuideItem.findMany({where:{AND:[await this.embeddedWhere(),{extra:{path:['kb','file'],equals:'校园外卖红黑榜_RAG.json'}},{extra:{path:['kb','collection'],equals:'takeout'}},{extra:{path:['kb','audience'],equals:'红榜'}}]},select:{title:true},orderBy:{externalId:'asc'}}):[]
       const catalog=enabled?await this.foodItems(agentId):[],eligible=catalog.filter(dinnerEligible),redNames=catalog.length?[...new Set(eligible.map(mealName).filter(n=>n!=='麦当劳'))]:[...new Set(rows.map(row=>row.title.trim()).filter(name=>!!name&&name.length<=80&&name!=='麦当劳'))]
       for(const {rule} of matched)if(rule.card?.type==='dinner'&&rule.card.sourceCollection==='takeout')rule.card={...rule.card,restaurants:[...new Set([...rule.card.restaurants,...redNames,...(enabled&&!catalog.length?rule.card.additionalRestaurants||[]:[])])].slice(0,500),foodItems:eligible.map(({id,name,category,price,place,pgroup})=>({id,name:name==='麦当劳'?'三食堂（麦当劳）':mealName({pgroup,name} as FoodItem),category,price,place,pgroup})),sourceCount:eligible.length,redNameCount:redNames.length,note:enabled?'与红榜使用同一份完整名单；同名条目合并为一个选餐候选，麦当劳归入三食堂，另保留一、二食堂入口。可按类别或地点筛选。价格、营业及配送未实时核验。':'外卖红榜已停用，目前仅展示管理员配置的食堂候选；三食堂是麦当劳的称呼。'}
     }
@@ -222,7 +222,7 @@ export class KnowledgeStoreService {
     if (!base||base.kind==='REMOVED') throw new NotFoundException('知识库不存在或已移除')
     if(base.kind==='EMBEDDED')throw new BadRequestException('内嵌资料只读，请通过管理员纠错库补充正确答案')
     const data = entryData(input)
-    const portalPrefix=input.baseId===portalNavigationBase?'ucass-portal-nav:az:manual:':input.baseId===portalNewsBase?'ucass-public-news:manual:':null
+    const portalPrefix=input.baseId===portalNavigationBase?'campusdemo-portal-nav:az:manual:':input.baseId===portalNewsBase?'campusdemo-public-news:manual:':null
     const result = await this.prisma.$transaction(async tx => {
       await tx.$queryRaw`SELECT id FROM knowledge_bases WHERE id=${input.baseId} FOR UPDATE`
       const currentBase=await tx.knowledgeBase.findUnique({where:{id:input.baseId}})

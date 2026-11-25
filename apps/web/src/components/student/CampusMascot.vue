@@ -12,7 +12,7 @@ import {useAuthStore} from '@/stores/auth'
 import MascotImage from '@/components/experience/MascotImage.vue'
 const props=defineProps<{busy:boolean;phase?:string}>(),emit=defineEmits<{hide:[]}>(),auth=useAuthStore()
 const reaction=ref(''),reacting=ref(false)
-const name=computed(()=>auth.settings?.mascot_name||'辛瓜小助')
+const name=computed(()=>auth.settings?.mascot_name||'校园助手小助')
 const message=computed(()=>props.busy?(props.phase==='tools'?'正在查资料。':props.phase==='finalizing'?'回答快整理好了。':'我陪你等一会儿。'):reaction.value)
 const greetings=['在呢，随时可以问我。','碰个瓜！','课间记得歇一下。']
 let index=0,hold:ReturnType<typeof setTimeout>|undefined,timer:ReturnType<typeof setTimeout>|undefined,held=false

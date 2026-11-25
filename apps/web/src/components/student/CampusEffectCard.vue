@@ -7,7 +7,7 @@ import {computed,onBeforeUnmount,ref,watch} from 'vue'
 import {claimEffect} from './effect-playback'
 const props=defineProps<{card:Record<string,unknown>;autoPlay?:boolean;effectKey?:string}>()
 const effect=computed(()=>['tiger','melon','cat'].includes(String(props.card.effect))?String(props.card.effect):'')
-const emoji=computed(()=>effect.value==='tiger'?'🐯':effect.value==='melon'?'🍉':'🐱'),label=computed(()=>effect.value==='tiger'?'大老虎来了':effect.value==='melon'?'小辛瓜冒个泡':'喵～')
+const emoji=computed(()=>effect.value==='tiger'?'🐯':effect.value==='melon'?'🍉':'🐱'),label=computed(()=>effect.value==='tiger'?'大老虎来了':effect.value==='melon'?'小校园助手冒个泡':'喵～')
 const visible=ref(false);let played=false,timer:ReturnType<typeof setTimeout>|undefined
 function close(){visible.value=false;if(timer)clearTimeout(timer);window.removeEventListener('keydown',onKey)}
 function onKey(e:KeyboardEvent){if(e.key==='Escape')close()}

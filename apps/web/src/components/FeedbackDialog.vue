@@ -42,7 +42,7 @@
             v-model="correction"
             type="textarea"
             :rows="4"
-            placeholder="例如：正确的电话号码是 010-12345678，办理地点在良乡校区…"
+            placeholder="例如：正确的电话号码是 010-12345678，办理地点在主校区…"
             resize="none"
             maxlength="2000"
             show-word-limit

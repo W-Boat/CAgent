@@ -75,7 +75,12 @@ def main():
             for child in sorted((args.build / 'web').iterdir()):
                 if child.name != 'maps':
                     add(child, 'apps/web/dist/' + child.name)
-            for filename in ('liangxiang-original-202605.png', 'wangjing-original-202608.png'):
+            maps = json.loads(args.map_data.read_bytes())
+            for campus in maps['campuses']:
+                match = re.fullmatch(r'/maps/([a-zA-Z0-9][a-zA-Z0-9._-]+)', campus['imageUrl'])
+                if not match:
+                    raise ValueError('Map image must use a bundled static path')
+                filename = match[1]
                 add(args.maps / filename, 'apps/web/dist/maps/' + filename)
             add(args.profile / 'manifest.json', 'payload/profile/manifest.json')
             for filename in payload_files:

@@ -1,5 +1,5 @@
 export interface FoodItem {id:number;name:string;price:string;place:string;pgroup:string;category:string;verdict:'good'|'mixed'|'bad';reviews:string[];sources:string[];drawable:boolean}
-export const foodSource='社科大外卖红黑榜_RAG.json'
+export const foodSource='校园外卖红黑榜_RAG.json'
 export function foodItem(value:any):FoodItem|null{
  if(!value||!Number.isSafeInteger(value.id)||!['good','mixed','bad'].includes(value.verdict)||!['name','price','place','pgroup','category'].every(k=>typeof value[k]==='string')||!value.name.trim()||!['reviews','sources'].every(k=>Array.isArray(value[k])&&value[k].every((s:any)=>typeof s==='string'))||typeof value.drawable!=='boolean')return null
  return {id:value.id,name:value.name,price:value.price,place:value.place,pgroup:value.pgroup,category:value.category,verdict:value.verdict,reviews:value.reviews,sources:value.sources,drawable:value.drawable}

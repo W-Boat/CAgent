@@ -48,9 +48,9 @@
             <p>下方可设置搜索开关、搜索引擎、校外范围、结果数量和正文。密钥通过服务器环境变量或模型供应商后台配置。</p>
             <el-button type="primary" :loading="saving" :disabled="!auth.can('setting:write')||!groups.search?.length" @click="save('search')">保存搜索配置</el-button>
             <el-alert v-if="!groups.search?.length" title="当前账号未取得搜索配置项，请重新载入；仍不可见时请管理员检查设置权限。" type="warning" :closable="false" show-icon/>
-            <p>保存后可测试接口。默认覆盖 ucass.edu.cn 及全部子域名，仅搜索已收录的公开网页。</p>
+            <p>保存后可测试接口。覆盖服务器配置的学校域名及子域名，仅搜索已收录的公开网页。</p>
             <div class="settings-search-controls">
-              <el-input v-model="searchQuery" aria-label="测试搜索词" placeholder="例如：中国社会科学院大学 学术新闻" maxlength="100" />
+              <el-input v-model="searchQuery" aria-label="测试搜索词" placeholder="例如：校园 学术新闻" maxlength="100" />
               <el-select v-model="searchScope" aria-label="测试搜索范围"><el-option label="校内子域名" value="campus"/><el-option label="校外新闻" value="external"/><el-option label="全网" value="all"/></el-select>
               <el-button :loading="searchBusy" :disabled="dirtyKeys.some(key=>groups.search?.some(item=>item.key===key))||!auth.can('setting:write')||!groups.search?.length" @click="testSearch">测试搜索</el-button>
             </div>
@@ -179,7 +179,7 @@ import { useKeepAliveRefresh } from "@/utils/keep-alive"
 defineOptions({ name: "admin-settings" })
 
 const auth = useAuthStore()
-const searchQuery=ref('中国社会科学院大学 学术新闻'),searchScope=ref('campus'),searchBusy=ref(false),searchReport=ref(''),searchResults=ref<{title:string;url:string;published:string}[]>([])
+const searchQuery=ref('校园 学术新闻'),searchScope=ref('campus'),searchBusy=ref(false),searchReport=ref(''),searchResults=ref<{title:string;url:string;published:string}[]>([])
 async function testSearch(){searchBusy.value=true;searchResults.value=[];try{const result=await request<any>({method:'POST',url:'/search/test',data:{query:searchQuery.value,scope:searchScope.value}});searchResults.value=result.results;searchReport.value=`返回 ${result.results.length} 条${result.cached?'（缓存）':''}；${result.notice}`}catch(e){searchReport.value='测试未通过，请检查开关、密钥、权限或网络';toastError(e)}finally{searchBusy.value=false}}
 
 const sections = computed(() => [

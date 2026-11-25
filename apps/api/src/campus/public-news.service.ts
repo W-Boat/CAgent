@@ -1,3 +1,4 @@
+import {campusOfficialDomain,isCampusOfficialHost} from '../common/campus-deployment'
 import { HttpException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
 import { Interval } from '@nestjs/schedule'
 import { createHash } from 'node:crypto'
@@ -10,7 +11,7 @@ import { questionKey } from '../knowledge/knowledge-store.service'
 import { SettingsService } from '../settings/settings.service'
 import { portalNewsBase } from './portal-navigation'
 
-const source = 'https://www.ucass.edu.cn'
+const source = 'https://'+campusOfficialDomain
 export const publicNewsBase = portalNewsBase
 const columns = [
   {name:'学校通知',path:'/index/tzgg.htm'},
@@ -32,7 +33,7 @@ export function parsePublicNews(html: string, path: string, name: string) {
     let url: URL
     try { url = new URL(link.attr('href') || '',source+path) } catch { return }
     if (url.protocol!=='https:' || url.username || url.password || url.port || url.search ||
-      !(url.hostname==='ucass.edu.cn' || url.hostname.endsWith('.ucass.edu.cn')) ||
+      !isCampusOfficialHost(url.hostname) ||
       !/^\/info\/\d+\/\d+\.htm$/.test(url.pathname)) return
     const title = (link.attr('title') || link.text()).replace(/\s+/g,' ').trim().slice(0,500)
     if (title.length<4 || /^(?:查看详情|阅读原文)$/.test(title)) return
@@ -122,14 +123,14 @@ export class PublicNewsService {
       const entries = [...result.values()]
       return await this.prisma.$transaction(async tx => {
         const base = await tx.knowledgeBase.upsert({where:{id:publicNewsBase},create:{
-          id:publicNewsBase,name:'社科大官网资讯',kind:'LOCAL',mounted:true,
+          id:publicNewsBase,name:'校园官网资讯',kind:'LOCAL',mounted:true,
           description:'只收录学校公开栏目的标题、发布日期与原文入口。新增资料需审核发布。',
         },update:{}})
         if (base.kind!=='LOCAL' || base.agentId) throw new ServiceUnavailableException('官网资讯知识库配置不匹配')
         const inserted = await tx.knowledgeEntry.createMany({skipDuplicates:true,data:entries.map(item => ({
-          baseId:base.id,externalKey:'ucass-public-news:'+(item.category==='学校要闻'?'headline:':'notice:')+digest(item.url),questionKey:questionKey(item.title+' '+item.url),
+          baseId:base.id,externalKey:'campusdemo-public-news:'+(item.category==='学校要闻'?'headline:':'notice:')+digest(item.url),questionKey:questionKey(item.title+' '+item.url),
           title:item.title,question:item.title+' '+item.url,answer:`栏目：${item.category}\n发布日期：${item.published}\n[在学校官网阅读原文](${item.url})`,
-          summary:item.category+' · '+item.published,url:item.url,source:'中国社会科学院大学官网 · '+item.category,
+          summary:item.category+' · '+item.published,url:item.url,source:'校园官网 · '+item.category,
           mode:'RAG',status:'DRAFT',aliases:[],
         }))})
         await tx.knowledgeBase.update({where:{id:base.id},data:{lastSyncAt:new Date(),

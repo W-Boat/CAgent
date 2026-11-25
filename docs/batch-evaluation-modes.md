@@ -22,7 +22,7 @@
 {
   "title": "校园多轮测试",
   "format": "json",
-  "data": "{\"batches\":[{\"id\":\"通勤\",\"questions\":[\"良乡校区附近的地铁站是哪个？\",\"怎么去？\"]}]}",
+  "data": "{\"batches\":[{\"id\":\"通勤\",\"questions\":[\"主校区附近的地铁站是哪个？\",\"怎么去？\"]}]}",
   "concurrency": 2,
   "strictMode": true,
   "knowledgeScope": "v2-only",

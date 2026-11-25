@@ -26,6 +26,7 @@ function apiEnv(settings) {
     DATABASE_URL: `postgresql://cagent:${settings.dbPassword}@127.0.0.1:${settings.dbPort}/cagent`,
     DIRECT_URL: `postgresql://cagent:${settings.dbPassword}@127.0.0.1:${settings.dbPort}/cagent`,
     JWT_SECRET: settings.jwtSecret, ENCRYPTION_KEY: settings.encryptionKey,
+    ...(settings.installTestAccounts ? {ALLOW_TEST_SUPER_ADMIN:'true'} : {}),
   }
 }
 

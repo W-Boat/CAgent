@@ -3,7 +3,7 @@ import {computed,ref} from 'vue'
 
 withDefaults(defineProps<{motion?:'idle'|'waiting'|'thinking'|'success'|'tap'|'miss';label?:string;lazy?:boolean}>(),{motion:'idle',label:''})
 const failed=ref(false)
-const image=computed(()=>failed.value?'/mascot/xingua-placeholder.png':`${(import.meta.env.VITE_API_BASE||'/api').replace(/\/$/,'')}/experience/mascot`)
+const image=computed(()=>failed.value?'/mascot/assistant-placeholder.png':`${(import.meta.env.VITE_API_BASE||'/api').replace(/\/$/,'')}/experience/mascot`)
 </script>
 
 <template><img class="mascot-image" :class="`mascot-${motion}`" :src="image" :alt="label" :loading="lazy?'lazy':undefined" draggable="false" @error="failed=true"/></template>

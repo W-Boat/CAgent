@@ -82,7 +82,7 @@ watch(lastPage, max => { if (page.value > max) page.value = max })
     <main>
       <header class="portal-heading">
         <div><h1>{{ heading }}</h1>
-          <p>{{ section === 'services' ? '查看校园事务 2.0 的流程与材料，实际受理以学校服务平台为准。' : information ? '中国社会科学院大学官网要闻' : '搜索新版校园门户应用中心 A–Z 目录。' }}</p>
+          <p>{{ section === 'services' ? '查看校园事务 2.0 的流程与材料，实际受理以学校服务平台为准。' : information ? '校园官网要闻' : '搜索新版校园门户应用中心 A–Z 目录。' }}</p>
         </div>
         <a v-if="result" :href="result.sourceUrl" class="nx-btn nx-btn-secondary" target="_blank" rel="noopener noreferrer">{{information?'打开官网要闻':'打开学校门户'}} ↗</a>
       </header>

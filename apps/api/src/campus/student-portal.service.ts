@@ -1,3 +1,4 @@
+import {isCampusOfficialHost} from '../common/campus-deployment'
 import { Injectable, Logger, NotFoundException } from '@nestjs/common'
 import { Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
@@ -10,9 +11,9 @@ import { KnowledgeStoreService, questionKey } from '../knowledge/knowledge-store
 import {observedPortalAppNames} from './portal-app-directory'
 import {CONTEST_MARKDOWN,CONTEST_SQLITE,embeddedSourceId} from '../knowledge/embedded-knowledge'
 
-const officialPortal = 'https://info.ucass.edu.cn/default/index.html#/'
-const fusion = 'kb-ucass-portal-fusion-2026'
-const verifiedServices = 'kb-ucass-portal-services-2026'
+const officialPortal = process.env.CAMPUS_PORTAL_URL || 'https://campus.example.invalid/'
+const fusion = 'kb-campusdemo-portal-fusion-2026'
+const verifiedServices = 'kb-campusdemo-portal-services-2026'
 const embeddedBySection = {services:['services','matters'], applications:['portal'], information:['通知公告']}
 export type PortalSection = keyof typeof embeddedBySection
 type PortalItem = {
@@ -26,7 +27,7 @@ function safePortalUrl(value: unknown, allowWechat = false) {
     const url = new URL(String(value))
     const host = url.hostname.toLowerCase()
     if (!['http:','https:'].includes(url.protocol) || url.username || url.password) return ''
-    if (!(host === 'ucass.edu.cn' || host.endsWith('.ucass.edu.cn') || allowWechat && host === 'mp.weixin.qq.com')) return ''
+    if (!(isCampusOfficialHost(host) || allowWechat && host === 'mp.weixin.qq.com')) return ''
     if ([...url.searchParams.keys()].some(key => /ticket|token|password|session|student|user|sso/i.test(key))) return ''
     return url.toString()
   } catch { return '' }
@@ -34,7 +35,7 @@ function safePortalUrl(value: unknown, allowWechat = false) {
 const titleKey = (value: string) => value.normalize('NFKC').toLowerCase().replace(/[\s\p{P}\p{S}]/gu,'')
 const observedApps=new Set<string>(observedPortalAppNames.map(titleKey))
 const observedNavigationKeys=new Set(portalNavigation.filter(item=>item.externalKey.includes(':apps:')&&observedApps.has(titleKey(item.title))).map(item=>item.externalKey))
-const officialHeadlines='https://www.ucass.edu.cn/index/yw.htm'
+const officialHeadlines=process.env.CAMPUS_NEWS_INDEX_URL || 'https://campus.example.invalid/news'
 const directoryRevision = 'portal_az_directory_revision'
 
 @Injectable()
@@ -56,7 +57,7 @@ export class StudentPortalService {
       const base = await tx.knowledgeBase.upsert({where:{id:portalNavigationBase},create:{
         id:portalNavigationBase,name:'官方门户入口与办理导航',kind:'LOCAL',mounted:true,
         description:'通用应用入口和办事路径，按当前登录可见的官方页面整理。',
-        connection:{observedAt:portalNavigationObservedAt,taxonomy:{entryPrefix:'ucass-portal-nav:',topics:[
+        connection:{observedAt:portalNavigationObservedAt,taxonomy:{entryPrefix:'campusdemo-portal-nav:',topics:[
           {key:'apps',label:'校园应用'},{key:'services',label:'学生事务'},
         ]}},
       },update:{}})
@@ -64,7 +65,7 @@ export class StudentPortalService {
       const existingApps=new Set(portalNavigation.filter(item=>item.externalKey.includes(':apps:')).map(item=>titleKey(item.title)))
       const prior = await tx.knowledgeEntry.findMany({where:{baseId:fusion,status:'APPROVED',externalKey:{startsWith:'portal-fusion:apps:'}},select:{title:true,url:true}})
       const links = new Map(prior.map(item=>[titleKey(item.title),safePortalUrl(item.url)]))
-      const directory=observedPortalAppNames.filter(title=>!existingApps.has(titleKey(title))).map(title=>({externalKey:'ucass-portal-nav:az:'+questionKey(title),title,url:links.get(titleKey(title))||officialPortal+'apps',answer:`登录新版校园门户，在应用中心搜索「${title}」，从学校提供的入口打开。`,aliases:[]}))
+      const directory=observedPortalAppNames.filter(title=>!existingApps.has(titleKey(title))).map(title=>({externalKey:'campusdemo-portal-nav:az:'+questionKey(title),title,url:links.get(titleKey(title))||officialPortal+'apps',answer:`登录新版校园门户，在应用中心搜索「${title}」，从学校提供的入口打开。`,aliases:[]}))
       const candidates=[...portalNavigation,...directory]
       const inserted = await tx.knowledgeEntry.createMany({skipDuplicates:true,data:candidates.map(item => ({
         ...item,baseId:base.id,question:item.title,questionKey:questionKey(item.title),
@@ -105,7 +106,7 @@ export class StudentPortalService {
     })
     for (const row of managed) {
       const url = safePortalUrl(row.url,section==='information')
-      const directoryRow = row.externalKey && (row.externalKey.startsWith('ucass-portal-nav:az:')||observedNavigationKeys.has(row.externalKey))
+      const directoryRow = row.externalKey && (row.externalKey.startsWith('campusdemo-portal-nav:az:')||observedNavigationKeys.has(row.externalKey))
       if (!url || /模拟校园门户|赛事模拟/.test(row.answer.slice(0,600)) || section==='applications'&&!directoryRow&&!observedApps.has(titleKey(row.title))) continue
       const wechat = row.base.kind==='WECHAT'
       const date = section==='information' ? calendarDate(row.source) ||
@@ -120,7 +121,7 @@ export class StudentPortalService {
     }
     if(section==='information'&&!items.length&&!await this.prisma.knowledgeBase.findUnique({where:{id:publicNewsBase},select:{id:true}})){
       const headlines=await this.news.headlines()
-      for(const row of headlines)insert({id:'official:'+questionKey(row.url),title:row.title,category:'学校要闻',source:'中国社会科学院大学官网',summary:'',url:row.url,date:row.published,kind:'official-link'})
+      for(const row of headlines)insert({id:'official:'+questionKey(row.url),title:row.title,category:'学校要闻',source:'校园官网',summary:'',url:row.url,date:row.published,kind:'official-link'})
     }
     items.sort((a,b) => section==='information' ? (b.date || '').localeCompare(a.date || '') || a.title.localeCompare(b.title,'zh-CN')
       : a.title.localeCompare(b.title,'zh-CN'))
@@ -151,17 +152,17 @@ export class StudentPortalService {
   private managedWhere(section: PortalSection): Prisma.KnowledgeEntryWhereInput {
     const normal = {mounted:true,agentId:null}
     const restrictions: Prisma.KnowledgeEntryWhereInput[] = section==='information' ? [
-      {base:{...normal,kind:'LOCAL',id:publicNewsBase},externalKey:{startsWith:'ucass-public-news:'},source:{contains:'学校要闻'}},
-      {base:{...normal,kind:'LOCAL',id:publicNewsBase},externalKey:{startsWith:'ucass-public-news:headline:'}},
-      {base:{...normal,kind:'LOCAL',id:publicNewsBase},externalKey:{startsWith:'ucass-public-news:manual:'}},
+      {base:{...normal,kind:'LOCAL',id:publicNewsBase},externalKey:{startsWith:'campusdemo-public-news:'},source:{contains:'学校要闻'}},
+      {base:{...normal,kind:'LOCAL',id:publicNewsBase},externalKey:{startsWith:'campusdemo-public-news:headline:'}},
+      {base:{...normal,kind:'LOCAL',id:publicNewsBase},externalKey:{startsWith:'campusdemo-public-news:manual:'}},
     ] : section==='applications' ? [
-      {base:{...normal,id:portalNavigationBase},externalKey:{startsWith:'ucass-portal-nav:apps:'}},
-      {base:{...normal,id:portalNavigationBase},externalKey:{startsWith:'ucass-portal-nav:az:'}},
+      {base:{...normal,id:portalNavigationBase},externalKey:{startsWith:'campusdemo-portal-nav:apps:'}},
+      {base:{...normal,id:portalNavigationBase},externalKey:{startsWith:'campusdemo-portal-nav:az:'}},
     ] : [
       {base:{...normal,id:verifiedServices},externalKey:{startsWith:'portal-services:'}},
       {base:{...normal,id:fusion},externalKey:{startsWith:'portal-fusion:apps:'}},
       {base:{...normal,id:fusion},externalKey:{startsWith:'portal-fusion:alignment:'}},
-      {base:{...normal,id:portalNavigationBase},externalKey:{startsWith:'ucass-portal-nav:services:'}},
+      {base:{...normal,id:portalNavigationBase},externalKey:{startsWith:'campusdemo-portal-nav:services:'}},
     ]
     return {status:'APPROVED', mode:'RAG',OR:restrictions}
   }

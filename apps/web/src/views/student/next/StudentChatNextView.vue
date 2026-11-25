@@ -627,7 +627,7 @@ async function loadMeta() {
 const uniqueSkills = computed(() => dedupeSkills(skills.value))
 
 /** 输入区仅展示用户已选用的实际工具技能。 */
-const skillOptions = computed(()=>[...uniqueSkills.value.filter(s=>!/^(ucass-kb-(survival|takeout)|kb-)/.test(s.key)).map(s=>({id:s.key,label:s.name,note:s.description})),...builtinOptions.value])
+const skillOptions = computed(()=>[...uniqueSkills.value.filter(s=>!/^(campusdemo-kb-(survival|takeout)|kb-)/.test(s.key)).map(s=>({id:s.key,label:s.name,note:s.description})),...builtinOptions.value])
 
 /**
  * 技能预设：新对话开始时按前缀配置预勾选（见 utils/skill-presets.ts）。
@@ -1086,7 +1086,7 @@ function weatherText(code: number): { emoji: string; desc: string } {
 }
 
 /**
- * 良乡校区当前天气（Open-Meteo：免费无 key、支持 CORS）。
+ * 主校区当前天气（Open-Meteo：免费无 key、支持 CORS）。
  * sessionStorage 缓存 30 分钟；失败/超时（3s）静默 —— 天气是锦上添花，
  * 迎宾行退化为只显示日期，不在界面上报错。
  */
@@ -1641,7 +1641,7 @@ onBeforeUnmount(() => {
             <div v-if="!messages.length && !loadingMessages && !historyError" class="st-welcome">
               <!-- 日期/天气行：muted 小字，天气拉不到就只显示日期 -->
               <div class="st-welcome-date">
-                {{ welcomeDate }}<template v-if="display.weather && welcomeWeather"> · 良乡校区 {{ welcomeWeather }}</template>
+                {{ welcomeDate }}<template v-if="display.weather && welcomeWeather"> · 主校区 {{ welcomeWeather }}</template>
               </div>
               <div class="st-welcome-seal" aria-hidden="true">{{ sealChar }}</div>
               <h1 class="st-welcome-title">{{ display.welcomeTitle || activeAgent?.name || "你好" }}</h1>
@@ -1819,7 +1819,7 @@ onBeforeUnmount(() => {
           <div class="st-composer-box chat-composer-box">
             <button type="button" class="composer-height-handle" aria-label="调整输入框高度" title="向上拖动调高输入框，方向键调整，Home 恢复默认" @pointerdown="composerHeight.start" @pointermove="composerHeight.move" @pointerup="composerHeight.finish" @pointercancel="composerHeight.finish" @keydown="composerHeight.resize"></button>
             <!--
-              辛瓜指南、外卖经验已收录知识库，直接提问即可查询；这里仅显示已启用的工具技能。
+              校园助手指南、外卖经验已收录知识库，直接提问即可查询；这里仅显示已启用的工具技能。
               学生没有技能选择器，这里是他们使用技能的唯一入口（原「本次启用」条
               只显示已勾选项，等于没有入口）。卡片激活的技能也并入此行。
             -->

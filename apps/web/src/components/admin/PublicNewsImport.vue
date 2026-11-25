@@ -39,7 +39,7 @@ async function install() {
     <p v-if="installReport" role="status">共核对 {{ installReport.total }} 条，本次新增 {{ installReport.added }} 条。
       <el-button text @click="open = false; emit('done', installReport.baseId)">查看知识库</el-button>
     </p>
-    <p>读取学校官网的「通知公告」和「要闻」首页，保存为草稿。学生端校园要闻展示审核发布的要闻。可在「社科大官网资讯」库编辑、发布或归档。</p>
+    <p>读取学校官网的「通知公告」和「要闻」首页，保存为草稿。学生端校园要闻展示审核发布的要闻。可在「校园官网资讯」库编辑、发布或归档。</p>
     <el-switch v-model="campusNetwork" :disabled="busy" active-text="采集服务器在校园网内，可直连学校域名" />
     <section class="directory-import">
       <p>采集公开校历、教学日期和部门办公座机，分别存入独立知识库。</p>

@@ -101,7 +101,7 @@ export class LearningService {
         throw new BadRequestException("只能对助手的回复作出评价")
       }
 
-      const agentId = message.conversation.agentId || (await tx.agent.findFirst({where:{key:'ucass-guide',enabled:true},select:{id:true}}))?.id || null
+      const agentId = message.conversation.agentId || (await tx.agent.findFirst({where:{key:'campusdemo-guide',enabled:true},select:{id:true}}))?.id || null
       if (agentId) await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`learning-agent:${agentId}`}))::text`
       const correction = input.correction?.trim() || null
       const previous = await tx.messageFeedback.findUnique({where:{messageId_userId:{messageId:input.messageId,userId}}})

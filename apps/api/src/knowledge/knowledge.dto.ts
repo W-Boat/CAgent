@@ -6,7 +6,7 @@ export class CollectiveTimetableDto {
   @IsString() @MaxLength(50) semester!:string
   @IsString() @MaxLength(50) capturedAt!:string
   @IsString() @MaxLength(500) sourcePage!:string
-  @IsOptional() @IsIn(['良乡','望京','通用']) campus?:string
+  @IsOptional() @IsIn(['主校区','第二校区','通用']) campus?:string
   @Transform(({obj})=>obj.records) @IsArray() @ArrayMinSize(1) @ArrayMaxSize(5000) @IsObject({each:true}) records!:Record<string,unknown>[]
 }
 

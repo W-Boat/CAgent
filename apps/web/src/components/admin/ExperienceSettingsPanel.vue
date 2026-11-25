@@ -50,9 +50,9 @@ async function issue() {
 <template>
   <div v-if="group === 'presentation'" class="experience-settings">
     <h3>统一吉祥物形象</h3>
-    <p>常驻辛瓜、开始等待、思考和小游戏共用形象。</p>
+    <p>常驻校园助手、开始等待、思考和小游戏共用形象。</p>
     <div class="experience-actions">
-      <img :src="imageError?'/mascot/xingua-placeholder.png':shownImage" alt="吉祥物预览" @error="imageError = true">
+      <img :src="imageError?'/mascot/assistant-placeholder.png':shownImage" alt="吉祥物预览" @error="imageError = true">
       <FilePicker accept="image/png,image/jpeg,image/gif,image/webp" :file="file" :disabled="disabled || busy" label="选择吉祥物" hint="PNG、JPG、GIF 或 WebP，最多 1 MB" @change="selectFile"/>
       <el-button type="primary" :loading="busy" :disabled="disabled || !file" @click="saveImage">上传形象</el-button>
     </div>

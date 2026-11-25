@@ -9,11 +9,11 @@ export function resolveCampusMap(query:string,previousQuery='',maps:MapCatalogue
   if(!isCampusMapQuestion(query))return null
   const shortFollowup=/^(那|它|这个|那个|这里|那里)/.test(query) || /^(在哪|在哪里|位置|怎么走)[？?。]*$/.test(query.trim())
   const subject=shortFollowup?previousQuery+' '+query:query
-  const bothCampuses=query.includes('良乡')&&query.includes('望京')
-  const explicitCampus=bothCampuses?null:query.includes('良乡')?'liangxiang':query.includes('望京')?'wangjing':null
-  const previousAmbiguous=previousQuery.includes('良乡')&&previousQuery.includes('望京')
-  const inheritedCampus=previousAmbiguous?null:!explicitCampus && previousQuery.includes('良乡')?'liangxiang':!explicitCampus && previousQuery.includes('望京')?'wangjing':null
-  const scope=bothCampuses?null:explicitCampus || inheritedCampus
+  const forText=(text:string)=>maps.campuses.filter(campus=>[campus.id,campus.name,campus.name.replace(/校区$/,'')].some(name=>name.length>=2&&norm(text).includes(norm(name))))
+  const explicit=forText(query)
+  const inherited=shortFollowup&&!explicit.length?forText(previousQuery):[]
+  const recognized=explicit.length?explicit:inherited
+  const scope=recognized.length===1?recognized[0].id:null
   const q=norm(subject)
   const candidates=maps.campuses.filter(c=>!scope || c.id===scope).flatMap(c=>c.places.flatMap(p=>{
     const aliases=[p.name,...p.aliases].map(norm).filter(a=>a.length>=2&&q.includes(a))
@@ -21,13 +21,13 @@ export function resolveCampusMap(query:string,previousQuery='',maps:MapCatalogue
   }))
   // A longer building name owns its embedded short alias: 教工食堂 is not 学生食堂.
   const matches=candidates.filter(c=>!candidates.some(other=>other.campus.id===c.campus.id&&other.alias.length>c.alias.length&&other.alias.includes(c.alias)))
-  const wantsOverview=/校园地图|校区地图|学校地图/.test(query) || /^(良乡|望京)(校区)?地图/.test(query)
+  const wantsOverview=/校园地图|校区地图|学校地图/.test(query) || !!explicit.length&&query.includes('地图')
   if(!matches.length&&!wantsOverview)return null
   const campuses=matches.length?maps.campuses.filter(c=>matches.some(m=>m.campus.id===c.id)):maps.campuses.filter(c=>!scope||c.id===scope)
   const card={type:'map' as const,title:matches.length?'建筑位置 · 校园地图':'校园地图',campus:campuses[0].id,matches:campuses.map(c=>({campus:c.id,placeIds:matches.filter(m=>m.campus.id===c.id).map(m=>m.place.id)}))}
   const lines=matches.map(m=>`**${m.campus.name} · ${m.place.name}**：${m.place.description}`)
   const answer=(matches.length?lines.join('\n\n'):'可在下方切换校区、搜索建筑并查看位置。')+
-    (campuses.length>1?'\n\n两个校区均有相关位置，请在地图卡片中选择校区。':'')+
+    (campuses.length>1?'\n\n多个校区有相关位置，请在地图卡片中选择校区。':'')+
     '\n\n位置按用户提供的手绘校园图标示，为示意图。'+campuses.map(c=>`${c.name}原图：${c.edition}。`).join('')
   return {answer,card}
 }

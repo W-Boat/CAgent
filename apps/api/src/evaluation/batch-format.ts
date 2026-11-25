@@ -38,4 +38,4 @@ export function parseTestSet(data:string,format:'json'|'csv',fallback:DatasetSpl
 }
 export function flattenTestSet(batches:TestBatch[]):TestTurn[]{return batches.flatMap(b=>b.questions.map((question,i)=>({batchId:b.id,split:b.split,turn:i+1,question,expectedAnswer:b.expectedAnswers?.[i]||''})))}
 export function csvCell(value:unknown){let text=String(value??'');if(/^[\s]*[=+\-@]/.test(text))text="'"+text;return '"'+text.replace(/"/g,'""')+'"'}
-export const TEST_SET_EXAMPLE=JSON.stringify({batches:[{id:'通勤-01',split:'test',questions:['良乡校区附近的地铁站是哪个？','怎么去？']},{id:'图书馆-01',split:'validation',questions:['望京校区图书馆需要预约吗？']}]},null,2)
+export const TEST_SET_EXAMPLE=JSON.stringify({batches:[{id:'通勤-01',split:'test',questions:['主校区附近的地铁站是哪个？','怎么去？']},{id:'图书馆-01',split:'validation',questions:['第二校区图书馆需要预约吗？']}]},null,2)

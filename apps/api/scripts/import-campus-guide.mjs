@@ -1,11 +1,11 @@
 /**
- * 导入 ucass-campus-guide 的 guide_v4.json 到 campus_guide_items。
+ * 导入 campusdemo-campus-guide 的 guide_v4.json 到 campus_guide_items。
  *
  * 幂等：以 externalId（原始索引 id）为唯一键 upsert，可反复执行。
  *
  * 用法：
  *   cd apps/api
- *   node scripts/import-campus-guide.mjs                       # 默认读取仓库内 storage/ucass-guide/...
+ *   node scripts/import-campus-guide.mjs                       # 默认读取仓库内 storage/campusdemo-guide/...
  *   node scripts/import-campus-guide.mjs <path/to/guide_v4.json>
  *   node scripts/import-campus-guide.mjs --prune               # 同时删除索引里已不存在的条目
  */
@@ -32,8 +32,8 @@ const explicit = args.find((a) => !a.startsWith("--"))
 
 const CANDIDATES = [
   explicit,
-  resolve(here, "../../../storage/ucass-guide/pkg/ucass-campus-guide/data/guide_v4.json"),
-  resolve(here, "../../../storage/ucass-guide/ucass-campus-guide/data/guide_v4.json")
+  resolve(here, "../../../storage/campusdemo-guide/pkg/campusdemo-campus-guide/data/guide_v4.json"),
+  resolve(here, "../../../storage/campusdemo-guide/campusdemo-campus-guide/data/guide_v4.json")
 ].filter(Boolean)
 
 const indexPath = CANDIDATES.find((p) => existsSync(p))
@@ -187,7 +187,7 @@ async function main() {
     create: {
       key: "campus_guide_meta",
       group: "campus",
-      description: "UCASS 校园导览索引元信息",
+      description: "campusdemo 校园导览索引元信息",
       value: {
         schema: meta.schema ?? "guide/v4",
         verifiedAt: meta.verified_at ?? null,

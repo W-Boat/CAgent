@@ -4,7 +4,7 @@ from fontTools.ttLib import TTFont
 from fontTools import subset
 root=Path(__file__).resolve().parents[1];source=Path(sys.argv[1]);license_file=Path(sys.argv[2]);out=root/'public/fonts';out.mkdir(parents=True,exist_ok=True)
 original=TTFont(source);all_codes=set(original.getBestCmap())
-text='CAgent 校园智能体平台 欢迎回来 创建账号 校园里的问题，从这里开始。查校园资料找校内地点理清办理流程中国社会科学院大学社科大行知思源宋体登录注册'
+text='CAgent 校园智能体平台 欢迎回来 创建账号 校园里的问题，从这里开始。查校园资料找校内地点理清办理流程校园行知思源宋体登录注册'
 core=({ord(c) for c in text}|set(range(32,127)))&all_codes
 
 def ranges(values):

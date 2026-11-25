@@ -1,6 +1,6 @@
-export const academicCalendarIndex = 'https://jw.ucass.edu.cn/jxrl.htm'
-export const academicCalendarPortal = 'https://app.ucass.edu.cn/wap/material?id=7'
-export const campusDepartments = 'https://www.ucass.edu.cn/xxgk1/zzjg.htm'
+export const academicCalendarIndex = process.env.CAMPUS_CALENDAR_INDEX_URL || 'https://campus.example.invalid/calendar'
+export const academicCalendarPortal = process.env.CAMPUS_CALENDAR_PORTAL_URL || academicCalendarIndex
+export const campusDepartments = process.env.CAMPUS_DIRECTORY_URL || 'https://campus.example.invalid/directory'
 
 type Office = [label:string, numbers:string[]]
 type ContactSource = {department:string; url:string; offices:Office[]}

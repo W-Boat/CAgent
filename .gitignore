@@ -101,8 +101,8 @@ knowledge/**
 !knowledge/*.mjs
 !knowledge/*.py
 deploy/profiles/**
-!deploy/profiles/ucass/
-!deploy/profiles/ucass/README.md
+!deploy/profiles/campusdemo/
+!deploy/profiles/campusdemo/README.md
 *.sqlite
 *.sqlite3
 *.db

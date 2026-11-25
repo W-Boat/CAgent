@@ -438,13 +438,13 @@ const TOOLS = [
   { action: "evaluate", label: "执行脚本", icon: "Cpu", needsSelector: false, needsValue: true }
 ]
 
-// 常用网址模板（针对 UCASS 校园系统）
+// 常用网址模板（针对 campusdemo 校园系统）
 const QUICK_URLS = [
-  { label: "教务系统", url: "https://jwgl.ucass.edu.cn", icon: "Reading" },
-  { label: "网络中心", url: "https://nic.ucass.edu.cn", icon: "Connection" },
-  { label: "图书馆", url: "https://lib.ucass.edu.cn", icon: "Collection" },
-  { label: "邮件系统", url: "https://mail.ucass.edu.cn", icon: "Message" },
-  { label: "校园门户", url: "https://portal.ucass.edu.cn", icon: "HomeFilled" }
+  { label: "教务系统", url: "https://jwgl.campus.example.invalid", icon: "Reading" },
+  { label: "网络中心", url: "https://nic.campus.example.invalid", icon: "Connection" },
+  { label: "图书馆", url: "https://lib.campus.example.invalid", icon: "Collection" },
+  { label: "邮件系统", url: "https://mail.campus.example.invalid", icon: "Message" },
+  { label: "校园门户", url: "https://portal.campus.example.invalid", icon: "HomeFilled" }
 ]
 
 const ACTIONS = [

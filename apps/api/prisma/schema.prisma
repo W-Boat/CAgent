@@ -916,8 +916,8 @@ model AuditLog {
 }
 
 // ============================================================
-//  校园门户导览（UCASS）
-//  数据来源：ucass-campus-guide skill（guide/v4，2026-09-23 快照）
+//  校园门户导览（campusdemo）
+//  数据来源：部署方导入的校园资料
 //  定位：指路人而非代办者——只给路径与提示，页面由用户自己打开操作
 // ============================================================
 
@@ -937,7 +937,7 @@ model CampusGuideItem {
   dept       String? // 办理部门
   place      String? // 办理地点
   tel        String? // 联系电话
-  campus     String? // 良乡 / 望京 / 通用
+  campus     String? // 主校区 / 第二校区 / 通用
   form       String? // 办理形式
   officeTime String? @map("office_time")
   contact    String?

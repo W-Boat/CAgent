@@ -708,7 +708,7 @@ export interface PublicSettings extends StudentDisplaySettings {
   student_fallback_model_id?: string
 }
 
-// ---------- 校园导览（UCASS） ----------
+// ---------- 校园导览（campusdemo） ----------
 
 export type CampusGuideMode = "guide" | "full"
 

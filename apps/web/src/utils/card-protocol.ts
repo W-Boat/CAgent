@@ -66,7 +66,7 @@ export const CARD_PROTOCOL = `你有一个「卡片」能力：在合适的时�
 - multiple 为 true 时可多选；前端会把选中项拼成一条消息发给你。
 
 【guide 入口卡】—— 有明确的下一步去处（办事页面、流程入口）时用
-{"type":"guide","title":"接下来你可以","intro":"一句话说明","items":[{"label":"校园卡服务中心","desc":"良乡校区行政楼一层","meta":"工作日 9:00-17:00","url":"https://easy.ucass.edu.cn/…","action":"补办校园卡怎么办"}]}
+{"type":"guide","title":"接下来你可以","intro":"一句话说明","items":[{"label":"校园卡服务中心","desc":"主校区行政楼一层","meta":"工作日 9:00-17:00","url":"https://easy.campus.example.invalid/…","action":"补办校园卡怎么办"}]}
 - 检索结果给了「网页入口：https://…」时，把它放进对应条目的 url 字段——前端会渲染成可直接打开的外链按钮，这是最好的去处。
 - url 只能逐字复制检索结果里出现过的链接，严禁拼造；没有真实链接时省略 url，用 action（点击后代用户发出的话）引导继续对话。
 

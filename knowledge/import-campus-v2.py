@@ -22,7 +22,7 @@ records={t:[dict(r) for r in db.execute('select * from '+t)] for t in tables};se
 aliases=collections.defaultdict(list)
 for r in records['aliases']:aliases[r['service_id']].append(r['expression'])
 items=[];ids=set();skipped=[];existing={r['id'] for r in json.loads((root/'dist/campus-kb.json').read_text(encoding='utf-8'))['items']}
-collection='campus-v2-contest';notice='【赛事模拟数据】不代表社科大实际运营规则、当前资源余量或用户本人状态。'
+collection='campus-v2-contest';notice='【赛事模拟数据】不代表校园实际运营规则、当前资源余量或用户本人状态。'
 def add(key,title,body,kind='知识',service_id=None,table=None,row=None,part=0,indexable=True):
     if '人文之光' in title+' '+body:skipped.append(key);return
     ident=900000000+int(hashlib.sha256(key.encode()).hexdigest()[:12],16)%100000000

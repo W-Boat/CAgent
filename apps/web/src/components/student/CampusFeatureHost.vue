@@ -8,7 +8,7 @@ import {useAuthStore} from '@/stores/auth'
 defineProps<{narrow?:boolean;mobileMode?:'drawer'|'full'}>()
 const emit=defineEmits<{ask:[text:string]}>()
 const route=useRoute(),router=useRouter(),auth=useAuthStore()
-const XinguaGame=defineAsyncComponent(()=>import('./XinguaGame.vue'))
+const CampusGame=defineAsyncComponent(()=>import('./CampusGame.vue'))
 const StudentCard=defineAsyncComponent(()=>import('./StudentCard.vue'))
 const LecturePanel=defineAsyncComponent(()=>import('@/views/campus/LectureCalendarView.vue'))
 const current=ref<CampusFeature>('game'),open=ref(false),busy=ref(false),card=ref<Record<string,unknown>>(),frame=ref(''),frameReady=ref(false)
@@ -59,7 +59,7 @@ defineExpose({show})
         <el-skeleton v-if="!frameReady" class="campus-frame-loading" :rows="5" animated/>
         <iframe :key="frame" :src="frame" :title="title" :class="{'is-ready':frameReady}" @load="frameReady=true"/>
       </template>
-      <XinguaGame v-else-if="current==='game'"/>
+      <CampusGame v-else-if="current==='game'"/>
       <LecturePanel v-else-if="current==='lecture'" student-mode/>
       <el-skeleton v-else-if="busy" :rows="4" animated/>
       <StudentCard v-else-if="card" :card="card" @ask="ask"/>

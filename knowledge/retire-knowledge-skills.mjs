@@ -5,7 +5,7 @@ const index=process.argv.indexOf('--api'),origin=index>=0?process.argv[index+1]:
 let token=''
 async function request(method,path,body){const r=await fetch(origin+'/api'+path,{method,headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:body?JSON.stringify(body):undefined}),j=await r.json();if(j.code!==0||!r.ok)throw new Error(j.message||String(r.status));return j.data}
 token=(await request('POST','/auth/login',{email:process.env.INTEGRATE_EMAIL||process.env.SEED_ADMIN_EMAIL,password:process.env.INTEGRATE_PASSWORD||process.env.SEED_ADMIN_PASSWORD})).accessToken
-for(const [key,collection] of [['ucass-kb-survival','survival'],['ucass-kb-takeout','takeout']]){
+for(const [key,collection] of [['campusdemo-kb-survival','survival'],['campusdemo-kb-takeout','takeout']]){
  const catalog=await request('GET','/campus/library?collection='+collection+'&pageSize=1')
  if(!catalog.total)throw new Error('知识库内容缺失，保留旧入口：'+collection)
  const list=await request('GET','/skills?keyword='+key),skill=list.find(s=>s.key===key)

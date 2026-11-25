@@ -13,7 +13,7 @@ import { PublicNewsService } from './public-news.service'
 import { SettingsModule } from '../settings/settings.module'
 
 /**
- * UCASS 校园门户导览模块。
+ * campusdemo 校园门户导览模块。
  *
  * 复用平台的浏览器操控引擎（BrowserModule）与 Prisma，不引入新的外部依赖，
  * 因此天然融入已有的权限体系、审计与后台管理。

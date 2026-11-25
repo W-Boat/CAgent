@@ -20,7 +20,7 @@ import {PrismaService} from '../prisma/prisma.service'
 import {currentCampusMaps,mapImagePrefix} from './campus-map-storage'
 
 /**
- * UCASS 校园门户导览。
+ * campusdemo 校园门户导览。
  *
  * 定位：**指路人，不是代办者**。
  *   - 检索只给路径（部门/地点/电话/步骤/关键参数/入口）

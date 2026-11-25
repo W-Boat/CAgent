@@ -10,9 +10,9 @@ import { buildGuidance, type KnowledgeGuidance } from './knowledge-guidance'
 import {sourcesFromEvidence} from './knowledge-evidence'
 
 /**
- * UCASS 校园门户导览检索服务。
+ * campusdemo 校园门户导览检索服务。
  *
- * 数据来自 ucass-campus-guide skill（guide/v4，2026-09-23 快照，4909 条），
+ * 导览资料由部署方导入。
  * 由 scripts/import-campus-guide.mjs 导入到 campus_guide_items。
  *
  * 定位纪律（与 SKILL.md 一致）：
@@ -172,7 +172,7 @@ export class CampusGuideService implements OnApplicationBootstrap {
   private warningsFor(row: any): string[] {
     const out: string[] = []
     if (row.access === "校园网/VPN") {
-      out.push("该入口需在校园网内访问，或先连接 aTrust VPN，否则会打不开。")
+      out.push("该入口需在校园网内访问，或先连接 学校配置的 VPN，否则会打不开。")
     } else if (row.access === "已合并下线") {
       out.push("该平台已合并到其他系统，请从新入口进入。")
     }
@@ -540,8 +540,7 @@ export class CampusGuideService implements OnApplicationBootstrap {
         `未在本地索引中检索到与「${res.query}」匹配的条目。`,
         `覆盖范围：${res.meta.total} 条（快照 ${res.meta.verifiedAt}）。`,
         "建议换更短的核心词（如「户口」而不是「毕业生户口迁出」），或让学生自行搜索：",
-        "- https://easy.ucass.edu.cn （一站式服务平台）",
-        "- https://info.ucass.edu.cn （校园门户）"
+        "- 从已连接的校园资料查询官方入口"
       ].join("\n").slice(0, budget)
     }
     const queryTerms = terms(res.query)

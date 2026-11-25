@@ -21,20 +21,7 @@ const campusNet = useCampusNetStore()
         <div class="cn-card">
           <div class="cn-badge">校内模型</div>
           <h2 class="cn-title">同学你好，是否已连接校园网？</h2>
-          <p class="cn-text">
-            以下两个模型可自行选择使用。模型仅支持在<strong>校园网环境</strong>下调用，且均为学校本地化部署。因硬件资源有限，高峰时段可能出现卡顿、延迟或排队等情况，敬请谅解。若在使用模型过程中遇到问题，可致电
-            <strong>52576025</strong> 咨询。
-          </p>
-          <ul class="cn-models">
-            <li>
-              <span class="cn-model-name">step-3.7-flash</span>
-              <code>http://10.27.66.12/v1</code>
-            </li>
-            <li>
-              <span class="cn-model-name">qwen3.8-27b</span>
-              <code>http://10.27.66.12/v1</code>
-            </li>
-          </ul>
+          <p class="cn-text">校园网模式会优先使用部署者配置的校内模型。</p>
           <p class="cn-note">
             选择「校园网」后，默认模型将优先使用校内模型；普通网络则沿用平台默认。
             之后可随时在对话页的模型选择器里切换。

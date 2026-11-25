@@ -1,3 +1,4 @@
+import {isCampusOfficialHost} from '../common/campus-deployment'
 import {createHash} from 'node:crypto'
 import {load} from 'cheerio'
 import {z} from 'zod'
@@ -5,7 +6,7 @@ import {DEFAULT_LECTURE_SOURCES} from './lecture-sources'
 
 export const LECTURE_FILE='讲座聚合/lectures.json', LECTURE_COLLECTION='lectures'
 export function lectureUrl(value:string){
- try{const u=new URL(value),school=u.hostname==='ucass.edu.cn'||u.hostname.endsWith('.ucass.edu.cn');if(!(u.protocol==='https:'||u.protocol==='http:'&&school)||u.port||u.username||u.password||!(school||u.hostname==='mp.weixin.qq.com'))return null
+ try{const u=new URL(value),school=isCampusOfficialHost(u.hostname);if(!(u.protocol==='https:'||u.protocol==='http:'&&school)||u.port||u.username||u.password||!(school||u.hostname==='mp.weixin.qq.com'))return null
   u.hash='';return u.href
  }catch{return null}
 }
@@ -14,8 +15,8 @@ export const collectorSchema=z.object({
  enabled:z.boolean().default(false),intervalMinutes:z.number().int().min(60).max(10080).default(720),
  campusNetwork:z.boolean().default(false),
  maxPages:z.number().int().min(1).max(5).default(1),maxArticles:z.number().int().min(1).max(100).default(30),
- sources:z.array(z.object({id:z.string().regex(/^[\w-]{1,60}$/),name:z.string().min(1).max(150),url:endpoint,mode:z.enum(['all','filter']).default('filter'),enabled:z.boolean().default(true)})).min(1).max(50)
-}).strict().refine(c=>new Set(c.sources.map(s=>s.id)).size===c.sources.length,'信息源标识不可重复')
+ sources:z.array(z.object({id:z.string().regex(/^[\w-]{1,60}$/),name:z.string().min(1).max(150),url:endpoint,mode:z.enum(['all','filter']).default('filter'),enabled:z.boolean().default(true)})).max(50)
+}).strict().refine(c=>(!c.enabled||c.sources.length>0)&&new Set(c.sources.map(s=>s.id)).size===c.sources.length,'启用采集时需配置来源，来源标识不可重复')
 export type CollectorConfig=z.infer<typeof collectorSchema>
 export const defaultCollectorConfig=()=>collectorSchema.parse({sources:DEFAULT_LECTURE_SOURCES})
 export function plain(value:unknown,max=1000):string{

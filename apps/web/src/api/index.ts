@@ -27,7 +27,7 @@ interface FilterableItem {
 }
 
 function isHidden(item: FilterableItem): boolean {
-  if (/^(ucass-kb-(survival|takeout)|kb-)/.test(item.key||"")) return true
+  if (/^(campusdemo-kb-(survival|takeout)|kb-)/.test(item.key||"")) return true
   const hay = `${item.key || ""} ${item.name || ""} ${item.description || ""}`
   return HIDDEN_PATTERNS.some((re) => re.test(hay))
 }
@@ -582,7 +582,7 @@ export const auditApi = {
   detail: (id: string) => get<AuditLog>(`/audit-logs/${id}`),
 }
 
-// ---------------- 校园导览（UCASS） ----------------
+// ---------------- 校园导览（campusdemo） ----------------
 
 export const campusApi = {
   library:(params:Record<string,unknown>={})=>get<Paged<CampusGuideHit>>('/campus/library',params),

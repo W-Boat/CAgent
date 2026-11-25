@@ -4,7 +4,7 @@ CREATE TABLE "user_timetables" (
   "courses" JSONB NOT NULL,
   "warnings" JSONB NOT NULL,
   "semester_start" TEXT,
-  "campus" TEXT NOT NULL DEFAULT 'liangxiang',
+  "campus" TEXT NOT NULL DEFAULT 'main-campus',
   "use_in_chat" BOOLEAN NOT NULL DEFAULT false,
   "reminders_enabled" BOOLEAN NOT NULL DEFAULT false,
   "reminder_lead_minutes" INTEGER NOT NULL DEFAULT 15,

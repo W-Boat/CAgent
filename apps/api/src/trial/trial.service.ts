@@ -77,7 +77,7 @@ export class TrialService {
   private async guideId(): Promise<string | undefined> {
     if (!this.guideAgentId) {
       const a = await this.prisma.agent.findFirst({
-        where: { key: "ucass-guide", enabled: true },
+        where: { key: "campusdemo-guide", enabled: true },
         select: { id: true }
       })
       this.guideAgentId = a?.id ?? ""

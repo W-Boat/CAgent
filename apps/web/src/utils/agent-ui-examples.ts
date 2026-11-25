@@ -6,7 +6,7 @@ export const UI_EXAMPLES:{label:string;document:UiPage}[]=[
   {type:'text',id:'heading',role:'heading',content:'校园卡服务 · 示例'},
   {type:'text',id:'intro',content:'先选择适合的办理方式，具体开放时间和办理要求请向服务窗口核实。'},
   {type:'card_group',id:'channels',layout:'grid',children:[
-   {type:'service_card',id:'offline',mode:'offline',title:'校园卡服务窗口',summary:'补卡等需要现场办理的事项。以下位置仅用于排版示例。',location:'良乡校区 · 教学综合楼 3 层 309',actionLabel:'询问怎么走',action:{kind:'ask',message:'良乡校园卡服务窗口怎么走？'}},
+   {type:'service_card',id:'offline',mode:'offline',title:'校园卡服务窗口',summary:'补卡等需要现场办理的事项。以下位置仅用于排版示例。',location:'主校区 · 行政楼服务大厅',actionLabel:'询问怎么走',action:{kind:'ask',message:'主校区校园卡服务窗口怎么走？'}},
    {type:'service_card',id:'online',mode:'online',title:'一站式服务大厅',summary:'在线事务请查询已收录的真实入口；此处为排版示例。',actionLabel:'查询办理入口',action:{kind:'ask',message:'请查询一站式服务大厅校园卡办理入口'}},
   ]},
   {type:'card_group',id:'preparation',layout:'stack',children:[
@@ -14,9 +14,9 @@ export const UI_EXAMPLES:{label:string;document:UiPage}[]=[
    {type:'steps',id:'service_steps',title:'办理流程 · 示例',steps:[{title:'查看最新指南',desc:'先确认事项与适用对象。'},{title:'按指南办理',desc:'线上或现场操作，以主管部门发布为准。'},{title:'核对结果',desc:'查看本人的申请结果或领取凭证。'}]},
   ]},
   {type:'notice',id:'service_notice',title:'先核实，再前往',tone:'info',body:'示例中的勾选只记录个人准备进度；不会提交申请或改变学校系统中的办理状态。'},
- ],'排版示例：校园卡服务可按线上、线下渠道组织。良乡窗口位置示例为教学综合楼3层309。具体要求需核实；可继续询问路线或在线入口。')},
+ ],'排版示例：校园卡服务可按线上、线下渠道组织。主校区窗口位置示例为行政楼服务大厅。具体要求需核实；可继续询问路线或在线入口。')},
  {label:'文字',document:page('text_demo',[{type:'text',id:'title',role:'heading',content:'先给出结论'},{type:'text',id:'body',content:'简单问题用一句清楚的回答就够了。长篇解释、诗歌和代码仍可使用普通 Markdown，不需要强制变成卡片。'},{type:'text',id:'caption',role:'caption',content:'这里只演示文字的语义角色。'}],'简单问题直接回答；长篇内容不必强制卡片化。')},
- {label:'图片',document:page('image_demo',[{type:'image',id:'cover',url:origin.replace(/^http:/,'https:')+'/og-cover.png',alt:'行知校园平台封面',caption:'来自平台已有公开图片，用于演示图片组件。'}],'平台封面图片组件示例。')},
+ {label:'图片',document:page('image_demo',[{type:'image',id:'cover',url:origin.replace(/^http:/,'https:')+'/og-cover.png',alt:'校园导览平台封面',caption:'来自平台已有公开图片，用于演示图片组件。'}],'平台封面图片组件示例。')},
  {label:'信息卡',document:page('info_demo',[{type:'info_card',id:'plan',title:'每周学习安排',badge:'示例方案',summary:'把每天的投入拆成可持续的小目标。',metrics:[{label:'每日投入',value:'1 小时（示例）'},{label:'每周复盘',value:'1 次（示例）'}]}],'示例学习安排：每日投入1小时，每周复盘1次。')},
  {label:'卡片组',document:page('group_demo',[{type:'card_group',id:'group',layout:'grid',children:[{type:'info_card',id:'a',title:'方案 A',summary:'每次完成一个小任务。'},{type:'info_card',id:'b',title:'方案 B',summary:'集中时间处理同一主题。'}]}],'示例：方案A分散完成小任务；方案B集中处理同一主题。')},
  {label:'表格',document:page('table_demo',[{type:'table',id:'comparison',title:'示例学习方案对比',columns:['方案','每天投入','适合情况'],rows:[['A','1 小时','时间较分散'],['B','2 小时','有完整时间块'],['C','30 分钟','先建立习惯']]}],'示例：A每天1小时，适合分散时间；B每天2小时，适合完整时间块；C每天30分钟，适合建立习惯。')},
@@ -36,6 +36,6 @@ export const UI_EXAMPLES:{label:string;document:UiPage}[]=[
   ]},
  ],'线上服务打开已核实入口；线下窗口保留地点与联系方式，出发前确认时间和材料。本页均为排版示例。')},
  {label:'关键信息',document:page('key_values_demo',[
-  {type:'key_values',id:'service_facts',title:'办理前先看这些 · 示例',items:[{label:'办理对象',value:'以实际办事指南中的适用身份为准'},{label:'所在校区',value:'先确认良乡或望京校区'},{label:'开放时间',value:'未收录，请向服务部门核实'},{label:'材料要求',value:'核对原件、复印件与代办要求，不补造缺失信息'}],note:'字段式呈现适合查时间、地点、联系方式等问题；具体事实必须来自已核实知识库。'},
+  {type:'key_values',id:'service_facts',title:'办理前先看这些 · 示例',items:[{label:'办理对象',value:'以实际办事指南中的适用身份为准'},{label:'所在校区',value:'先确认主校区或第二校区'},{label:'开放时间',value:'未收录，请向服务部门核实'},{label:'材料要求',value:'核对原件、复印件与代办要求，不补造缺失信息'}],note:'字段式呈现适合查时间、地点、联系方式等问题；具体事实必须来自已核实知识库。'},
  ],'办理前确认适用身份、校区、开放时间与材料要求。缺失内容应核实，不填造。本页为排版示例。')},
 ]

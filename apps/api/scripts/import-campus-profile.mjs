@@ -31,7 +31,7 @@ export async function applyCampusProfile(db,profile,{allowExisting=false,modelRe
   return {installed:true,counts:manifest.counts,requiresConfiguration:c.bases.filter(b=>b.requiresConnection).map(b=>b.name)}
  },{maxWait:10000,timeout:180000})
 }
-async function main(){const args=process.argv.slice(2),modelIndex=args.indexOf('--model'),modelRef=modelIndex>=0?args[modelIndex+1]:undefined;if(modelIndex>=0&&!modelRef)throw Error('--model requires providerKey/modelKey');const directory=args.find((x,i)=>!x.startsWith('--')&&!(modelIndex>=0&&i===modelIndex+1))||resolve(here,'../../../deploy/profiles/ucass'),profile=loadCampusProfile(directory,process.env.SITE_ORIGIN||process.env.WEB_ORIGIN?.split(',')[0]||'http://localhost:5173')
+async function main(){const args=process.argv.slice(2),modelIndex=args.indexOf('--model'),modelRef=modelIndex>=0?args[modelIndex+1]:undefined;if(modelIndex>=0&&!modelRef)throw Error('--model requires providerKey/modelKey');const directory=args.find((x,i)=>!x.startsWith('--')&&!(modelIndex>=0&&i===modelIndex+1))||resolve(here,'../../../deploy/profiles/campusdemo'),profile=loadCampusProfile(directory,process.env.SITE_ORIGIN||process.env.WEB_ORIGIN?.split(',')[0]||'http://localhost:5173')
  if(!args.includes('--apply')){console.log(JSON.stringify({valid:true,dryRun:true,counts:profile.manifest.counts,next:'Pass --apply after seeding a fresh database'}));return}
  const {PrismaClient}=await import('@prisma/client');const db=new PrismaClient();try{console.log(JSON.stringify(await applyCampusProfile(db,profile,{allowExisting:args.includes('--allow-existing'),modelRef})))}finally{await db.$disconnect()}
 }
