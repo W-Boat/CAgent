@@ -6,7 +6,7 @@ withDefaults(defineProps<{ label?: string; rows?: number }>(), {
 </script>
 
 <template>
-  <div class="page-loading">
+  <div class="page-loading" :class="{ 'has-skeleton': rows > 0 }">
     <div class="page-loading-progress" role="progressbar" :aria-label="label"></div>
     <el-skeleton v-if="rows > 0" animated :rows="rows" aria-hidden="true"/>
   </div>
@@ -19,6 +19,13 @@ withDefaults(defineProps<{ label?: string; rows?: number }>(), {
   min-width: 0;
   margin-block: 12px;
 }
+.page-loading.has-skeleton > * {
+  width: min(100%, 34rem);
+  margin-inline: auto;
+}
+.page-loading :deep(.el-skeleton__paragraph) { width: 86%; }
+.page-loading :deep(.el-skeleton__paragraph:nth-child(3n)) { width: 64%; }
+.page-loading :deep(.el-skeleton__paragraph:last-child) { width: 42%; }
 .page-loading-progress {
   position: relative;
   height: 3px;
