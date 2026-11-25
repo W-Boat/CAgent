@@ -135,7 +135,7 @@ async function main() {
   }
   const lock = path.join(data, 'install.lock')
   const descriptor = fs.openSync(lock, 'wx')
-  let child, db
+  let child, db, completed = false
   try {
     const settings = await configure(options)
     await available(settings.dbPort, '127.0.0.1')
@@ -174,12 +174,16 @@ async function main() {
       if (bundles['--test-accounts']==='true') await installTestAccounts(db,admin,settings)
     }
     if (packet) await installKeys(db, settings, packet)
-    if (!installed) fs.writeFileSync(readyFile, JSON.stringify({ installedAt: new Date().toISOString(), restoreDigest }))
+    completed = !installed
   } finally {
     try { await db?.$disconnect() } finally {
-      runtime.stopDatabase(child)
-      fs.closeSync(descriptor)
-      fs.unlinkSync(lock)
+      try {
+        runtime.stopDatabase(child)
+        if (completed) fs.writeFileSync(readyFile, JSON.stringify({ installedAt: new Date().toISOString(), restoreDigest }))
+      } finally {
+        fs.closeSync(descriptor)
+        fs.unlinkSync(lock)
+      }
     }
   }
 }

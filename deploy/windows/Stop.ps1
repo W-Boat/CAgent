@@ -9,7 +9,7 @@ if (-not (Get-Process -Id $deploymentPid -ErrorAction SilentlyContinue)) {
     return
 }
 New-Item -ItemType File -Path (Join-Path $data 'stop.request') -Force | Out-Null
-$deadline = [DateTime]::UtcNow.AddSeconds(30)
+$deadline = [DateTime]::UtcNow.AddSeconds(165)
 while ((Test-Path -LiteralPath $pidFile) -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 400 }
 if (Test-Path -LiteralPath $pidFile) { throw 'Timed out while stopping. Review data\runtime-error.log.' }
 Write-Host 'CAgent stopped.'

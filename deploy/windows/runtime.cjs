@@ -53,8 +53,12 @@ function startDatabase(settings) {
 
 function stopDatabase(child) {
   if (!child?.pid || child.exitCode !== null) return
-  try { command(path.join(postgres, 'pg_ctl.exe'), ['stop', '-D', 'postgres', '-m', 'fast', '-w', '-t', '20'], { quiet: true }) }
-  catch { child.kill() }
+  try {
+    command(path.join(postgres, 'pg_ctl.exe'), ['stop', '-D', 'postgres', '-m', 'fast', '-w', '-t', '150'], { quiet: true })
+  } catch {
+    if (!fs.existsSync(path.join(data, 'postgres/postmaster.pid'))) return
+    throw Error('PostgreSQL has not finished shutting down. Wait for disk writes to finish and review data/postgres.log before retrying.')
+  }
 }
 
 async function waitFor(check, description, milliseconds = 45000) {
